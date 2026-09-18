@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Enquiry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  category       String
+  description    String?  @db.Text
+  capacity       String
+  power          String
+  image          String
+  enquiryCount   Int      @default(0)
+  specifications Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Blog {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  excerpt      String   @db.Text
+  content      String   @db.Text
+  category     String
+  readTime     String
+  authorName   String
+  authorRole   String
+  authorAvatar String
+  date         String
+  image        String
+  tags         String[]
+  keyTakeaways String[]
+  views        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
