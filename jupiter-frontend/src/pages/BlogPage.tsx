@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, ArrowRight, Home, Settings, Mail, Sparkles } from 'lucide-react';
+import { Clock, ArrowRight, Home, Sparkles } from 'lucide-react';
 import { PageBanner } from '../components/PageBanner';
 
 export const BlogPage: React.FC = () => {

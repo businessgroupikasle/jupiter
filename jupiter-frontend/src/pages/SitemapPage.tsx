@@ -3,16 +3,9 @@ import { PageBanner } from '../components/PageBanner';
 import { Link } from 'react-router-dom';
 import { 
   Home, 
-  Info, 
   Package, 
-  Image as ImageIcon, 
-  BookOpen, 
-  PhoneCall, 
   Lock, 
-  FileText, 
   Layers, 
-  MapPin, 
-  CheckCircle,
   ExternalLink
 } from 'lucide-react';
 

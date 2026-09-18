@@ -7,9 +7,7 @@ import {
   Phone, 
   ArrowRight,
   ShieldCheck,
-  MapPin,
-  Clock,
-  Award
+  MapPin
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

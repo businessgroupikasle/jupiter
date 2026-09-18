@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Play, PlayCircle, ArrowRight, X, ExternalLink, Image as ImageIcon, Film, ZoomIn, CheckCircle2 } from 'lucide-react';
+import { MapPin, Play, ArrowRight, X, ExternalLink, Image as ImageIcon, Film, ZoomIn, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { VideoItem, getStoredVideos, getYouTubeEmbedUrl } from '../services/videoService';
 import { GalleryPhotoItem, getStoredGalleryPhotos } from '../services/galleryService';
-import { IMAGES } from '../assets/images/images';
 
 import { PageBanner } from '../components/PageBanner';
 

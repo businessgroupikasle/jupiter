@@ -1,7 +1,7 @@
 import { createApp } from './app';
 import { env } from './config/env';
 import { PrismaClient } from '@prisma/client';
-import { seedDatabase } from '../prisma/seed';
+import { seedDatabase } from './seed';
 
 const prisma = new PrismaClient();
 const app = createApp();

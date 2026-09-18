@@ -21,7 +21,7 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
   const [signupPassword, setSignupPassword] = useState('');
   const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [signupAdminCode, setSignupAdminCode] = useState('JUPITER2026');
-  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupPassword] = useState(false);
 
   // General UI state
   const [errorMsg, setErrorMsg] = useState('');

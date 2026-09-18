@@ -31,11 +31,9 @@ import {
   Save,
   Download,
   Check,
-  Sparkles,
   BookOpen,
   Upload,
-  LogOut,
-  RotateCcw
+  LogOut
 } from 'lucide-react';
 import { IMAGES } from '../assets/images/images';
 import '../styles/admin.css';
@@ -60,7 +58,6 @@ import {
   getStoredProducts,
   fetchProducts,
   clearAllProducts,
-  resetProductsToDefault,
   addProduct,
   updateProduct,
   deleteProduct,
@@ -81,7 +78,6 @@ import {
 } from '../services/blogService';
 import {
   getStoredEnquiries,
-  saveStoredEnquiries,
   deleteStoredEnquiry,
   updateStoredEnquiryStatus
 } from '../services/enquiryService';
