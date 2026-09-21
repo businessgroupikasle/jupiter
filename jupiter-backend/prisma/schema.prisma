@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Enquiry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  category       String
+  description    String?  @db.Text
+  capacity       String
+  power          String
+  image          String
+  enquiryCount   Int      @default(0)
+  specifications Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([category])
+}
+
+model Blog {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  excerpt      String   @db.Text
+  content      String   @db.Text
+  category     String
+  readTime     String
+  authorName   String
+  authorRole   String
+  authorAvatar String
+  date         String
+  image        String
+  tags         String[]
+  keyTakeaways String[]
+  views        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  client      String   @default("Valued Client")
+  location    String   @default("Tamil Nadu, India")
+  machine     String   @default("Jupiter Automatic Machinery")
+  year        String   @default("2026")
+  status      String   @default("Completed")
+  image       String   @default("/images/arunachala-plant.jpg")
+  description String?  @db.Text
+  capacity    String?  @default("High Production Output")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model GalleryPhoto {
+  id          String   @id @default(cuid())
+  title       String
+  category    String   @default("Manufacturing Plants")
+  location    String   @default("Coimbatore, Tamil Nadu")
+  machine     String   @default("Jupiter Heavy Engineering")
+  output      String   @default("Commercial Grade")
+  image       String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
+
+model Video {
+  id          String   @id @default(cuid())
+  title       String
+  videoUrl    String
+  embedUrl    String
+  views       String   @default("2.5K views")
+  duration    String   @default("3:30")
+  image       String
+  category    String   @default("Block Machines")
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
