@@ -190,7 +190,7 @@ export const AboutPage: React.FC = () => {
                 <div className="mission-card-content">
                   <h3 className="mission-card-title">Our Mission</h3>
                   <p className="mission-card-desc">
-                    To engineer world-class, high-tonnage brick and block manufacturing machinery that empowers plant owners and construction builders to achieve maximum daily output, minimal power consumption, and long-term durability with zero downtime.
+                    To engineer reliable, high-performance brick and block manufacturing machinery that helps plant owners and construction businesses achieve efficient production, consistent product quality, optimized power consumption and long-term machine performance.
                   </p>
                 </div>
               </div>
@@ -202,7 +202,7 @@ export const AboutPage: React.FC = () => {
                 <div className="mission-card-content">
                   <h3 className="mission-card-title">Our Vision</h3>
                   <p className="mission-card-desc">
-                    To be India’s most trusted machinery manufacturer and global engineering exporter, leading the transformation towards eco-friendly fly ash utilization and automated construction infrastructure worldwide.
+                    To become a trusted Indian construction machinery manufacturer and global engineering partner, driving the adoption of automated manufacturing solutions and sustainable building materials such as fly ash products across India and international markets.
                   </p>
                 </div>
               </div>
@@ -253,7 +253,7 @@ export const AboutPage: React.FC = () => {
             border: '1px solid #E2E8F0'
           }}>
             {/* Certificate Image Frame */}
-            <div 
+            <div
               style={{
                 position: 'relative',
                 width: '100%',
@@ -265,9 +265,9 @@ export const AboutPage: React.FC = () => {
               }}
               onClick={() => setShowCertModal(true)}
             >
-              <img 
-                src={isoCertificationImg} 
-                alt="Jupiter Industries ISO 9001:2015 Certificate" 
+              <img
+                src={isoCertificationImg}
+                alt="Jupiter Industries ISO 9001:2015 Certificate"
                 style={{ width: '100%', height: 'auto', display: 'block' }}
               />
             </div>
@@ -280,8 +280,8 @@ export const AboutPage: React.FC = () => {
             <div className="modal-content-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '750px', background: '#ffffff', borderRadius: '12px', overflow: 'hidden' }}>
               <div className="modal-header-bar" style={{ padding: '16px 24px', background: '#00233D', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>ISO 9001:2015 Official Certificate</h3>
-                <button 
-                  className="modal-close-btn" 
+                <button
+                  className="modal-close-btn"
                   onClick={() => setShowCertModal(false)}
                   style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer' }}
                   aria-label="Close modal"
@@ -290,9 +290,9 @@ export const AboutPage: React.FC = () => {
                 </button>
               </div>
               <div style={{ padding: '20px', textAlign: 'center', background: '#0f172a' }}>
-                <img 
-                  src={isoCertificationImg} 
-                  alt="ISO Certificate Full Resolution" 
+                <img
+                  src={isoCertificationImg}
+                  alt="ISO Certificate Full Resolution"
                   style={{ maxWidth: '100%', maxHeight: '75vh', height: 'auto', borderRadius: '6px', border: '1px solid #334155' }}
                 />
               </div>
