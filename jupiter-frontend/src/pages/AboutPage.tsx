@@ -12,14 +12,12 @@ import {
   Gauge,
   Cpu,
   Factory,
-  Layers,
-  Cog,
-  Truck,
-  CheckCircle2
+  Layers
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PageBanner } from '../components/PageBanner';
 import isoCertificationImg from '../assets/images/about/iso certification.jpg';
+import about1FacilityImg from '../assets/images/about/about1.jpeg';
 
 export const AboutPage: React.FC = () => {
   const [showCertModal, setShowCertModal] = useState(false);
@@ -50,7 +48,7 @@ export const AboutPage: React.FC = () => {
                 {/* Primary High-Res Facility Image */}
                 <div className="about-main-img-card">
                   <img
-                    src="/images/about1.png"
+                    src={about1FacilityImg}
                     alt="Jupiter Industries Facility"
                     className="about-hero-img"
                     loading="lazy"
@@ -212,7 +210,7 @@ export const AboutPage: React.FC = () => {
             <div className="about-mission-image-col">
               <div className="mission-image-frame">
                 <img
-                  src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=900&q=80"
+                  src="src/assets/images/about/mission.png "
                   alt="Modern Construction Machinery Facility"
                   className="mission-hero-img"
                   loading="lazy"

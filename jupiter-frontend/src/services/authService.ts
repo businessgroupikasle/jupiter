@@ -170,3 +170,42 @@ export const signupAdmin = (
 export const logoutAdmin = (): void => {
   setCurrentUser(null);
 };
+
+export const updateCurrentAdminProfile = (updates: Partial<AdminUser>): AdminUser => {
+  let current = getCurrentUser();
+  const users = getStoredUsers();
+  
+  if (!current) {
+    current = users[0] || {
+      id: 'usr-default',
+      name: 'Jupiter Admin',
+      email: 'admin@jupiter.com',
+      passwordHash: 'admin123',
+      role: 'Super Admin',
+      avatar: '/favicon.png',
+      createdAt: new Date().toISOString()
+    };
+  }
+
+  const updated: AdminUser = {
+    ...current,
+    ...updates,
+  };
+
+  // 1. Update session storage
+  setCurrentUser(updated);
+
+  // 2. Update user in stored users list
+  const nextUsers = users.length > 0
+    ? (users.some(u => u.id === updated.id) ? users.map(u => u.id === updated.id ? updated : u) : [...users, updated])
+    : [updated];
+  saveUsers(nextUsers);
+
+  // 3. Dispatch event
+  try {
+    window.dispatchEvent(new Event('jupiter_user_updated'));
+  } catch (e) {}
+
+  return updated;
+};
+

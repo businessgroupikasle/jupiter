@@ -9,7 +9,7 @@ import { PageBanner } from '../components/PageBanner';
 export const ProjectsPage: React.FC = () => {
   // Main Dual Options Switcher: 'videos' or 'photos'
   const [mainTab, setMainTab] = useState<'photos' | 'videos'>('videos');
-  
+
   const [videos, setVideos] = useState<VideoItem[]>(getStoredVideos());
   const [photos, setPhotos] = useState<GalleryPhotoItem[]>(getStoredGalleryPhotos());
   const [activeVideoCategory, setActiveVideoCategory] = useState<string>('All');
@@ -21,11 +21,11 @@ export const ProjectsPage: React.FC = () => {
   useEffect(() => {
     fetchVideosFromDb().then(res => {
       if (res && res.length > 0) setVideos(res);
-    }).catch(() => {});
+    }).catch(() => { });
 
     fetchGalleryPhotosFromDb().then(res => {
       if (res && res.length > 0) setPhotos(res);
-    }).catch(() => {});
+    }).catch(() => { });
 
     const handleVideoUpdate = () => {
       setVideos(getStoredVideos());
@@ -46,8 +46,8 @@ export const ProjectsPage: React.FC = () => {
   const videoCategories = ['All', 'Block Machines', 'Brick Machines', 'Paver Machines', 'Batching & Mixers', 'Factory Tour'];
   const photoCategories = ['All', 'Block Machines', 'Fly Ash Plants', 'Paver Units', 'Batching Mixers', 'Precision Moulds', 'Factory Infrastructure'];
 
-  const filteredVideos = activeVideoCategory === 'All' 
-    ? (videos || []) 
+  const filteredVideos = activeVideoCategory === 'All'
+    ? (videos || [])
     : (videos || []).filter(v => v && v.category === activeVideoCategory);
 
   const filteredPhotos = activePhotoCategory === 'All'
@@ -88,7 +88,7 @@ export const ProjectsPage: React.FC = () => {
                 onClick={() => setMainTab('videos')}
               >
                 <Film size={19} />
-                <span>Machinery in Action (Videos)</span>
+                <span>Youtube Videos</span>
                 <span className="gallery-tab-badge">{videos.length}</span>
               </button>
             </div>
@@ -139,7 +139,7 @@ export const ProjectsPage: React.FC = () => {
               {/* Videos Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
                 {filteredVideos.map((vid) => (
-                  <div 
+                  <div
                     key={vid.id}
                     className="gallery-video-card"
                     onClick={() => setSelectedVideo(vid)}
@@ -157,12 +157,12 @@ export const ProjectsPage: React.FC = () => {
                   >
                     {/* Thumbnail Container */}
                     <div style={{ position: 'relative', width: '100%', height: '200px', background: '#0F172A', overflow: 'hidden' }}>
-                      <img 
-                        src={vid.image} 
-                        alt={vid.title} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }} 
+                      <img
+                        src={vid.image}
+                        alt={vid.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
                       />
-                      
+
                       {/* Category Tag */}
                       <span style={{
                         position: 'absolute',
@@ -296,13 +296,13 @@ export const ProjectsPage: React.FC = () => {
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
                   {filteredPhotos.map((photo) => (
-                    <div 
+                    <div
                       key={photo.id}
                       className="gallery-photo-card"
                       onClick={() => setSelectedPhoto(photo)}
                     >
                       <img src={photo.image} alt={photo.title} />
-                      
+
                       {/* Category Tag */}
                       <span style={{
                         position: 'absolute',
@@ -372,8 +372,8 @@ export const ProjectsPage: React.FC = () => {
           POPUP YOUTUBE VIDEO PLAYER MODAL
           ================================================================= */}
       {selectedVideo && (
-        <div 
-          className="modal-backdrop-overlay" 
+        <div
+          className="modal-backdrop-overlay"
           onClick={() => setSelectedVideo(null)}
           style={{
             position: 'fixed',
@@ -390,18 +390,18 @@ export const ProjectsPage: React.FC = () => {
             padding: '20px'
           }}
         >
-          <div 
-            className="modal-content-card" 
-            style={{ 
-              maxWidth: '820px', 
+          <div
+            className="modal-content-card"
+            style={{
+              maxWidth: '820px',
               width: '100%',
-              padding: 0, 
-              overflow: 'hidden', 
+              padding: 0,
+              overflow: 'hidden',
               background: '#001827',
               borderRadius: '14px',
               border: '1px solid rgba(255, 146, 0, 0.3)',
               boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)'
-            }} 
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -414,9 +414,9 @@ export const ProjectsPage: React.FC = () => {
                   {selectedVideo.title}
                 </h3>
               </div>
-              <button 
-                className="modal-close-btn" 
-                style={{ color: '#FFFFFF', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} 
+              <button
+                className="modal-close-btn"
+                style={{ color: '#FFFFFF', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                 onClick={() => setSelectedVideo(null)}
               >
                 <X size={18} />
@@ -440,9 +440,9 @@ export const ProjectsPage: React.FC = () => {
                 Duration: {selectedVideo.duration} • {selectedVideo.views}
               </span>
               {selectedVideo.videoUrl && (
-                <a 
-                  href={selectedVideo.videoUrl} 
-                  target="_blank" 
+                <a
+                  href={selectedVideo.videoUrl}
+                  target="_blank"
                   rel="noreferrer"
                   className="btn btn-orange"
                   style={{ padding: '8px 16px', fontSize: '0.84rem' }}
@@ -460,8 +460,8 @@ export const ProjectsPage: React.FC = () => {
           POPUP IMAGE LIGHTBOX MODAL
           ================================================================= */}
       {selectedPhoto && (
-        <div 
-          className="modal-backdrop-overlay" 
+        <div
+          className="modal-backdrop-overlay"
           onClick={() => setSelectedPhoto(null)}
           style={{
             position: 'fixed',
@@ -478,29 +478,29 @@ export const ProjectsPage: React.FC = () => {
             padding: '20px'
           }}
         >
-          <div 
-            className="modal-content-card" 
-            style={{ 
-              maxWidth: '850px', 
+          <div
+            className="modal-content-card"
+            style={{
+              maxWidth: '850px',
               width: '100%',
-              padding: 0, 
-              overflow: 'hidden', 
+              padding: 0,
+              overflow: 'hidden',
               background: '#001827',
               borderRadius: '14px',
               border: '1px solid rgba(255, 146, 0, 0.3)',
               boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7)'
-            }} 
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ position: 'relative', width: '100%', maxHeight: '500px', overflow: 'hidden', background: '#000' }}>
-              <img 
-                src={selectedPhoto.image} 
-                alt={selectedPhoto.title} 
-                style={{ width: '100%', maxHeight: '500px', objectFit: 'contain', display: 'block' }} 
+              <img
+                src={selectedPhoto.image}
+                alt={selectedPhoto.title}
+                style={{ width: '100%', maxHeight: '500px', objectFit: 'contain', display: 'block' }}
               />
-              <button 
-                className="modal-close-btn" 
-                style={{ position: 'absolute', top: '16px', right: '16px', color: '#FFFFFF', background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} 
+              <button
+                className="modal-close-btn"
+                style={{ position: 'absolute', top: '16px', right: '16px', color: '#FFFFFF', background: 'rgba(0,0,0,0.7)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                 onClick={() => setSelectedPhoto(null)}
               >
                 <X size={20} />

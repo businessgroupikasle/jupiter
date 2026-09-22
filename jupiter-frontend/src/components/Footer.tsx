@@ -131,9 +131,9 @@ export const Footer: React.FC = () => {
 
             <div className="footer-contact-item">
               <Mail size={18} className="text-orange" style={{ flexShrink: 0 }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <a href="mailto:mathivanan.md@jupitergroups.in" style={{ color: 'inherit', textDecoration: 'none', wordBreak: 'break-all' }}>mathivanan.md@jupitergroups.in</a>
-                <a href="mailto:marketing@jupitergroups.in" style={{ color: 'inherit', textDecoration: 'none', wordBreak: 'break-all' }}>marketing@jupitergroups.in</a>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <a href="mailto:mathivanan.md@jupitergroups.in" style={{ color: 'inherit', textDecoration: 'none', whiteSpace: 'nowrap' }}>mathivanan.md@jupitergroups.in</a>
+                <a href="mailto:marketing@jupitergroups.in" style={{ color: 'inherit', textDecoration: 'none', whiteSpace: 'nowrap' }}>marketing@jupitergroups.in</a>
               </div>
             </div>
           </div>

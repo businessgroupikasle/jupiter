@@ -1,6 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600;1,700&display=swap');
+
 /* ==========================================================================
-   ADMIN DASHBOARD STYLES (MATCHING UI SCREENSHOT 100%)
+   ADMIN DASHBOARD STYLES - BALANCED POPPINS TYPOGRAPHY
    ========================================================================== */
+
+/* Universal Poppins Font for Admin */
+.admin-app-wrapper,
+.admin-app-wrapper *,
+.admin-confirm-overlay,
+.admin-confirm-overlay * {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
 
 .admin-app-wrapper {
   display: flex;
@@ -8,9 +18,72 @@
   max-height: 100vh;
   width: 100vw;
   background-color: #F1F5F9;
-  font-family: var(--font-body, 'Inter', -apple-system, sans-serif);
   color: #1E293B;
   overflow: hidden;
+  font-weight: 400;
+}
+
+/* 1. Headings & Titles: 700 Bold */
+.admin-app-wrapper h1,
+.admin-app-wrapper h2,
+.admin-app-wrapper h3,
+.admin-app-wrapper h4,
+.admin-app-wrapper h5,
+.admin-app-wrapper h6,
+.admin-app-wrapper .admin-page-title,
+.admin-app-wrapper .admin-welcome-title,
+.admin-app-wrapper .admin-card-title,
+.admin-app-wrapper .admin-metric-num,
+.admin-app-wrapper .admin-brand-title,
+.admin-app-wrapper .admin-confirm-title,
+.admin-app-wrapper strong,
+.admin-app-wrapper b,
+.admin-app-wrapper th {
+  font-weight: 700 !important;
+}
+
+/* 2. Navigation, Buttons & Actions: 600 Semi-Bold */
+.admin-app-wrapper .admin-nav-item,
+.admin-app-wrapper .admin-nav-label,
+.admin-app-wrapper .admin-btn,
+.admin-app-wrapper .btn,
+.admin-app-wrapper button,
+.admin-app-wrapper .admin-breadcrumb,
+.admin-app-wrapper .breadcrumb-current,
+.admin-app-wrapper .admin-date-picker-badge,
+.admin-app-wrapper .admin-view-all-link,
+.admin-app-wrapper .admin-status-badge,
+.admin-app-wrapper .admin-trend-badge,
+.admin-app-wrapper .admin-category-filter-btn,
+.admin-app-wrapper .admin-user-name,
+.admin-app-wrapper .admin-live-site-btn,
+.admin-app-wrapper .admin-logout-btn,
+.admin-confirm-btn-action,
+.admin-confirm-btn-cancel {
+  font-weight: 600 !important;
+}
+
+/* 3. Form Labels, Stat Labels & Tabs: 500 Medium */
+.admin-app-wrapper label,
+.admin-app-wrapper .form-label,
+.admin-app-wrapper .admin-metric-label,
+.admin-app-wrapper .admin-search-input,
+.admin-app-wrapper .admin-user-role,
+.admin-app-wrapper .admin-date-preset-btn {
+  font-weight: 500 !important;
+}
+
+/* 4. Regular Text, Paragraphs, Inputs & Tables: 400 Regular */
+.admin-app-wrapper p,
+.admin-app-wrapper .admin-page-subtitle,
+.admin-app-wrapper .admin-welcome-desc,
+.admin-app-wrapper input,
+.admin-app-wrapper textarea,
+.admin-app-wrapper select,
+.admin-app-wrapper td,
+.admin-app-wrapper .admin-task-text,
+.admin-app-wrapper .admin-task-time {
+  font-weight: 400 !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -199,8 +272,9 @@
 
 .admin-topbar {
   background: #FFFFFF;
-  height: 68px;
-  padding: 0 28px;
+  height: 86px;
+  min-height: 86px;
+  padding: 0 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -208,18 +282,18 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .admin-search-box {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  padding: 8px 16px;
-  width: 360px;
+  border-radius: 10px;
+  padding: 11px 18px;
+  width: 380px;
   max-width: 100%;
   transition: all 0.2s ease;
 }
@@ -239,7 +313,7 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   color: #1E293B;
   width: 100%;
 }
@@ -264,16 +338,16 @@
 .admin-date-picker-badge {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  padding: 10px 18px;
+  border-radius: 9px;
+  font-size: 0.86rem;
   font-weight: 600;
   color: #334155;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease;
   user-select: none;
 }
@@ -377,9 +451,9 @@
 }
 
 .admin-bell-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
   color: #475569;
@@ -467,11 +541,12 @@
 }
 
 .admin-avatar {
-  width: 38px;
-  height: 38px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   overflow: hidden;
   border: 2px solid #E2E8F0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .admin-avatar img {
@@ -500,12 +575,12 @@
 .admin-live-site-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: #001827;
   color: #FFFFFF;
-  padding: 7px 12px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-size: 0.86rem;
   font-weight: 600;
   text-decoration: none;
   transition: all 0.2s ease;
@@ -1594,6 +1669,29 @@
 .admin-product-card-item {
   padding: 0;
   overflow: hidden;
+  border: 1.5px solid #E2E8F0 !important;
+  border-radius: 12px;
+  background-clip: padding-box;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  background: #FFFFFF;
+}
+
+.admin-product-card-item:hover {
+  border-color: #FF9200 !important;
+  box-shadow: 0 8px 24px rgba(255, 146, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+.admin-product-card-item .admin-prod-card-body h3 {
+  color: #001827;
+  transition: color 0.2s ease;
+}
+
+.admin-product-card-item:hover .admin-prod-card-body h3 {
+  color: #FF9200;
 }
 
 .admin-prod-card-thumb {
@@ -2129,5 +2227,170 @@
   transform: translateY(-1px);
   border-color: #FF9200 !important;
 }
+
+/* Custom Admin Confirmation Modal */
+.admin-confirm-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(15, 23, 42, 0.72) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  z-index: 9999999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  animation: adminConfirmFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+@keyframes adminConfirmFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes adminConfirmPop {
+  0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.admin-confirm-card {
+  background: #FFFFFF !important;
+  border-radius: 18px !important;
+  width: 100% !important;
+  max-width: 440px !important;
+  box-shadow: 0 25px 65px -12px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.06) !important;
+  padding: 30px 26px 24px 26px !important;
+  text-align: center !important;
+  animation: adminConfirmPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  position: relative !important;
+}
+
+.admin-confirm-icon-box {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px auto;
+  transition: transform 0.2s ease;
+}
+
+.admin-confirm-icon-box.danger {
+  background: #FFF7ED;
+  color: #EA580C;
+  box-shadow: 0 0 0 10px #FFEDD5;
+}
+
+.admin-confirm-icon-box.warning {
+  background: #FFF7ED;
+  color: #FF9200;
+  box-shadow: 0 0 0 10px #FFEDD5;
+}
+
+.admin-confirm-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.admin-confirm-desc {
+  font-size: 0.92rem;
+  color: #64748B;
+  line-height: 1.5;
+  margin: 0 0 14px 0;
+}
+
+.admin-confirm-item-badge {
+  background: #FFFBF5;
+  border: 1px solid #FED7AA;
+  border-left: 4px solid #FF9200;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 16px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #001827;
+  text-align: left;
+  word-break: break-word;
+}
+
+.admin-confirm-subtext {
+  font-size: 0.8rem;
+  color: #94A3B8;
+  margin: 0 0 22px 0;
+}
+
+.admin-confirm-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.admin-confirm-btn-cancel {
+  flex: 1;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #475569;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-confirm-btn-cancel:hover:not(:disabled) {
+  background: #FFF7ED;
+  border-color: #FF9200;
+  color: #EA580C;
+}
+
+.admin-confirm-btn-action {
+  flex: 1;
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.admin-confirm-btn-action.danger {
+  background: linear-gradient(135deg, #FF9200 0%, #EA580C 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(255, 146, 0, 0.35);
+}
+
+.admin-confirm-btn-action.danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #E08200 0%, #C2410C 100%);
+  box-shadow: 0 6px 20px rgba(255, 146, 0, 0.45);
+  transform: translateY(-1px);
+}
+
+.admin-confirm-btn-action.warning {
+  background: linear-gradient(135deg, #FF9200 0%, #EA580C 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(255, 146, 0, 0.35);
+}
+
+.admin-confirm-btn-action.warning:hover:not(:disabled) {
+  background: linear-gradient(135deg, #E08200 0%, #C2410C 100%);
+  box-shadow: 0 6px 20px rgba(255, 146, 0, 0.45);
+  transform: translateY(-1px);
+}
+
+.admin-confirm-btn-action:disabled,
+.admin-confirm-btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 
 

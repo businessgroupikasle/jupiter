@@ -41,6 +41,16 @@ function parseProductFromMessage(msg: string): string {
 }
 
 export const submitEnquiry = async (data: EnquiryPayload): Promise<EnquiryResponse> => {
+  const startTime = Date.now();
+  const MIN_LOADING_TIME_MS = 2500; // 2 to 3 seconds loading duration
+
+  const enforceDelay = async () => {
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_LOADING_TIME_MS) {
+      await new Promise((resolve) => setTimeout(resolve, MIN_LOADING_TIME_MS - elapsed));
+    }
+  };
+
   try {
     const response = await apiClient.post<EnquiryResponse>('/enquiries', data);
     // On backend success, synchronize locally for instantaneous UI updates
@@ -55,10 +65,12 @@ export const submitEnquiry = async (data: EnquiryPayload): Promise<EnquiryRespon
     } catch (err) {
       console.warn('Could not cache enquiry locally:', err);
     }
+    await enforceDelay();
     return response.data;
   } catch (error: any) {
     if (error.response && error.response.data) {
       // Backend returned validation error or bad request (400) - do not save invalid data
+      await enforceDelay();
       throw new Error(error.response.data.message || 'Failed to submit enquiry');
     }
     // Network Error or Server unreachable: Gracefully fall back so lead is preserved locally
@@ -74,6 +86,7 @@ export const submitEnquiry = async (data: EnquiryPayload): Promise<EnquiryRespon
       console.warn('Could not save enquiry to local storage:', err);
     }
     console.warn('Backend server unreachable, saved enquiry locally into Admin Dashboard storage:', error.message);
+    await enforceDelay();
     return {
       success: true,
       message: 'Quotation request submitted! Our factory engineer will contact you shortly.',

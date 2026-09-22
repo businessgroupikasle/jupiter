@@ -17,7 +17,10 @@ import { TermsConditionsPage } from './pages/TermsConditionsPage';
 import { SitemapPage } from './pages/SitemapPage';
 import { EnquiryForm } from './components/EnquiryForm';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { X } from 'lucide-react';
+import { MaintenancePage } from './components/MaintenancePage';
+import { getStoredMaintenanceConfig, MaintenanceConfig } from './services/maintenanceService';
+import { getCurrentUser } from './services/authService';
+import { X, AlertTriangle } from 'lucide-react';
 
 // Scroll to top helper on route navigation
 const ScrollToTop: React.FC = () => {
@@ -32,8 +35,25 @@ const ScrollToTop: React.FC = () => {
 
 const AppContent: React.FC = () => {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [maintenanceConfig, setMaintenanceConfig] = useState<MaintenanceConfig>(() => getStoredMaintenanceConfig());
   const location = useLocation();
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setMaintenanceConfig(getStoredMaintenanceConfig());
+    };
+    window.addEventListener('jupiter_maintenance_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('jupiter_maintenance_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
+  const currentUser = getCurrentUser();
   const isAdmin = location.pathname.startsWith('/admin');
+  const searchParams = new URLSearchParams(location.search);
+  const isExplicitPreview = searchParams.get('preview') === 'true' && !!currentUser;
 
   if (isAdmin) {
     return (
@@ -46,8 +66,46 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // Active Maintenance Mode gate: Frontend directly enters maintenance mode when enabled
+  if (maintenanceConfig.enabled && !isExplicitPreview) {
+    return <MaintenancePage config={maintenanceConfig} />;
+  }
+
   return (
     <div className="app-main-layout">
+      {/* Admin Preview Notice when Maintenance Mode is ON */}
+      {maintenanceConfig.enabled && (
+        <div style={{
+          background: '#FF9200',
+          color: '#001827',
+          padding: '9px 16px',
+          textAlign: 'center',
+          fontSize: '0.82rem',
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          position: 'sticky',
+          top: 0,
+          zIndex: 9999,
+          boxShadow: '0 2px 10px rgba(0,0,0,0.15)'
+        }}>
+          <AlertTriangle size={16} />
+          <span>MAINTENANCE MODE ACTIVE: Visitors see the maintenance screen. You have Admin Preview Access.</span>
+          <a 
+            href="/admin?tab=settings" 
+            style={{ 
+              textDecoration: 'underline', 
+              color: '#001827', 
+              marginLeft: '6px',
+              fontWeight: 800
+            }}
+          >
+            Manage in Settings &rarr;
+          </a>
+        </div>
+      )}
       {/* Sticky Header / Navbar */}
       <Navbar onOpenQuoteModal={() => setIsQuoteModalOpen(true)} />
 

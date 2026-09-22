@@ -313,84 +313,44 @@ export const INITIAL_DEFAULT_PRODUCTS: ProductItem[] = [
       { 'Specification Parameter': 'Supported Blocks', 'JE-BM12 Plant Specifications': '8", 6", 4" Hollow Blocks, Solid Blocks, Interlocks' }
     ]
   },
-  {
-    id: 'PROD-BLOCK-SEMI-SBM8',
-    name: 'JE-SBM8 Semi-Automatic Solid & Hollow Block Machine',
-    brandTag: 'BLOCK MACHINE',
-    category: 'Hollow and Solid Block Machine',
-    categorySlug: 'hollow-and-solid-block-machine',
-    capacity: '1,000 – 1,400 Blocks / hr',
-    power: '20 H.P Hydraulic Unit',
-    brickSize: '400 x 200 x 200 mm & 400 x 100 x 200 mm',
-    image: '/images/flyash-4brick-rotary.png',
-    galleryImages: [
-      '/images/flyash-4brick-rotary.png',
-      '/images/flyash-vertical-machine.png'
-    ],
-    status: 'Active',
-    description: 'Rugged semi-automatic hydraulic block manufacturing machine ideal for small to medium scale concrete product yards and commercial construction projects.',
-    featureBadges: ['20 HP Hydraulic System', 'Quick Core Box Changeover', 'Low Maintenance', 'High Compressive Strength'],
-    keyFeatures: [
-      'Produces 1,000 to 1,400 standard hollow and solid blocks per hour',
-      'Independent hydraulic tamper cylinder ensures uniform top compaction',
-      'Rapid mould change system: Swap between hollow block, solid brick, and compound wall mould in 40 minutes',
-      'Heavy-duty I-beam chassis construction engineered for zero structural flexure'
-    ],
-    specs: {
-      'Production Capacity': '1,000 - 1,400 Blocks / hr',
-      'System Power': '20 H.P System',
-      'Cycle Period': '22 - 26 seconds per cycle',
-      'Pallet Size': '900 x 600 mm'
-    },
-    specTableColumns: ['Feature', 'Specification'],
-    specTableRows: [
-      { 'Feature': 'Output Capacity', 'Specification': '1,000 – 1,400 Blocks per Hour' },
-      { 'Feature': 'Connected Power', 'Specification': '20 H.P 3-Phase Electric Motor' },
-      { 'Feature': 'Pallet Size', 'Specification': '900 x 600 mm' },
-      { 'Feature': 'Cycle Period', 'Specification': '22 – 26 Seconds' }
-    ]
-  },
-  {
-    id: 'PROD-BLOCK-VERTICAL',
-    name: 'Vertical Block Machine',
-    brandTag: 'BLOCK MACHINE',
-    category: 'Hollow and Solid Block Machine',
-    categorySlug: 'hollow-and-solid-block-machine',
-    capacity: '1,500 – 2,000 Blocks/hr',
-    power: '25 H.P System',
-    brickSize: '400 x 200 x 200 mm & 400 x 150 x 200 mm',
-    image: '/images/flyash-rotary-ton-machine.png',
-    galleryImages: [
-      '/images/flyash-rotary-ton-machine.png',
-      '/images/flyash-vertical-machine.png'
-    ],
-    status: 'Active',
-    description: 'Stationary vertical vibration block making machine engineered for manufacturing high-strength hollow concrete blocks, solid architectural blocks, and boundary wall masonry units.',
-    featureBadges: ['Synchronized Dual Vibration', 'Heavy Duty Pallet Table', 'Quick Mould Interchange', 'IS 2185 Certified Output'],
-    keyFeatures: [
-      'High compaction density delivering sharp corners and high compressive strength',
-      'Produces standard 8-inch, 6-inch, 4-inch hollow blocks and solid concrete bricks',
-      'Total connected electrical load: 25 H.P with energy-efficient hydraulic drives',
-      'Fast cycle time of 20 to 25 seconds per cycle'
-    ],
-    specs: {
-      'Block Output': '1,500 - 2,000 Blocks / hr',
-      'System Power': '25 H.P Total Connected Load',
-      'Pallet Size': '900 x 600 mm Heavy Marine Wood / PVC',
-      'Cycle Period': '20 - 25 seconds per cycle',
-      'Block Types': 'Hollow Blocks, Solid Blocks, Corner Blocks'
-    },
-    specTableColumns: ['Feature', 'Specification'],
-    specTableRows: [
-      { 'Feature': 'Production Capacity', 'Specification': '1,500 – 2,000 Blocks per Hour' },
-      { 'Feature': 'Connected Power', 'Specification': '25 H.P 3-Phase Electric Motor' },
-      { 'Feature': 'Pallet Size', 'Specification': '900 x 600 mm' },
-      { 'Feature': 'Vibration System', 'Specification': 'Synchronized High-G Mould & Tamper Head Vibration' },
-      { 'Feature': 'Cycle Period', 'Specification': '20 – 25 Seconds' }
-    ]
-  },
-
   // 6. Inter Block Making Machines (Interlocking Bricks)
+  {
+    id: 'PROD-INTERLOCK-BRICK-MAKING',
+    name: 'Inter Locking Brick Making Machine',
+    brandTag: 'INTER BLOCK MAKING MACHINE',
+    category: 'Inter Block Making Machine',
+    categorySlug: 'inter-block-making-machine',
+    capacity: '8,000 – 12,000 Bricks/hr',
+    power: '15 H.P Electric Motor',
+    brickSize: '230 x 110 x 75 mm & 250 x 125 x 100 mm',
+    image: '/images/flyash-vertical-machine.png',
+    galleryImages: [
+      '/images/flyash-vertical-machine.png',
+      '/images/flyash-rotary-ton-machine.png'
+    ],
+    status: 'Active',
+    description: 'High performance interlocking brick making machine designed for commercial mortarless brick production with high hydraulic compression and precision self-aligning tongue and groove moulds.',
+    featureBadges: ['8,000 – 12,000 Output', '15 HP Motor', 'High Hydraulic Pressure', 'Mortarless Interlock Output'],
+    keyFeatures: [
+      'Heavy-duty hydraulic press for uniform interlocking brick production',
+      'High speed cycle producing up to 8,000 to 12,000 bricks per hour',
+      'Precision tongue and groove mould tooling for self-aligning mortarless masonry',
+      'Operates on standard 15 H.P 3-phase electric motor'
+    ],
+    specs: {
+      'Production Capacity': '8,000 – 12,000 Bricks/hr',
+      'Electric Motor': '15 H.P Electric Motor',
+      'Standard Dimensions': '230 x 110 x 75 mm & 250 x 125 x 100 mm',
+      'Operation': 'Hydraulic Compression System'
+    },
+    specTableColumns: ['Feature', 'Specification'],
+    specTableRows: [
+      { 'Feature': 'Production Capacity', 'Specification': '8,000 – 12,000 Bricks/hr' },
+      { 'Feature': 'Power Requirement', 'Specification': '15 H.P Electric Motor' },
+      { 'Feature': 'Mould Type', 'Specification': 'Self-Aligning Interlock' },
+      { 'Feature': 'Finished Product', 'Specification': 'Mortarless Interlocking Bricks' }
+    ]
+  },
   {
     id: 'PROD-INTERLOCK-80T',
     name: 'JE-INT 80 Ton High-Pressure Interlocking Brick Machine',
@@ -430,46 +390,8 @@ export const INITIAL_DEFAULT_PRODUCTS: ProductItem[] = [
       { 'Feature': 'Applications', 'Specification Details': 'Mortarless Load-Bearing Walls, Compound Walls, Pavements' }
     ]
   },
-  {
-    id: 'PROD-INTERLOCK-MACHINE',
-    name: 'Interlocking Brick Machine (50 Ton Standard)',
-    brandTag: 'INTERLOCK MACHINE',
-    category: 'Inter Block Making Machine',
-    categorySlug: 'inter-block-making-machine',
-    capacity: '1,500 – 2,200 Blocks / hr',
-    power: '15 H.P Hydraulic',
-    brickSize: '230 x 115 x 100 mm & 250 x 125 x 100 mm',
-    image: '/images/flyash-4brick-rotary.png',
-    galleryImages: [
-      '/images/flyash-4brick-rotary.png',
-      '/images/flyash-vertical-machine.png'
-    ],
-    status: 'Active',
-    description: 'Precision hydraulic interlocking paver and brick press machine producing mortarless interlocking construction blocks, Zig-Zag pavers, and I-shape heavy traffic paver stones.',
-    featureBadges: ['50-60 Ton Hydraulic Press', 'Tongue & Groove Self-Aligning', 'Hardox Wear Plates', 'Mortarless Construction'],
-    keyFeatures: [
-      'High compaction pressure of 50 to 60 tons for extreme weather durability',
-      'Precision tongue and groove mould profiles for rapid mortarless masonry construction',
-      'Adjustable paver thicknesses: 60mm, 80mm, and 100mm',
-      'Equipped with hardened Hardox alloy steel mould liners for long operating lifespan'
-    ],
-    specs: {
-      'Production Capacity': '1,500 - 2,200 Blocks / hr',
-      'Motor Rating': '15 H.P 3-Phase TEFC Motor',
-      'Mould Pressure': '50 - 60 Tons Hydraulic Compressive Force',
-      'Paver Thickness': '60 mm, 80 mm & 100 mm adjustable',
-      'Interlock Profile': 'Tongue & Groove Self-Aligning Design'
-    },
-    specTableColumns: ['Feature', 'Specification'],
-    specTableRows: [
-      { 'Feature': 'Capacity', 'Specification': '1,500 – 2,200 Blocks / hr' },
-      { 'Feature': 'Motor Power', 'Specification': '15 H.P 3-Phase Motor' },
-      { 'Feature': 'Hydraulic Pressure', 'Specification': '50 – 60 Tons' },
-      { 'Feature': 'Block Thickness', 'Specification': '60mm, 80mm, 100mm adjustable' }
-    ]
-  },
 
-  // 7. Paver Block Machines
+  // 7. Paver Block Machine
   {
     id: 'PROD-PAVER-100T-DUALCOLOR',
     name: 'JE-PB 100 Ton Dual-Color Hydraulic Paver Machine',
@@ -509,45 +431,8 @@ export const INITIAL_DEFAULT_PRODUCTS: ProductItem[] = [
       { 'Technical Parameter': 'Thickness Range', 'JE-PB 100 Ton Specification': '40 mm to 100 mm' }
     ]
   },
-  {
-    id: 'PROD-PAVER-BLOCK-MACHINE',
-    name: 'Hydraulic Paver Block Machine (60 Ton Standard)',
-    brandTag: 'PAVER MACHINE',
-    category: 'Paver Block Machine',
-    categorySlug: 'paver-block-machine',
-    capacity: '3,000 – 4,500 Pavers / Day',
-    power: '10 H.P Hydraulic Unit',
-    brickSize: 'Zig-Zag, I-Shape, Hexagonal & Square (60mm & 80mm)',
-    image: '/images/flyash-vertical-machine.png',
-    galleryImages: [
-      '/images/flyash-vertical-machine.png',
-      '/images/flyash-4brick-rotary.png'
-    ],
-    status: 'Active',
-    description: 'Reliable single-operator hydraulic paver tile press for industrial yards, private driveways, and municipal footpath projects.',
-    featureBadges: ['60 Ton Hydraulic Compaction', 'Cost-Effective Production', 'Compact Footprint', 'Robust Hydraulic Powerpack'],
-    keyFeatures: [
-      '50 to 60 tons hydraulic pressing ensuring IS 15658 compliance',
-      'Single-lever ergonomic valve control or automated timer cycle',
-      'High wear resistance mould cavity plates with heat-treated alloy steel',
-      'Low power consumption: Operates efficiently on 10 H.P 3-Phase supply'
-    ],
-    specs: {
-      'Daily Output': '3,000 – 4,500 Paver Tiles / Day',
-      'Hydraulic Drive': '10 H.P Power Pack Unit',
-      'Pressing Force': '50 - 60 Tons Hydraulic Compaction',
-      'Paver Thickness': '40 mm to 80 mm adjustable'
-    },
-    specTableColumns: ['Feature', 'Specification'],
-    specTableRows: [
-      { 'Feature': 'Production Capacity', 'Specification': '3,000 – 4,500 Pavers / Day' },
-      { 'Feature': 'Power Pack', 'Specification': '10 H.P Electric Motor' },
-      { 'Feature': 'Compaction Force', 'Specification': '50 – 60 Tons' },
-      { 'Feature': 'Paver Types', 'Specification': 'Zig-Zag, I-Shape, Hexagonal, Rectangular' }
-    ]
-  },
 
-  // 8. Batching Plants
+  // 8. Batching Plant
   {
     id: 'PROD-BATCHING-CBP30',
     name: 'JE-CBP 30 Stationary Concrete Batching Plant',
@@ -589,42 +474,6 @@ export const INITIAL_DEFAULT_PRODUCTS: ProductItem[] = [
       { 'Specification Parameter': 'Automation', 'JE-CBP 30 Plant Details': 'Fully Automated PLC Panel with Multi-Formula Storage' }
     ]
   },
-  {
-    id: 'PROD-BATCHING-MCBP20',
-    name: 'JE-MCBP 20 Compact Mobile Batching Plant',
-    brandTag: 'BATCHING PLANT',
-    category: 'Batching Plant',
-    categorySlug: 'batching-plant',
-    capacity: '20 – 30 m³/hr',
-    power: '30 H.P System',
-    brickSize: 'On-Site Precast & Road Masonry Production',
-    image: '/images/storage-silo-product.png',
-    galleryImages: [
-      '/images/storage-silo-product.png'
-    ],
-    status: 'Active',
-    description: 'Portable towable wheel-mounted concrete batching plant engineered for fast site relocation, bridge projects, and precast manufacturing with 24-hour setup time.',
-    featureBadges: ['Wheel-Mounted Mobile Chassis', 'Fast Turnkey Setup', 'Integral Water & Admixture Tank', 'Heavy Duty Reversible Mixer'],
-    keyFeatures: [
-      'Towable heavy-duty tandem-axle chassis for rapid road transportation across project sites',
-      'Complete pre-wired and pre-plumbed assembly requires no specialized civil foundation',
-      'Digital loadcell aggregate skip loader with automatic weighing batch cycle',
-      'Produces up to 20 to 30 m³ of high-consistency concrete per hour'
-    ],
-    specs: {
-      'Plant Capacity': '20 - 30 m³/hr',
-      'Power Requirement': '30 H.P Connected Load',
-      'Mobility': 'Tandem-Axle Pneumatic Tyre Chassis with Towing Hook',
-      'Aggregate Bins': '2 or 3 Compartment Hoppers'
-    },
-    specTableColumns: ['Feature', 'Specification Details'],
-    specTableRows: [
-      { 'Feature': 'Output Capacity', 'Specification Details': '20 – 30 m³/hr' },
-      { 'Feature': 'Connected Power', 'Specification Details': '30 H.P 3-Phase' },
-      { 'Feature': 'Mobility Type', 'Specification Details': 'Wheel-Mounted Towable Chassis' },
-      { 'Feature': 'Foundation Required', 'Specification Details': 'Nil (Compacted Hard Surface Only)' }
-    ]
-  },
 
   // 9. All Genuine Machine Spares
   ...INITIAL_SPARES_PRODUCTS
@@ -660,38 +509,118 @@ const saveToStorage = (products: ProductItem[]): boolean => {
   }
 };
 
+// ─────────────────────────────────────────────────────────
+// Deletion Tracking & Catalog Sanitization
+// ─────────────────────────────────────────────────────────
+const DELETED_PRODUCTS_KEY = 'jupiter_deleted_product_ids';
+
+export const getDeletedProductIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(DELETED_PRODUCTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed.map(s => String(s).toLowerCase().trim()));
+      }
+    }
+  } catch (e) {}
+  return new Set<string>();
+};
+
+export const saveDeletedProductIds = (ids: Set<string>): void => {
+  try {
+    localStorage.setItem(DELETED_PRODUCTS_KEY, JSON.stringify(Array.from(ids)));
+  } catch (e) {}
+};
+
+/**
+ * Sanitizes any list of products against deleted items, legacy dummy items,
+ * and duplicate models to guarantee exact catalog integrity.
+ */
+export const sanitizeCatalog = (list: ProductItem[]): ProductItem[] => {
+  const deleted = getDeletedProductIds();
+
+  // Known legacy/dummy backend IDs or removed duplicate models
+  const forbiddenIds = new Set([
+    'prod-interlock-machine',
+    'prod-01',
+    'prod-02',
+    'prod-03',
+    'prod-04',
+    'prod-05',
+    'prod-06',
+    'prod-07',
+    'prod-08',
+    'prod-09',
+    'prod-10',
+    'prod-block-semi-sbm8',
+    'prod-block-vertical',
+    'prod-paver-block-machine',
+    'prod-batching-mcbp20',
+    'cmu5ib2dz0007uvjwnbsiz34y',
+    'cmu5ib2ee0008uvjwo5u2we0e'
+  ]);
+
+  const seen = new Set<string>();
+  const cleaned: ProductItem[] = [];
+
+  for (const p of list) {
+    if (!p || !p.name) continue;
+    const idLower = (p.id || '').toLowerCase().trim();
+    const nameLower = (p.name || '').toLowerCase().trim();
+
+    // 1. Skip if deleted by user
+    if (deleted.has(idLower) || deleted.has(nameLower)) continue;
+
+    // 2. Skip forbidden IDs
+    if (forbiddenIds.has(idLower)) continue;
+
+    // 3. Skip unwanted 3rd interlocking model (50 Ton Standard)
+    if (nameLower.includes('50 ton standard')) continue;
+
+    // 4. Skip obsolete mixer / automation products
+    if (nameLower.includes('planetary pan mixer') || nameLower.includes('automatic pallet stacker')) continue;
+    if (p.category === 'Mixing Equipment' || p.category === 'Automation & Handling') continue;
+
+    // 5. Skip duplicate products by name + category
+    const key = `${nameLower}|${(p.category || '').toLowerCase()}`;
+    if (seen.has(key) || seen.has(idLower)) continue;
+
+    seen.add(key);
+    seen.add(idLower);
+    cleaned.push(p);
+  }
+
+  // Ensure "Inter Locking Brick Making Machine" (1st product added by user) is present if not explicitly deleted
+  const hasFirstInterlock = cleaned.some(p => 
+    (p.categorySlug === 'inter-block-making-machine' || p.category === 'Inter Block Making Machine') && 
+    (p.id === 'PROD-INTERLOCK-BRICK-MAKING' || p.name.toLowerCase().includes('inter locking brick making'))
+  );
+  if (!hasFirstInterlock && !deleted.has('prod-interlock-brick-making') && !deleted.has('inter locking brick making machine')) {
+    const firstInterlock = INITIAL_DEFAULT_PRODUCTS.find(p => p.id === 'PROD-INTERLOCK-BRICK-MAKING');
+    if (firstInterlock) {
+      // Insert right before JE-INT 80 Ton or at top of Inter Block products
+      const intIdx = cleaned.findIndex(p => p.id === 'PROD-INTERLOCK-80T');
+      if (intIdx !== -1) {
+        cleaned.splice(intIdx, 0, firstInterlock);
+      } else {
+        cleaned.push(firstInterlock);
+      }
+    }
+  }
+
+  return cleaned;
+};
+
 const getInitialCache = (): ProductItem[] => {
   try {
     const raw = localStorage.getItem(PRODUCTS_STORAGE_KEY);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        // Upgrade any unsplash or outdated placeholder images to official Jupiter assets
-        const updated = parsed.map(p => {
-          if (p.id === 'PROD-BLOCK-VERTICAL' && (!p.image || p.image.includes('unsplash'))) {
-            return { ...p, image: '/images/flyash-rotary-ton-machine.png' };
-          }
-          if (p.id === 'PROD-INTERLOCK-MACHINE' && (!p.image || p.image.includes('unsplash'))) {
-            return { ...p, image: '/images/flyash-4brick-rotary.png' };
-          }
-          if (p.id === 'PROD-PAVER-BLOCK-MACHINE' && (!p.image || p.image.includes('unsplash'))) {
-            return { ...p, image: '/images/flyash-vertical-machine.png' };
-          }
-          if (p.id === 'PROD-BATCHING-PLANT' && (!p.image || p.image.includes('unsplash'))) {
-            return { ...p, image: '/images/storage-silo-product.png' };
-          }
-          return p;
-        });
-
-        // Add any missing default products so categories with 1 item get the full Jupiter lineup
-        const existingIds = new Set(updated.map(p => p.id));
-        const missing = INITIAL_DEFAULT_PRODUCTS.filter(p => !existingIds.has(p.id));
-        if (missing.length > 0) {
-          const merged = [...updated, ...missing];
-          saveToStorage(merged);
-          return merged;
-        }
-        return updated;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const sanitized = sanitizeCatalog(parsed);
+        saveToStorage(sanitized);
+        return sanitized;
       }
     }
   } catch (e) {
@@ -699,8 +628,9 @@ const getInitialCache = (): ProductItem[] => {
   }
 
   // First-time setup ONLY (when key does not exist yet)
-  saveToStorage(INITIAL_DEFAULT_PRODUCTS);
-  return INITIAL_DEFAULT_PRODUCTS;
+  const initial = sanitizeCatalog([...INITIAL_DEFAULT_PRODUCTS]);
+  saveToStorage(initial);
+  return initial;
 };
 
 let _cachedProducts: ProductItem[] = getInitialCache();
@@ -748,18 +678,35 @@ export const fetchProducts = async (category?: string, search?: string): Promise
 
     if (!category && !search && products.length > 0) {
       const currentStored = getStoredProducts();
-      const existingIds = new Set(currentStored.map(p => p.id));
-      const newItems = products.filter(p => 
-        !existingIds.has(p.id) &&
-        p.category !== 'Mixing Equipment' && 
-        p.category !== 'Automation & Handling' &&
-        (p as any).slug !== 'planetary-pan-mixer-500-1000-kg' &&
-        (p as any).slug !== 'automatic-pallet-stacker-feeder-system' &&
-        !p.name?.includes('Planetary Pan Mixer') &&
-        !p.name?.includes('Automatic Pallet Stacker')
-      );
+      const existingIds = new Set(currentStored.map(p => p.id.toLowerCase().trim()));
+      const existingNames = new Set(currentStored.map(p => (p.name || '').toLowerCase().trim()));
+      const deletedIds = getDeletedProductIds();
+
+      const newItems = products.filter(p => {
+        const idLow = (p.id || '').toLowerCase().trim();
+        const nameLow = (p.name || '').toLowerCase().trim();
+
+        // Never import deleted items
+        if (deletedIds.has(idLow) || deletedIds.has(nameLow)) return false;
+
+        // Never import legacy backend mock IDs
+        if (idLow.startsWith('prod-0')) return false;
+
+        // Never import the removed 50 ton standard interlock product
+        if (idLow === 'prod-interlock-machine' || nameLow.includes('50 ton standard')) return false;
+
+        // Never import mixer / automation items
+        if (p.category === 'Mixing Equipment' || p.category === 'Automation & Handling') return false;
+        if (nameLow.includes('planetary pan mixer') || nameLow.includes('automatic pallet stacker')) return false;
+
+        // Skip if already in storage by ID or Name
+        if (existingIds.has(idLow) || existingNames.has(nameLow)) return false;
+
+        return true;
+      });
+
       if (newItems.length > 0) {
-        const merged = [...currentStored, ...newItems];
+        const merged = sanitizeCatalog([...currentStored, ...newItems]);
         _cachedProducts = merged;
         saveToStorage(merged);
         window.dispatchEvent(new Event('jupiter_products_updated'));
@@ -813,6 +760,15 @@ export const addProduct = async (product: Partial<ProductItem>): Promise<Product
     highlights: product.highlights || [],
     advantages: product.advantages || []
   };
+
+  // If user is adding this item back, un-mark it from deleted list
+  const deletedIds = getDeletedProductIds();
+  const nameLow = newItem.name.toLowerCase().trim();
+  if (deletedIds.has(nameLow) || deletedIds.has(newItem.id.toLowerCase())) {
+    deletedIds.delete(nameLow);
+    deletedIds.delete(newItem.id.toLowerCase());
+    saveDeletedProductIds(deletedIds);
+  }
 
   // 1. Immediately persist locally so refresh never loses data
   const current = getStoredProducts();
@@ -880,13 +836,25 @@ export const updateProduct = async (id: string, updates: Partial<ProductItem>): 
 };
 
 export const deleteProduct = async (id: string): Promise<boolean> => {
-  // 1. Immediately persist locally
+  // 1. Mark permanently in deleted IDs set so refresh never restores it
   const current = getStoredProducts();
+  const target = current.find(p => p.id === id);
+  const deletedIds = getDeletedProductIds();
+  deletedIds.add(id.toLowerCase().trim());
+  if (target?.name) {
+    deletedIds.add(target.name.toLowerCase().trim());
+  }
+  if (target?.categorySlug) {
+    deletedIds.add(`${target.categorySlug}/${(target.name || '').toLowerCase().trim()}`);
+  }
+  saveDeletedProductIds(deletedIds);
+
+  // 2. Immediately persist locally
   _cachedProducts = current.filter(p => p.id !== id);
   saveToStorage(_cachedProducts);
   window.dispatchEvent(new Event('jupiter_products_updated'));
 
-  // 2. Sync to backend API and database
+  // 3. Sync to backend API and database
   try {
     apiClient.delete(`/products/${encodeURIComponent(id)}`, { timeout: 10000 }).catch((err) => {
       console.warn('Live DB product delete failed:', err);
@@ -907,16 +875,7 @@ export const getStoredProducts = (): ProductItem[] => {
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        const clean = parsed.filter(p => 
-          p.category !== 'Mixing Equipment' && 
-          p.category !== 'Automation & Handling' &&
-          (p as any).slug !== 'planetary-pan-mixer-500-1000-kg' &&
-          (p as any).slug !== 'automatic-pallet-stacker-feeder-system' &&
-          p.id !== 'cmu5ib2dz0007uvjwnbsiz34y' &&
-          p.id !== 'cmu5ib2ee0008uvjwo5u2we0e' &&
-          !p.name?.includes('Planetary Pan Mixer') &&
-          !p.name?.includes('Automatic Pallet Stacker')
-        );
+        const clean = sanitizeCatalog(parsed);
         if (clean.length !== parsed.length) {
           saveToStorage(clean);
         }
@@ -931,8 +890,8 @@ export const getStoredProducts = (): ProductItem[] => {
 };
 
 export const saveStoredProducts = (products: ProductItem[]): void => {
-  _cachedProducts = products;
-  saveToStorage(products);
+  _cachedProducts = sanitizeCatalog(products);
+  saveToStorage(_cachedProducts);
   window.dispatchEvent(new Event('jupiter_products_updated'));
 };
 
@@ -943,7 +902,10 @@ export const clearAllProducts = (): void => {
 };
 
 export const resetProductsToDefault = (): ProductItem[] => {
-  _cachedProducts = [...INITIAL_DEFAULT_PRODUCTS];
+  try {
+    localStorage.removeItem(DELETED_PRODUCTS_KEY);
+  } catch (e) {}
+  _cachedProducts = sanitizeCatalog([...INITIAL_DEFAULT_PRODUCTS]);
   saveToStorage(_cachedProducts);
   window.dispatchEvent(new Event('jupiter_products_updated'));
   return _cachedProducts;

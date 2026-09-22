@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Package } from 'lucide-react';
 import { PageBanner } from '../components/PageBanner';
 import { 
@@ -10,7 +10,6 @@ import {
 } from '../services/productService';
 
 export const ProductsPage: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || 'all-machines';
   const [activeFilter, setActiveFilter] = useState(initialCategory);
@@ -111,9 +110,9 @@ export const ProductsPage: React.FC = () => {
           <div style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 36px auto' }}>
             <span style={{
               display: 'inline-block',
-              color: '#8A99AD',
-              fontSize: '0.82rem',
-              fontWeight: 800,
+              color: '#EA580C',
+              fontSize: '0.85rem',
+              fontWeight: 600,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
               marginBottom: '8px'

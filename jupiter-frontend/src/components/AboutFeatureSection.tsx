@@ -96,8 +96,8 @@ export const AboutFeatureSection: React.FC = () => {
           {/* Center Column: Text Content with 2-line title */}
           <div>
             <div style={{
-              fontSize: '0.78rem',
-              fontWeight: 800,
+              fontSize: '0.85rem',
+              fontWeight: 600,
               color: '#EA580C',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',

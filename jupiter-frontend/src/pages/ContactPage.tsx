@@ -3,11 +3,11 @@ import {
   Phone, 
   Mail, 
   MapPin, 
-  MessageSquare, 
   ArrowRight,
   CheckCircle2, 
   AlertCircle, 
   Loader2,
+  X,
   Facebook,
   Instagram,
   Youtube
@@ -32,6 +32,16 @@ export const ContactPage: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const statusTimerRef = React.useRef<any>(null);
+
+  // Clear timer on component unmount
+  React.useEffect(() => {
+    return () => {
+      if (statusTimerRef.current) {
+        clearTimeout(statusTimerRef.current);
+      }
+    };
+  }, []);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -73,6 +83,7 @@ export const ContactPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     setStatusMessage(null);
 
     if (!validate()) return;
@@ -90,8 +101,14 @@ export const ContactPage: React.FC = () => {
 
       setStatusMessage({
         type: 'success',
-        text: res.message || 'Thank you! Your enquiry has been submitted. Our engineering team will contact you within 24 hours.',
+        text: res.message || 'Quotation request submitted! Our factory engineer will contact you shortly.',
       });
+
+      // Automatically close the popup / alert in 2.5 to 3 seconds as requested
+      statusTimerRef.current = setTimeout(() => {
+        setStatusMessage(null);
+      }, 3000);
+
       setFormData({
         name: '',
         company: '',
@@ -106,6 +123,9 @@ export const ContactPage: React.FC = () => {
         type: 'error',
         text: err.message || 'Unable to submit enquiry right now. Please try calling +91 93429 19060 or WhatsApp us directly.',
       });
+      statusTimerRef.current = setTimeout(() => {
+        setStatusMessage(null);
+      }, 4000);
     } finally {
       setLoading(false);
     }
@@ -135,15 +155,46 @@ export const ContactPage: React.FC = () => {
               </p>
 
               {statusMessage && (
-                <div className={`form-status-alert ${statusMessage.type}`} style={{ marginTop: '16px' }}>
+                <div 
+                  className={`form-status-alert ${statusMessage.type}`} 
+                  style={{ 
+                    marginTop: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {statusMessage.type === 'success' ? (
-                      <CheckCircle2 size={20} />
+                      <CheckCircle2 size={20} style={{ flexShrink: 0 }} />
                     ) : (
-                      <AlertCircle size={20} />
+                      <AlertCircle size={20} style={{ flexShrink: 0 }} />
                     )}
                     <span>{statusMessage.text}</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+                      setStatusMessage(null);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'inherit',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      opacity: 0.8,
+                      borderRadius: '4px'
+                    }}
+                    title="Dismiss"
+                    aria-label="Dismiss notification"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
               )}
 
@@ -337,7 +388,9 @@ export const ContactPage: React.FC = () => {
                   className="contact-unified-row contact-unified-row--link"
                 >
                   <div className="contact-quad-icon-box green">
-                    <MessageSquare size={20} />
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M12.01 2.01c-5.5 0-9.98 4.47-9.98 9.98 0 1.95.56 3.78 1.54 5.33L2 22l4.83-1.52c1.49.88 3.23 1.39 5.09 1.39 5.5 0 9.98-4.48 9.98-9.98 0-5.51-4.48-9.98-9.98-9.98zm-.01 18.25c-1.63 0-3.17-.46-4.49-1.26l-.32-.2-3.32 1.04 1.07-3.23-.21-.34c-.87-1.39-1.34-3-1.34-4.67 0-4.62 3.76-8.38 8.38-8.38 4.63 0 8.39 3.76 8.39 8.38 0 4.62-3.76 8.38-8.39 8.38zm4.61-6.3c-.25-.13-1.49-.74-1.72-.82-.23-.08-.4-.13-.57.13-.17.25-.65.82-.8 1-.15.17-.3.2-.55.07-.25-.13-1.07-.39-2.03-1.25-.75-.67-1.26-1.5-1.41-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.38-.44.13-.15.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.57-1.37-.78-1.88-.21-.5-.41-.43-.57-.44h-.49c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.77 2.7 4.3 3.79.6.26 1.07.42 1.44.53.61.2 1.16.17 1.6.1.49-.07 1.49-.61 1.7-1.2.21-.59.21-1.1.15-1.2-.06-.11-.23-.17-.48-.3z" />
+                    </svg>
                   </div>
                   <div className="contact-quad-content">
                     <h3 className="contact-quad-title">WhatsApp Us</h3>
