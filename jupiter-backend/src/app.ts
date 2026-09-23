@@ -9,6 +9,12 @@ import productRoutes from './routes/productRoutes';
 import projectRoutes from './routes/projectRoutes';
 import galleryRoutes from './routes/galleryRoutes';
 import videoRoutes from './routes/videoRoutes';
+import settingsRoutes from './routes/settingsRoutes';
+import faqRoutes from './routes/faqRoutes';
+import deliveryLocationRoutes from './routes/deliveryLocationRoutes';
+import userRoutes from './routes/userRoutes';
+import reviewRoutes from './routes/reviewRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const createApp = (): Application => {
@@ -17,27 +23,41 @@ export const createApp = (): Application => {
   // Security Middleware
   app.use(helmet());
 
-  // CORS Middleware
+  // CORS Middleware - allows localhost (dev) and live production domain
   const allowedOrigins = [
     env.FRONTEND_URL,
+    // Local development
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:5174',
-    'http://127.0.0.1:5174'
+    'http://127.0.0.1:5174',
+    'http://localhost:3000',
+    // Live production domains
+    'https://jupitergroups.in',
+    'https://www.jupitergroups.in',
+    'http://jupitergroups.in',
+    'http://www.jupitergroups.in',
   ];
+
   app.use(
     cors({
       origin: (origin, callback) => {
-        // allow requests with no origin (like mobile apps, curl, postman)
+        // Allow requests with no origin (mobile apps, curl, Postman, server-side calls)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+        if (
+          allowedOrigins.indexOf(origin) !== -1 ||
+          process.env.NODE_ENV === 'development' ||
+          // Allow any subdomain of jupitergroups.in
+          /https?:\/\/([\w-]+\.)?jupitergroups\.in$/.test(origin)
+        ) {
           return callback(null, true);
         }
+        console.warn(`[CORS] Blocked origin: ${origin}`);
         return callback(new Error('Not allowed by CORS'));
       },
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     })
   );
 
@@ -58,27 +78,49 @@ export const createApp = (): Application => {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Root redirect
+  // Root route — API directory
   app.get('/', (req: Request, res: Response) => {
     res.json({
       message: 'Welcome to Jupiter Industries API',
-      health: '/api/health',
-      enquiries: '/api/enquiries',
-      products: '/api/products',
-      projects: '/api/projects',
-      gallery: '/api/gallery',
-      videos: '/api/videos',
-      blogs: '/api/blogs',
+      version: '2.0.0',
+      endpoints: {
+        health: '/api/health',
+        enquiries: '/api/enquiries',
+        products: '/api/products',
+        projects: '/api/projects',
+        gallery: '/api/gallery',
+        videos: '/api/videos',
+        blogs: '/api/blogs',
+        faqs: '/api/faqs',
+        reviews: '/api/reviews',
+        settings: '/api/settings',
+        users: '/api/users',
+        deliveryLocations: '/api/delivery-locations',
+        dashboard: '/api/dashboard/stats',
+      },
     });
   });
 
-  // Mount API Routes
+  // Health check endpoint
+  app.get('/api/health', (req: Request, res: Response) => {
+    res.json({ success: true, status: 'OK', timestamp: new Date().toISOString() });
+  });
+
+  // Core content routes
   app.use('/api', enquiryRoutes);
   app.use('/api', productRoutes);
   app.use('/api', projectRoutes);
   app.use('/api', galleryRoutes);
   app.use('/api', videoRoutes);
   app.use('/api', blogRoutes);
+
+  // Admin & feature routes
+  app.use('/api', settingsRoutes);
+  app.use('/api', faqRoutes);
+  app.use('/api', deliveryLocationRoutes);
+  app.use('/api', userRoutes);
+  app.use('/api', reviewRoutes);
+  app.use('/api', dashboardRoutes);
 
   // 404 Handler
   app.use((req: Request, res: Response) => {

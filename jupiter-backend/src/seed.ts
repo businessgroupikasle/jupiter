@@ -5,15 +5,109 @@ const prisma = new PrismaClient();
 // ==========================================
 // 1. Machinery Products (Jupiter Catalog)
 // ==========================================
-const sampleProducts: any[] = [];
+const sampleProducts = [
+  {
+    name: 'Fully Automatic Fly Ash Brick Machine',
+    slug: 'fully-automatic-fly-ash-brick-machine',
+    category: 'Fly Ash Brick Machines',
+    description: 'State-of-the-art fully automatic fly ash brick making plant with high hydraulic compression of up to 100 Tons. Features automatic pallet feeding, conveyor material dispatch, and PLC touch screen controls for maximum efficiency and minimum human labour.',
+    capacity: '12,000 - 18,000 Bricks / Shift',
+    power: '32.5 HP (3 Phase)',
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+    enquiryCount: 42,
+    specifications: {
+      pressingCapacity: '100 - 120 Tons Hydraulic',
+      brickSize: '230 x 110 x 75 mm / Custom',
+      cycleTime: '15 - 18 Seconds',
+      oilTankCapacity: '350 Litres',
+      rawMaterials: 'Fly Ash, Cement/Lime, Stone Dust, Gypsum',
+    },
+  },
+  {
+    name: 'Semi-Automatic Fly Ash Brick Machine',
+    slug: 'semi-automatic-fly-ash-brick-machine',
+    category: 'Fly Ash Brick Machines',
+    description: 'Rugged, cost-effective hydraulic brick making machine engineered for small and medium-scale brick manufacturers. Features manual valve controls with motorized pan mixer and conveyor for dependable daily production.',
+    capacity: '6,000 - 8,000 Bricks / Shift',
+    power: '22 HP (3 Phase)',
+    image: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=800&q=80',
+    enquiryCount: 28,
+    specifications: {
+      pressingCapacity: '70 - 80 Tons Hydraulic',
+      brickSize: '230 x 110 x 75 mm',
+      cycleTime: '22 Seconds',
+      oilTankCapacity: '250 Litres',
+      rawMaterials: 'Fly Ash, Lime/Cement, Sand',
+    },
+  },
+  {
+    name: 'Heavy-Duty Concrete Hollow Block Machine',
+    slug: 'heavy-duty-concrete-hollow-block-machine',
+    category: 'Block Machines',
+    description: 'Heavy-duty hydraulic vibro-press concrete block machine for producing hollow blocks, solid masonry units, and compound wall blocks with superior dimensional accuracy and compressive strength.',
+    capacity: '3,000 - 4,500 Blocks / Shift (8")',
+    power: '27.5 HP (3 Phase)',
+    image: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80',
+    enquiryCount: 35,
+    specifications: {
+      blockTypes: '8" Hollow, 6" Hollow, 4" Partition, Solid Blocks',
+      vibrationFrequency: '4,500 RPM Dual Shaft',
+      cycleTime: '20 - 25 Seconds',
+      palletSize: '900 x 600 x 25 mm',
+      mouldChangeTime: '30 - 45 Minutes',
+    },
+  },
+  {
+    name: 'Hydraulic Interlocking Paver Block Machine',
+    slug: 'hydraulic-interlocking-paver-block-machine',
+    category: 'Paver Machines',
+    description: 'Multi-cavity hydraulic paver press equipped with top colour feeder attachments to manufacture decorative zig-zag, I-shape, and rectangular interlocking paver blocks for roads, walkways, and commercial compounds.',
+    capacity: '5,000 - 7,000 Pavers / Shift',
+    power: '25 HP (3 Phase)',
+    image: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?auto=format&fit=crop&w=800&q=80',
+    enquiryCount: 19,
+    specifications: {
+      paverThickness: '60 mm, 80 mm, 100 mm',
+      paverTypes: 'Zig-zag, I-Shape, Hexagonal, Cosmic',
+      clampingPressure: '90 Tons',
+      colourLayerAttachment: 'Dual Hopper with Feed Chute',
+    },
+  },
+  {
+    name: 'Planetary Pan Mixer with Roller (500 KG)',
+    slug: 'planetary-pan-mixer-500kg',
+    category: 'Batching & Mixing',
+    description: 'High-torque industrial planetary pan mixer with heavy-duty wear-resistant Ni-Hard liner plates and spring-loaded mixing blades designed for uniform, lump-free concrete and fly ash mixing.',
+    capacity: '500 KG Batch (approx. 10 Ton/hr)',
+    power: '10 HP Crompton / ABB Motor',
+    image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80',
+    enquiryCount: 22,
+    specifications: {
+      drumDiameter: '1,500 mm',
+      linerThickness: '10 mm Replaceable Ni-Hard Plate',
+      dischargeGate: 'Pneumatic / Manual Bottom Gate',
+      transmission: 'Oil-bath Heavy Duty Worm Reduction Gearbox',
+    },
+  },
+  {
+    name: 'Automatic Pallet Stacker & Feeder System',
+    slug: 'automatic-pallet-stacker-feeder-system',
+    category: 'Material Handling',
+    description: 'Hydraulic multi-tier pallet stacker that automatically lifts, stacks, and collects finished green bricks onto wooden or PVC pallets, dramatically cutting manual labour and preventing green brick breakage.',
+    capacity: 'Synchronized up to 20 cycles/min',
+    power: '5 HP Hydraulic Unit',
+    image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+    enquiryCount: 14,
+    specifications: {
+      stackingHeight: 'Up to 5 - 7 tiers',
+      palletSuitability: 'Wooden, PVC, Composite Pallets',
+      sensorSafety: 'Infrared Proximity Alignment Sensors',
+    },
+  },
+];
 
 // ==========================================
-// 2. Customer Enquiries (Live Only - No Dummy Data)
-// ==========================================
-// Live enquiries are submitted directly by users via the website into PostgreSQL.
-
-// ==========================================
-// 3. Technical Blogs & Guides (Admin Articles)
+// 2. Technical Blogs & Guides
 // ==========================================
 const sampleBlogs = [
   {
@@ -121,70 +215,86 @@ Concrete block machines utilize vibration tables with hydraulic compression to d
     ],
     views: 1240,
   },
+];
+
+// ==========================================
+// 3. FAQs (Frequently Asked Questions)
+// ==========================================
+const sampleFaqs = [
   {
-    slug: 'hollow-block-vs-solid-block-manufacturing-comparison',
-    title: 'Hollow Blocks vs Solid Blocks: Machinery Selection & Profitability Comparison',
-    excerpt: 'Detailed cost-benefit analysis of producing hollow concrete blocks vs solid masonry units for commercial builders.',
-    content: `Choosing between hollow block and solid block machinery depends on regional market demand, architectural requirements, and raw material availability. Hollow blocks offer lighter dead weight and superior acoustic/thermal insulation, whereas solid blocks provide unmatched load-bearing strength.
-
-### Key Production Metrics
-- **Cycle Time:** 20-25 seconds per mould stroke
-- **Curing Time:** 14-21 days water curing or 24 hours steam curing
-- **Compressive Strength:** Solid blocks (7.5 - 15 N/mm²), Hollow blocks (3.5 - 7 N/mm²)
-
-### Mould Versatility
-With Jupiter block machines, changing moulds from standard 8" hollow block to 4" partition blocks or solid bricks takes under 45 minutes, allowing manufacturers to adapt instantly to local market orders.`,
-    category: 'Concrete Blocks',
-    readTime: '5 min read',
-    authorName: 'P. Murugan',
-    authorRole: 'Senior Production Engineer',
-    authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-    date: '28 Jul 2024',
-    image: 'https://images.unsplash.com/photo-1590674899484-d5640e854abe?auto=format&fit=crop&w=800&q=80',
-    tags: ['Hollow Block', 'Solid Block', 'Concrete Machinery', 'Profitability'],
-    keyTakeaways: [
-      'Hollow blocks reduce structural building weight and cement consumption',
-      'Dual vibration systems ensure maximum aggregate compaction',
-      'Quick-change mould designs maximize plant operational versatility',
-    ],
-    views: 980,
+    question: 'What is the required land area for setting up a fly ash brick plant?',
+    answer: 'A minimum of 0.75 to 1.5 acres of land is recommended. This covers the shed for the machinery (around 2,500 sq.ft), raw material storage yard (fly ash, sand, cement), and the brick water curing area.',
+    category: 'Plant Setup',
+    order: 1,
   },
   {
-    slug: 'government-subsidies-pmegp-msme-brick-plant-india',
-    title: 'Complete Guide to PMEGP & MSME Subsidies for Brick & Block Manufacturing in India',
-    excerpt: 'How to claim up to 35% government capital subsidy on brick and paver machinery with guaranteed bank project loan approval.',
-    content: `The Government of India actively incentivizes eco-friendly construction materials like fly ash bricks and paver blocks through schemes like PMEGP (Prime Minister Employment Generation Programme) and state MSME capital subsidy policies.
-
-### Subsidy Percentages Under PMEGP:
-- **General Category (Urban):** 15% Project Cost Subsidy
-- **General Category (Rural):** 25% Project Cost Subsidy
-- **Special Category / SC / ST / Women / Ex-Servicemen (Urban):** 25% Subsidy
-- **Special Category / SC / ST / Women / Ex-Servicemen (Rural):** 35% Subsidy
-
-### Documents Required:
-1. Detailed Project Report (DPR) along with Jupiter Industries machinery quotation
-2. Land documents (Sale deed / registered lease for minimum 5 years)
-3. Aadhaar, PAN, and Educational Certificate (minimum 8th pass for projects above ₹10 Lakhs)
-4. Bank account statement and CIBIL score verification`,
-    category: 'Business & Subsidies',
-    readTime: '7 min read',
-    authorName: 'Er. R. Sundaram',
-    authorRole: 'Chief Technical Director, Jupiter Industries',
-    authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-    date: '05 Jul 2024',
-    image: 'https://images.unsplash.com/photo-1541888946425-d0fbb186c5f8?auto=format&fit=crop&w=800&q=80',
-    tags: ['PMEGP Subsidy', 'MSME Loan', 'Project Report', 'Bank Finance'],
-    keyTakeaways: [
-      'Up to 35% capital subsidy for rural and special category entrepreneurs',
-      'Bank credit link up to 90-95% of total project cost',
-      'Jupiter Industries provides certified project reports and proforma invoices for bank approval',
-    ],
-    views: 2150,
+    question: 'Does Jupiter Industries assist with government subsidies like PMEGP?',
+    answer: 'Yes! We provide certified Bank Project Reports (DPR), machinery quotation proformas, and technical documentation required to apply for PMEGP, MSME, and state industrial subsidy schemes (up to 35% capital subsidy).',
+    category: 'Finance & Subsidy',
+    order: 2,
+  },
+  {
+    question: 'What is the warranty period and on-site support provided?',
+    answer: 'All Jupiter machinery comes with a 1-year comprehensive warranty on structural and hydraulic cylinders, along with free on-site installation, commissioning, and operator training by our qualified engineers across India.',
+    category: 'Warranty & Service',
+    order: 3,
+  },
+  {
+    question: 'Can one machine produce both fly ash bricks and paver blocks?',
+    answer: 'Yes. Our heavy-duty vibro-hydraulic machines support interchangeable moulds. You can switch between fly ash bricks, solid blocks, hollow blocks, and interlocking pavers within 45 minutes.',
+    category: 'Machinery Operation',
+    order: 4,
   },
 ];
 
 // ==========================================
-// Main Seeder Function
+// 4. Delivery Locations (Pan-India Presence)
+// ==========================================
+const sampleLocations = [
+  {
+    clientName: 'Arunachala Precast Works',
+    city: 'Tiruvannamalai',
+    district: 'Tiruvannamalai',
+    state: 'Tamil Nadu',
+    machineModel: 'Fully Automatic Fly Ash Brick Machine (10 Cavity)',
+    dispatchDate: '2024',
+    status: 'Operational',
+    units: 1,
+  },
+  {
+    clientName: 'Sri Sai Ram Block Industries',
+    city: 'Coimbatore',
+    district: 'Coimbatore',
+    state: 'Tamil Nadu',
+    machineModel: 'Heavy-Duty Concrete Hollow Block Machine',
+    dispatchDate: '2024',
+    status: 'Operational',
+    units: 2,
+  },
+  {
+    clientName: 'Balaji Eco Bricks & Pavers',
+    city: 'Nellore',
+    district: 'Nellore',
+    state: 'Andhra Pradesh',
+    machineModel: 'Hydraulic Interlocking Paver Machine',
+    dispatchDate: '2024',
+    status: 'Operational',
+    units: 1,
+  },
+  {
+    clientName: 'Kaveri Construction Precasts',
+    city: 'Mysuru',
+    district: 'Mysuru',
+    state: 'Karnataka',
+    machineModel: 'Fully Automatic Fly Ash Brick Machine',
+    dispatchDate: '2024',
+    status: 'Operational',
+    units: 1,
+  },
+];
+
+// ==========================================
+// 5. Main Seeder Function
 // ==========================================
 export async function seedDatabase() {
   console.log('🌱 Starting comprehensive database seeding for Jupiter Industries...\n');
@@ -202,9 +312,7 @@ export async function seedDatabase() {
   const productCount = await prisma.product.count();
   console.log(`✨ Successfully seeded ${productCount} Machinery Products!\n`);
 
-  // 2. Customer Enquiries: Left clean so only live customer enquiries are stored in DB.
-
-  // 3. Seed Blogs (upsert by slug)
+  // 2. Seed Blogs (upsert by slug)
   console.log('📰 Seeding Technical Articles & Guides...');
   for (const blog of sampleBlogs) {
     const created = await prisma.blog.upsert({
@@ -217,7 +325,38 @@ export async function seedDatabase() {
   const blogCount = await prisma.blog.count();
   console.log(`✨ Successfully seeded ${blogCount} Technical Articles!\n`);
 
-  console.log('🎉 Database seeding completed successfully! All catalogs & admin data are ready.');
+  // 3. Seed FAQs
+  console.log('❓ Seeding FAQs...');
+  for (const faq of sampleFaqs) {
+    const existing = await (prisma as any).faq.findFirst({ where: { question: faq.question } });
+    if (!existing) {
+      await (prisma as any).faq.create({ data: faq });
+    }
+  }
+  const faqCount = await (prisma as any).faq.count();
+  console.log(`✨ Successfully verified ${faqCount} FAQs!\n`);
+
+  // 4. Seed Delivery Locations
+  console.log('📍 Seeding Pan-India Delivery Locations...');
+  for (const loc of sampleLocations) {
+    const existing = await (prisma as any).deliveryLocation.findFirst({ where: { clientName: loc.clientName } });
+    if (!existing) {
+      await (prisma as any).deliveryLocation.create({ data: loc });
+    }
+  }
+  const locCount = await (prisma as any).deliveryLocation.count();
+  console.log(`✨ Successfully verified ${locCount} Delivery Locations!\n`);
+
+  // 5. Ensure Default Site Settings Exist
+  console.log('⚙️ Verifying Site Settings...');
+  await (prisma as any).setting.upsert({
+    where: { id: 'site_settings' },
+    update: {},
+    create: { id: 'site_settings' },
+  });
+  console.log('✔ Site settings verified!\n');
+
+  console.log('🎉 Database seeding completed successfully! All live tables & catalogs are ready.');
 }
 
 if (typeof require !== 'undefined' && require.main === module) {

@@ -104,3 +104,89 @@ model Video {
 
   @@index([category])
 }
+
+model Faq {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String   @db.Text
+  category  String   @default("General")
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+}
+
+model DeliveryLocation {
+  id           String   @id @default(cuid())
+  clientName   String?  @default("Valued Client")
+  city         String   @default("Coimbatore")
+  district     String   @default("Coimbatore")
+  state        String   @default("Tamil Nadu")
+  machineModel String   @default("Fully Automatic Fly Ash Brick Machine")
+  dispatchDate String?  @default("2024")
+  status       String   @default("Delivered")
+  units        Int      @default(1)
+  contactPhone String?
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([state])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String   @default("Admin") // Super Admin, Admin, Editor
+  avatar    String?
+  status    String   @default("Active") // Active, Inactive
+  phone     String?
+  password  String?
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Setting {
+  id                  String   @id @default("site_settings")
+  adminDisplayName    String   @default("Jupiter Admin")
+  adminEmail          String   @default("admin@jupiter.com")
+  maintenanceMode     Boolean  @default(false)
+  maintenanceHeadline String   @default("Scheduled Machinery Infrastructure Maintenance")
+  estimatedDowntime   String   @default("Estimated downtime: Approx. 1 to 2 Hours")
+  publicNotice        String   @db.Text @default("Jupiter Industries website is currently undergoing scheduled platform upgrades to optimize our machinery catalog and quotation system. We will be back online shortly.")
+  emergencyHotline    String   @default("+91 93429 19060")
+  emergencyEmail      String   @default("info@jupiterindustries.com")
+  allowAdminBypass    Boolean  @default(true)
+  companyLegalName    String   @default("Jupiter Industries")
+  primaryHotline      String   @default("+91 93429 19060")
+  primaryEmail        String   @default("info@jupiterindustries.com")
+  address             String?  @db.Text @default("SF No. 345/2, Trichy Road, Coimbatore, Tamil Nadu 641018")
+  gstNumber           String?  @default("33AAAAJ1234A1Z5")
+  socialLinks         Json?
+  updatedAt           DateTime @updatedAt
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  customerName String
+  company      String?  @default("Building Contractor")
+  location     String?  @default("Tamil Nadu, India")
+  rating       Int      @default(5)
+  comment      String   @db.Text
+  machineModel String?  @default("Fly Ash Brick Machine")
+  image        String?  @default("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80")
+  status       String   @default("Approved") // Approved, Pending, Rejected
+  verifiedBuyer Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+}
+
