@@ -1,7 +1,17 @@
 import axios from 'axios';
-import { addStoredEnquiry } from './enquiryService';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname) {
+    const host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return `${window.location.protocol}//${host}:5000/api`;
+    }
+  }
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -32,7 +42,7 @@ export interface EnquiryResponse {
 }
 
 // Helper to extract product name from quotation message if available
-function parseProductFromMessage(msg: string): string {
+export function parseProductFromMessage(msg: string): string {
   const match = msg.match(/(?:Quotation for|Product Interest|Machinery Requirement):\s*([^|\n]+)/i);
   if (match && match[1]) {
     return match[1].trim();
@@ -53,52 +63,15 @@ export const submitEnquiry = async (data: EnquiryPayload): Promise<EnquiryRespon
 
   try {
     const response = await apiClient.post<EnquiryResponse>('/enquiries', data);
-    // On backend success, synchronize locally for instantaneous UI updates
-    try {
-      addStoredEnquiry({
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        product: parseProductFromMessage(data.message),
-        message: data.message,
-      });
-    } catch (err) {
-      console.warn('Could not cache enquiry locally:', err);
-    }
     await enforceDelay();
     return response.data;
   } catch (error: any) {
+    await enforceDelay();
     if (error.response && error.response.data) {
-      // Backend returned validation error or bad request (400) - do not save invalid data
-      await enforceDelay();
       throw new Error(error.response.data.message || 'Failed to submit enquiry');
     }
-    // Network Error or Server unreachable: Gracefully fall back so lead is preserved locally
-    try {
-      addStoredEnquiry({
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        product: parseProductFromMessage(data.message),
-        message: data.message,
-      });
-    } catch (err) {
-      console.warn('Could not save enquiry to local storage:', err);
-    }
-    console.warn('Backend server unreachable, saved enquiry locally into Admin Dashboard storage:', error.message);
-    await enforceDelay();
-    return {
-      success: true,
-      message: 'Quotation request submitted! Our factory engineer will contact you shortly.',
-      data: {
-        id: `LOC-${Date.now()}`,
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        message: data.message,
-        createdAt: new Date().toISOString(),
-      },
-    };
+    throw new Error('Backend database server connection failed. Please ensure backend is running.');
   }
 };
+
 

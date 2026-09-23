@@ -1,0 +1,20 @@
+/* TEAM */
+  Company: Jupiter Industries
+  Managing Director: Mathivanan
+  Location: Coimbatore, Tamil Nadu, India
+  Address: 153-154, Sri Garden, Vilankurichi, Coimbatore - 641035
+  Website: https://jupitergroups.in
+  Email: mathivanan.md@jupitergroups.in
+  Contact: +91 93429 19060 / +91 91599 99060
+
+/* THANKS */
+  Crafted & Maintained by: Ikasle Business Group
+  Website: https://ikasle.in
+
+/* SITE */
+  Standards: HTML5, CSS3, ES2022, TypeScript
+  Framework: React 18, Vite
+  Icons: Lucide React
+  Software & Infrastructure: Node.js, Express, MongoDB
+  Language: English, Tamil
+  Doctype: HTML5

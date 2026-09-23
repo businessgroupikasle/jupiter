@@ -1,0 +1,10 @@
+# ads.txt - Authorized Digital Sellers
+# Organization: Jupiter Industries
+# Domain: https://jupitergroups.in
+# Contact: marketing@jupitergroups.in
+
+# Jupiter Industries does not currently run third-party programmatic advertising networks.
+# All digital advertising and listings on this domain are managed directly.
+
+# Example for future AdSense / Google Ad Manager integration:
+# google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

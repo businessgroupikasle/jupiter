@@ -51,9 +51,9 @@ export interface ProductItem {
   description?: string;
   featureBadges?: string[];
   keyFeatures?: string[];
-  specs?: Record<string, string>;
+  specs?: Record<string, any>;
   specTableColumns?: string[];
-  specTableRows?: Array<Record<string, string>>;
+  specTableRows?: Array<Record<string, any>>;
   highlights?: Array<{ title: string; description: string }>;
   advantages?: Array<{ title: string; description: string }>;
 }
@@ -492,66 +492,14 @@ export const INITIAL_DEFAULT_PRODUCTS: ProductItem[] = [
 ];
 
 // ─────────────────────────────────────────────────────────
-// Persistent Local Storage & In-Memory Cache
+// In-Memory Catalog Cache (Populated from Backend Database)
 // ─────────────────────────────────────────────────────────
-const PRODUCTS_STORAGE_KEY = 'jupiter_machinery_products';
-
-const saveToStorage = (products: ProductItem[]): boolean => {
-  try {
-    localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
-    return true;
-  } catch (e: any) {
-    console.error('LocalStorage save error:', e);
-    // If QuotaExceededError, minify by keeping URLs and trimming oversized raw data
-    if (e.name === 'QuotaExceededError' || e.code === 22) {
-      console.warn('LocalStorage quota exceeded. Trimming oversized payload to fit storage...');
-      try {
-        const minified = products.map(p => ({
-          ...p,
-          image: p.image && p.image.length > 500000 ? '/images/flyash-vertical-machine.png' : p.image,
-          galleryImages: (p.galleryImages || []).filter(img => img.length < 300000)
-        }));
-        localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(minified));
-        return true;
-      } catch (innerErr) {
-        console.error('Failed to save even minified catalog:', innerErr);
-      }
-    }
-    return false;
-  }
-};
-
-// ─────────────────────────────────────────────────────────
-// Deletion Tracking & Catalog Sanitization
-// ─────────────────────────────────────────────────────────
-const DELETED_PRODUCTS_KEY = 'jupiter_deleted_product_ids';
-
-export const getDeletedProductIds = (): Set<string> => {
-  try {
-    const raw = localStorage.getItem(DELETED_PRODUCTS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return new Set(parsed.map(s => String(s).toLowerCase().trim()));
-      }
-    }
-  } catch (e) {}
-  return new Set<string>();
-};
-
-export const saveDeletedProductIds = (ids: Set<string>): void => {
-  try {
-    localStorage.setItem(DELETED_PRODUCTS_KEY, JSON.stringify(Array.from(ids)));
-  } catch (e) {}
-};
 
 /**
- * Sanitizes any list of products against deleted items, legacy dummy items,
+ * Sanitizes any list of products against legacy dummy items
  * and duplicate models to guarantee exact catalog integrity.
  */
 export const sanitizeCatalog = (list: ProductItem[]): ProductItem[] => {
-  const deleted = getDeletedProductIds();
-
   // Known legacy/dummy backend IDs or removed duplicate models
   const forbiddenIds = new Set([
     'prod-interlock-machine',
@@ -581,20 +529,17 @@ export const sanitizeCatalog = (list: ProductItem[]): ProductItem[] => {
     const idLower = (p.id || '').toLowerCase().trim();
     const nameLower = (p.name || '').toLowerCase().trim();
 
-    // 1. Skip if deleted by user
-    if (deleted.has(idLower) || deleted.has(nameLower)) continue;
-
-    // 2. Skip forbidden IDs
+    // 1. Skip forbidden IDs
     if (forbiddenIds.has(idLower)) continue;
 
-    // 3. Skip unwanted 3rd interlocking model (50 Ton Standard)
+    // 2. Skip unwanted 3rd interlocking model (50 Ton Standard)
     if (nameLower.includes('50 ton standard')) continue;
 
-    // 4. Skip obsolete mixer / automation products
+    // 3. Skip obsolete mixer / automation products
     if (nameLower.includes('planetary pan mixer') || nameLower.includes('automatic pallet stacker')) continue;
     if (p.category === 'Mixing Equipment' || p.category === 'Automation & Handling') continue;
 
-    // 5. Skip duplicate products by name + category
+    // 4. Skip duplicate products by name + category
     const key = `${nameLower}|${(p.category || '').toLowerCase()}`;
     if (seen.has(key) || seen.has(idLower)) continue;
 
@@ -603,49 +548,11 @@ export const sanitizeCatalog = (list: ProductItem[]): ProductItem[] => {
     cleaned.push(p);
   }
 
-  // Ensure "Inter Locking Brick Making Machine" (1st product added by user) is present if not explicitly deleted
-  const hasFirstInterlock = cleaned.some(p => 
-    (p.categorySlug === 'inter-block-making-machine' || p.category === 'Inter Block Making Machine') && 
-    (p.id === 'PROD-INTERLOCK-BRICK-MAKING' || p.name.toLowerCase().includes('inter locking brick making'))
-  );
-  if (!hasFirstInterlock && !deleted.has('prod-interlock-brick-making') && !deleted.has('inter locking brick making machine')) {
-    const firstInterlock = INITIAL_DEFAULT_PRODUCTS.find(p => p.id === 'PROD-INTERLOCK-BRICK-MAKING');
-    if (firstInterlock) {
-      // Insert right before JE-INT 80 Ton or at top of Inter Block products
-      const intIdx = cleaned.findIndex(p => p.id === 'PROD-INTERLOCK-80T');
-      if (intIdx !== -1) {
-        cleaned.splice(intIdx, 0, firstInterlock);
-      } else {
-        cleaned.push(firstInterlock);
-      }
-    }
-  }
-
   return cleaned;
 };
 
-const getInitialCache = (): ProductItem[] => {
-  try {
-    const raw = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const sanitized = sanitizeCatalog(parsed);
-        saveToStorage(sanitized);
-        return sanitized;
-      }
-    }
-  } catch (e) {
-    console.error('Error reading jupiter_machinery_products from localStorage:', e);
-  }
+let _cachedProducts: ProductItem[] = [];
 
-  // First-time setup ONLY (when key does not exist yet)
-  const initial = sanitizeCatalog([...INITIAL_DEFAULT_PRODUCTS]);
-  saveToStorage(initial);
-  return initial;
-};
-
-let _cachedProducts: ProductItem[] = getInitialCache();
 
 // Map a backend API product to frontend ProductItem
 const mapBackendProduct = (p: any): ProductItem => {
@@ -684,205 +591,128 @@ export const fetchProducts = async (category?: string, search?: string): Promise
     const params: Record<string, string> = {};
     if (category) params.category = category;
     if (search) params.search = search;
-    const response = await apiClient.get('/products', { params, timeout: 2500 });
+    const response = await apiClient.get('/products', { params, timeout: 10000 });
     const data = response.data?.data || response.data || [];
     const products = Array.isArray(data) ? data.map(mapBackendProduct) : [];
 
-    if (!category && !search && products.length > 0) {
-      const currentStored = getStoredProducts();
-      const existingIds = new Set(currentStored.map(p => p.id.toLowerCase().trim()));
-      const existingNames = new Set(currentStored.map(p => (p.name || '').toLowerCase().trim()));
-      const deletedIds = getDeletedProductIds();
-
-      const newItems = products.filter(p => {
-        const idLow = (p.id || '').toLowerCase().trim();
-        const nameLow = (p.name || '').toLowerCase().trim();
-
-        // Never import deleted items
-        if (deletedIds.has(idLow) || deletedIds.has(nameLow)) return false;
-
-        // Never import legacy backend mock IDs
-        if (idLow.startsWith('prod-0')) return false;
-
-        // Never import the removed 50 ton standard interlock product
-        if (idLow === 'prod-interlock-machine' || nameLow.includes('50 ton standard')) return false;
-
-        // Never import mixer / automation items
-        if (p.category === 'Mixing Equipment' || p.category === 'Automation & Handling') return false;
-        if (nameLow.includes('planetary pan mixer') || nameLow.includes('automatic pallet stacker')) return false;
-
-        // Skip if already in storage by ID or Name
-        if (existingIds.has(idLow) || existingNames.has(nameLow)) return false;
-
-        return true;
-      });
-
-      if (newItems.length > 0) {
-        const merged = sanitizeCatalog([...currentStored, ...newItems]);
-        _cachedProducts = merged;
-        saveToStorage(merged);
-        window.dispatchEvent(new Event('jupiter_products_updated'));
-        return merged;
-      }
-    }
-
-    return getStoredProducts();
+    _cachedProducts = sanitizeCatalog(products);
+    window.dispatchEvent(new Event('jupiter_products_updated'));
+    return _cachedProducts;
   } catch (error) {
-    // API offline or unreachable: always return existing local catalog
-    return getStoredProducts();
+    console.warn('API error in fetchProducts, using current catalog:', error);
   }
+  return _cachedProducts;
 };
 
 export const fetchProductById = async (idOrSlug: string): Promise<ProductItem | null> => {
   try {
-    const response = await apiClient.get(`/products/${idOrSlug}`, { timeout: 2000 });
+    const response = await apiClient.get(`/products/${encodeURIComponent(idOrSlug)}`, { timeout: 10000 });
     const data = response.data?.data || response.data;
     if (data) return mapBackendProduct(data);
   } catch (error) {
-    // Fallback to local catalog
+    console.warn('Backend fetchProductById failed:', error);
   }
-  const local = getStoredProducts().find(p => p.id === idOrSlug || p.name.toLowerCase() === idOrSlug.toLowerCase());
-  return local || null;
+  return _cachedProducts.find(p => p.id === idOrSlug || p.categorySlug === idOrSlug) || null;
 };
 
-export const addProduct = async (product: Partial<ProductItem>): Promise<ProductItem | null> => {
+export const addProduct = async (product: Partial<ProductItem>): Promise<ProductItem> => {
   const categoryName = product.category || 'Fly Ash Brick Machine';
   const slug = product.name
     ? product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     : `product-${Date.now()}`;
 
-  const newItem: ProductItem = {
-    id: `PROD-${Date.now()}`,
-    name: product.name || 'New Machine Model',
-    category: categoryName,
-    categorySlug: CATEGORY_NAME_TO_SLUG_MAP[categoryName] || 'fly-ash-brick-machine',
+  const specsPayload = {
+    ...(product.specs || {}),
     brandTag: product.brandTag || categoryName,
-    capacity: product.capacity || '',
-    power: product.power || '',
     brickSize: product.brickSize || '',
-    image: product.image || '/images/flyash-vertical-machine.png',
     galleryImages: product.galleryImages || [],
-    status: product.status || 'Active',
-    description: product.description || `${product.name || 'Machine'} engineered for high reliability and heavy-duty manufacturing.`,
-    featureBadges: product.featureBadges || ['Durable Construction', 'Consistent Dimensions', 'Lower Water Absorption', 'Cost-Effective Solution'],
-    keyFeatures: product.keyFeatures || ['Heavy-Duty Fabricated Chassis', 'High Compaction Density', 'Low Power Consumption'],
-    specs: product.specs || {},
+    featureBadges: product.featureBadges || [],
     specTableColumns: product.specTableColumns || ['Parameter', 'Details'],
     specTableRows: product.specTableRows || [],
     highlights: product.highlights || [],
-    advantages: product.advantages || []
+    advantages: product.advantages || [],
+    keyFeatures: product.keyFeatures || [],
   };
 
-  // If user is adding this item back, un-mark it from deleted list
-  const deletedIds = getDeletedProductIds();
-  const nameLow = newItem.name.toLowerCase().trim();
-  if (deletedIds.has(nameLow) || deletedIds.has(newItem.id.toLowerCase())) {
-    deletedIds.delete(nameLow);
-    deletedIds.delete(newItem.id.toLowerCase());
-    saveDeletedProductIds(deletedIds);
-  }
+  const payload = {
+    name: product.name || 'New Machine Model',
+    slug,
+    category: categoryName,
+    description: product.description || `${product.name || 'Machine'} engineered for high reliability and heavy-duty manufacturing.`,
+    capacity: product.capacity || '',
+    power: product.power || '',
+    image: product.image || '/images/flyash-vertical-machine.png',
+    specifications: specsPayload,
+  };
 
-  // 1. Immediately persist locally so refresh never loses data
-  const current = getStoredProducts();
-  _cachedProducts = [newItem, ...current];
-  saveToStorage(_cachedProducts);
+  // Directly save to backend database
+  const res = await apiClient.post('/products', payload, { timeout: 15000 });
+  const backendItem = res.data?.data;
+  const created: ProductItem = backendItem ? mapBackendProduct(backendItem) : {
+    id: `PROD-${Date.now()}`,
+    name: payload.name,
+    category: payload.category,
+    categorySlug: CATEGORY_NAME_TO_SLUG_MAP[categoryName] || 'fly-ash-brick-machine',
+    brandTag: product.brandTag || categoryName,
+    capacity: payload.capacity,
+    power: payload.power,
+    brickSize: product.brickSize || '',
+    image: payload.image,
+    galleryImages: product.galleryImages || [],
+    status: 'Active',
+    description: payload.description,
+    featureBadges: specsPayload.featureBadges,
+    keyFeatures: specsPayload.keyFeatures,
+    specs: specsPayload,
+    specTableColumns: specsPayload.specTableColumns,
+    specTableRows: specsPayload.specTableRows,
+    highlights: specsPayload.highlights,
+    advantages: specsPayload.advantages
+  };
+
+  _cachedProducts = [created, ..._cachedProducts.filter(p => p.id !== created.id)];
   window.dispatchEvent(new Event('jupiter_products_updated'));
-
-  // 2. Synchronize to backend API and database
-  try {
-    const payload = {
-      name: newItem.name,
-      slug,
-      category: newItem.category,
-      description: newItem.description,
-      capacity: newItem.capacity,
-      power: newItem.power,
-      image: newItem.image,
-      specifications: newItem.specs,
-    };
-    apiClient.post('/products', payload, { timeout: 10000 })
-      .then((res) => {
-        if (res.data?.data?.id) {
-          const currentList = getStoredProducts();
-          const nextList = currentList.map(p => p.id === newItem.id ? { ...p, id: res.data.data.id } : p);
-          _cachedProducts = nextList;
-          saveToStorage(_cachedProducts);
-        }
-      })
-      .catch((err) => {
-        console.warn('Live DB product save failed (buffered locally):', err);
-      });
-  } catch (error) {
-    // Handled silently
-  }
-
-  return newItem;
+  return created;
 };
 
 export const updateProduct = async (id: string, updates: Partial<ProductItem>): Promise<ProductItem | null> => {
-  // 1. Immediately persist locally
-  const current = getStoredProducts();
-  _cachedProducts = current.map(p => (p.id === id ? { ...p, ...updates } : p));
-  saveToStorage(_cachedProducts);
+  const specsPayload = {
+    ...(updates.specs || {}),
+    brandTag: updates.brandTag,
+    brickSize: updates.brickSize,
+    galleryImages: updates.galleryImages,
+    featureBadges: updates.featureBadges,
+    specTableColumns: updates.specTableColumns,
+    specTableRows: updates.specTableRows,
+    highlights: updates.highlights,
+    advantages: updates.advantages,
+    keyFeatures: updates.keyFeatures,
+  };
+
+  const payload: any = {
+    ...updates,
+    specifications: specsPayload
+  };
+
+  // Directly update in backend database
+  const res = await apiClient.put(`/products/${encodeURIComponent(id)}`, payload, { timeout: 15000 });
+  const backendItem = res.data?.data;
+  const updated: ProductItem = backendItem ? mapBackendProduct(backendItem) : {
+    ...(_cachedProducts.find(p => p.id === id) || {}),
+    ...updates,
+    id
+  } as ProductItem;
+
+  _cachedProducts = _cachedProducts.map(p => (p.id === id ? { ...p, ...updated } : p));
   window.dispatchEvent(new Event('jupiter_products_updated'));
-
-  // 2. Sync to backend API and database
-  try {
-    const specsPayload = {
-      ...(updates.specs || {}),
-      brandTag: updates.brandTag,
-      brickSize: updates.brickSize,
-      galleryImages: updates.galleryImages,
-      featureBadges: updates.featureBadges,
-      specTableColumns: updates.specTableColumns,
-      specTableRows: updates.specTableRows,
-      highlights: updates.highlights,
-      advantages: updates.advantages,
-      keyFeatures: updates.keyFeatures,
-    };
-
-    const payload: any = {
-      ...updates,
-      specifications: specsPayload
-    };
-
-    apiClient.put(`/products/${encodeURIComponent(id)}`, payload, { timeout: 10000 }).catch((err) => {
-      console.warn('Live DB product update failed:', err);
-    });
-  } catch (error) {
-    // Handled silently
-  }
-
-  return _cachedProducts.find(p => p.id === id) || null;
+  return updated;
 };
 
 export const deleteProduct = async (id: string): Promise<boolean> => {
-  // 1. Mark permanently in deleted IDs set so refresh never restores it
-  const current = getStoredProducts();
-  const target = current.find(p => p.id === id);
-  const deletedIds = getDeletedProductIds();
-  deletedIds.add(id.toLowerCase().trim());
-  if (target?.name) {
-    deletedIds.add(target.name.toLowerCase().trim());
-  }
-  if (target?.categorySlug) {
-    deletedIds.add(`${target.categorySlug}/${(target.name || '').toLowerCase().trim()}`);
-  }
-  saveDeletedProductIds(deletedIds);
-
-  // 2. Immediately persist locally
-  _cachedProducts = current.filter(p => p.id !== id);
-  saveToStorage(_cachedProducts);
+  // Directly delete from backend database
+  await apiClient.delete(`/products/${encodeURIComponent(id)}`, { timeout: 15000 });
+  _cachedProducts = _cachedProducts.filter(p => p.id !== id);
   window.dispatchEvent(new Event('jupiter_products_updated'));
-
-  // 3. Sync to backend API and database
-  try {
-    apiClient.delete(`/products/${encodeURIComponent(id)}`, { timeout: 10000 }).catch((err) => {
-      console.warn('Live DB product delete failed:', err);
-    });
-  } catch (error) {
-    // Handled silently
-  }
   return true;
 };
 
@@ -891,43 +721,26 @@ export const deleteProduct = async (id: string): Promise<boolean> => {
 // ─────────────────────────────────────────────────────────
 
 export const getStoredProducts = (): ProductItem[] => {
-  try {
-    const raw = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        const clean = sanitizeCatalog(parsed);
-        if (clean.length !== parsed.length) {
-          saveToStorage(clean);
-        }
-        _cachedProducts = clean;
-        return _cachedProducts;
-      }
-    }
-  } catch (e) {
-    console.error('Error in getStoredProducts:', e);
-  }
   return _cachedProducts;
 };
 
 export const saveStoredProducts = (products: ProductItem[]): void => {
   _cachedProducts = sanitizeCatalog(products);
-  saveToStorage(_cachedProducts);
   window.dispatchEvent(new Event('jupiter_products_updated'));
 };
 
-export const clearAllProducts = (): void => {
+export const clearAllProducts = async (): Promise<void> => {
+  try {
+    await apiClient.delete('/products', { timeout: 15000 });
+  } catch (e) {
+    console.warn('Backend clearAllProducts error:', e);
+  }
   _cachedProducts = [];
-  saveToStorage([]);
   window.dispatchEvent(new Event('jupiter_products_updated'));
 };
 
 export const resetProductsToDefault = (): ProductItem[] => {
-  try {
-    localStorage.removeItem(DELETED_PRODUCTS_KEY);
-  } catch (e) {}
   _cachedProducts = sanitizeCatalog([...INITIAL_DEFAULT_PRODUCTS]);
-  saveToStorage(_cachedProducts);
   window.dispatchEvent(new Event('jupiter_products_updated'));
   return _cachedProducts;
 };
@@ -988,37 +801,27 @@ const BASE_CATEGORY_METAS: Record<string, { name: string; subTitle: string; intr
   }
 };
 
-const CATEGORY_METAS_STORAGE_KEY = 'jupiter_category_metas';
+let _categoryMetaOverrides: Record<string, Partial<{ name: string; subTitle: string; introDescription: string; heroImage: string }>> = {};
 
 export const getCategoryMetas = (): Record<string, { name: string; subTitle: string; introDescription: string; heroImage: string; aliases: string[] }> => {
-  try {
-    const raw = localStorage.getItem(CATEGORY_METAS_STORAGE_KEY);
-    if (raw) {
-      const overrides = JSON.parse(raw);
-      const merged = { ...BASE_CATEGORY_METAS };
-      Object.keys(overrides).forEach(slug => {
-        if (merged[slug]) {
-          merged[slug] = { ...merged[slug], ...overrides[slug] };
-        } else {
-          merged[slug] = overrides[slug];
-        }
-      });
-      return merged;
+  const merged = { ...BASE_CATEGORY_METAS };
+  Object.keys(_categoryMetaOverrides).forEach(slug => {
+    if (merged[slug]) {
+      merged[slug] = { ...merged[slug], ..._categoryMetaOverrides[slug] };
+    } else {
+      merged[slug] = _categoryMetaOverrides[slug] as any;
     }
-  } catch (e) {}
-  return { ...BASE_CATEGORY_METAS };
+  });
+  return merged;
 };
 
 export const updateCategoryMeta = (slug: string, updates: Partial<{ name: string; subTitle: string; introDescription: string; heroImage: string }>) => {
-  try {
-    const raw = localStorage.getItem(CATEGORY_METAS_STORAGE_KEY);
-    const overrides = raw ? JSON.parse(raw) : {};
-    overrides[slug] = { ...(BASE_CATEGORY_METAS[slug] || {}), ...(overrides[slug] || {}), ...updates };
-    localStorage.setItem(CATEGORY_METAS_STORAGE_KEY, JSON.stringify(overrides));
-    window.dispatchEvent(new Event('jupiter_products_updated'));
-  } catch (e) {
-    console.error('Error saving category meta:', e);
-  }
+  _categoryMetaOverrides[slug] = {
+    ...(BASE_CATEGORY_METAS[slug] || {}),
+    ...(_categoryMetaOverrides[slug] || {}),
+    ...updates,
+  };
+  window.dispatchEvent(new Event('jupiter_products_updated'));
 };
 
 export const getDynamicCategories = (): MachineCategoryData[] => {

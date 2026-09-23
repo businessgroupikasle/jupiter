@@ -15,7 +15,49 @@ export interface EnquiryItem {
 
 export const INITIAL_ENQUIRIES: EnquiryItem[] = [];
 
-const ENQUIRIES_STORAGE_KEY = 'jupiter_enquiries';
+let _cachedEnquiries: EnquiryItem[] = [];
+
+const READ_STORAGE_KEY = 'jupiter_read_enquiry_ids';
+
+const getLocalReadIds = (): Set<string> => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = window.localStorage.getItem(READ_STORAGE_KEY);
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr)) {
+          return new Set<string>(arr);
+        }
+      }
+    }
+  } catch (err) {
+    // Ignore storage parse errors
+  }
+  return new Set<string>();
+};
+
+const saveLocalReadIds = (ids: Set<string>): void => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+    }
+  } catch (err) {
+    // Ignore storage write errors
+  }
+};
+
+const addLocalReadId = (id: string): void => {
+  const ids = getLocalReadIds();
+  ids.add(id);
+  saveLocalReadIds(ids);
+};
+
+export const normalizeEnquiryStatus = (status?: string): 'New' | 'Contacted' | 'Closed' => {
+  const s = (status || '').toString().trim().toUpperCase();
+  if (s === 'CONTACTED') return 'Contacted';
+  if (s === 'CLOSED') return 'Closed';
+  return 'New';
+};
 
 export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
   try {
@@ -23,12 +65,16 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
+        const readIds = getLocalReadIds();
         const mapped: EnquiryItem[] = json.data.map((item: any) => {
           const productMatch = item.message?.match(/(?:Quotation for|Product Interest|Machinery Requirement):\s*([^|\n]+)/i);
           const product = productMatch ? productMatch[1].trim() : (item.message?.split('|')[0]?.trim() || 'Machinery Quotation');
           const dt = item.createdAt 
             ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) 
             : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+          
+          const isRead = item.isRead === true || readIds.has(item.id);
+
           return {
             id: item.id,
             name: item.name,
@@ -37,17 +83,14 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
             product,
             message: item.message,
             date: dt,
-            status: 'New' as const,
-            isRead: false
+            status: normalizeEnquiryStatus(item.status),
+            isRead
           };
         });
         
-        // Merge with existing locally stored leads to prevent accidental wipes
-        const currentLocal = getStoredEnquiries();
-        const mappedIds = new Set(mapped.map(m => m.id));
-        const merged = [...mapped, ...currentLocal.filter(e => !mappedIds.has(e.id))];
-        saveStoredEnquiries(merged);
-        return merged;
+        _cachedEnquiries = mapped;
+        window.dispatchEvent(new Event('jupiter_enquiries_updated'));
+        return mapped;
       }
     }
   } catch (err) {
@@ -71,30 +114,17 @@ export const deleteEnquiryFromDb = async (id: string): Promise<void> => {
   } catch (err) {
     console.warn('Backend delete failed:', err);
   }
+  _cachedEnquiries = _cachedEnquiries.filter(e => e.id !== id);
+  window.dispatchEvent(new Event('jupiter_enquiries_updated'));
 };
 
 export const getStoredEnquiries = (): EnquiryItem[] => {
-  try {
-    const raw = localStorage.getItem(ENQUIRIES_STORAGE_KEY);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    }
-  } catch (e) {
-    console.error('Error reading jupiter_enquiries:', e);
-  }
-  return [];
+  return _cachedEnquiries;
 };
 
 export const saveStoredEnquiries = (enquiries: EnquiryItem[]): void => {
-  try {
-    localStorage.setItem(ENQUIRIES_STORAGE_KEY, JSON.stringify(enquiries));
-    window.dispatchEvent(new Event('jupiter_enquiries_updated'));
-  } catch (e) {
-    console.error('Error saving jupiter_enquiries:', e);
-  }
+  _cachedEnquiries = enquiries;
+  window.dispatchEvent(new Event('jupiter_enquiries_updated'));
 };
 
 export const deleteStoredEnquiry = (id: string, targetIndex?: number): EnquiryItem[] => {
@@ -116,18 +146,29 @@ export const deleteStoredEnquiry = (id: string, targetIndex?: number): EnquiryIt
 };
 
 export const updateStoredEnquiryStatus = (id: string, status: EnquiryItem['status'], targetIndex?: number): EnquiryItem[] => {
+  const normalized = normalizeEnquiryStatus(status);
+
+  // Persist status to backend PostgreSQL database
+  fetch(`${API_BASE_URL}/enquiries/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: normalized }),
+  }).catch((err) => {
+    console.warn('Backend update status failed:', err);
+  });
+
   const current = getStoredEnquiries();
   let updatedOnce = false;
   const updated = current.map((item, idx) => {
     if (targetIndex !== undefined) {
       if (idx === targetIndex) {
-        return { ...item, status };
+        return { ...item, status: normalized };
       }
       return item;
     }
     if (item.id === id && !updatedOnce) {
       updatedOnce = true;
-      return { ...item, status };
+      return { ...item, status: normalized };
     }
     return item;
   });
@@ -136,6 +177,13 @@ export const updateStoredEnquiryStatus = (id: string, status: EnquiryItem['statu
 };
 
 export const markStoredEnquiryAsRead = (id: string, targetIndex?: number): EnquiryItem[] => {
+  addLocalReadId(id);
+
+  // Persist read state to backend
+  fetch(`${API_BASE_URL}/enquiries/${encodeURIComponent(id)}/read`, {
+    method: 'PATCH',
+  }).catch(() => {});
+
   const current = getStoredEnquiries();
   let markedOnce = false;
   const updated = current.map((item, idx) => {
@@ -157,6 +205,17 @@ export const markStoredEnquiryAsRead = (id: string, targetIndex?: number): Enqui
 
 export const markAllStoredEnquiriesAsRead = (): EnquiryItem[] => {
   const current = getStoredEnquiries();
+  const readIds = getLocalReadIds();
+  current.forEach(e => {
+    if (e.id) readIds.add(e.id);
+  });
+  saveLocalReadIds(readIds);
+
+  // Persist all read state to backend
+  fetch(`${API_BASE_URL}/enquiries/mark-all-read`, {
+    method: 'PATCH',
+  }).catch(() => {});
+
   const updated = current.map(item => ({ ...item, isRead: true }));
   saveStoredEnquiries(updated);
   return updated;
@@ -166,7 +225,7 @@ export const addStoredEnquiry = (item: Partial<EnquiryItem>): EnquiryItem => {
   const current = getStoredEnquiries();
   let maxNum = 100;
   current.forEach(e => {
-    const match = e.id?.match(/ENQ-(\d+)/i);
+    const match = e.id?.match(/ENQ-(d+)/i);
     if (match) {
       const num = parseInt(match[1], 10);
       if (!isNaN(num) && num > maxNum) maxNum = num;
@@ -181,7 +240,7 @@ export const addStoredEnquiry = (item: Partial<EnquiryItem>): EnquiryItem => {
     email: item.email || '',
     product: item.product || 'Machinery Inquiry',
     date: item.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-    status: item.status || 'New',
+    status: normalizeEnquiryStatus(item.status),
     location: item.location || 'India',
     message: item.message || '',
     isRead: false

@@ -1,6 +1,5 @@
-import { apiClient, API_BASE_URL } from './api';
-import { INITIAL_DEFAULT_PRODUCTS, ProductItem } from './productService';
-import { INITIAL_SPARES_PRODUCTS } from '../data/initialSpares';
+import { apiClient } from './api';
+import { INITIAL_DEFAULT_PRODUCTS, ProductItem, sanitizeCatalog } from './productService';
 
 export interface SeedResult {
   success: boolean;
@@ -64,10 +63,7 @@ export const checkBackendStatus = async (): Promise<{ isOnline: boolean; product
 export const seedBackendDatabase = async (
   onProgress?: (current: number, total: number, itemName: string) => void
 ): Promise<SeedResult> => {
-  const allProducts: ProductItem[] = [
-    ...INITIAL_DEFAULT_PRODUCTS,
-    ...INITIAL_SPARES_PRODUCTS,
-  ];
+  const allProducts: ProductItem[] = sanitizeCatalog([...INITIAL_DEFAULT_PRODUCTS]);
 
   let seededCount = 0;
   let failedCount = 0;

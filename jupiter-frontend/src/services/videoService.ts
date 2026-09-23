@@ -214,123 +214,82 @@ export const INITIAL_VIDEOS: VideoItem[] = [
   }
 ];
 
-import { apiClient, API_BASE_URL } from './api';
+import { apiClient } from './api';
 
-const LOCAL_STORAGE_KEY = 'jupiter_machinery_videos';
+let _cachedVideos: VideoItem[] = [];
 
 // Fetch videos live from backend database
 export const fetchVideosFromDb = async (): Promise<VideoItem[]> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/videos`);
-    if (res.ok) {
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        const dbVideos: VideoItem[] = json.data.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          videoUrl: item.videoUrl,
-          embedUrl: item.embedUrl,
-          views: item.views || '1.5K views',
-          duration: item.duration || '3:00',
-          image: item.image,
-          category: item.category as any,
-          description: item.description,
-        }));
-
-        // Merge with existing
-        const currentLocal = getStoredVideos();
-        const dbIds = new Set(dbVideos.map(v => v.id));
-        const merged = [...dbVideos, ...currentLocal.filter(v => !dbIds.has(v.id))];
-        saveStoredVideos(merged);
-        return merged;
-      }
+    const res = await apiClient.get('/videos');
+    if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+      const dbVideos: VideoItem[] = res.data.data.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        videoUrl: item.videoUrl,
+        embedUrl: item.embedUrl,
+        views: item.views || '1.5K views',
+        duration: item.duration || '3:00',
+        image: item.image,
+        category: item.category as any,
+        description: item.description,
+      }));
+      _cachedVideos = dbVideos;
+      window.dispatchEvent(new Event('jupiter_videos_updated'));
+      return _cachedVideos;
     }
   } catch (err) {
     console.warn('Could not fetch videos from backend API:', err);
   }
-  return getStoredVideos();
+  return _cachedVideos;
 };
 
 export const getStoredVideos = (): VideoItem[] => {
-  try {
-    const data = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (data !== null) {
-      const parsed = JSON.parse(data);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } else {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_VIDEOS));
-      return INITIAL_VIDEOS;
-    }
-  } catch (e) {
-    console.error('Failed to load stored videos', e);
-  }
-  return INITIAL_VIDEOS;
+  return _cachedVideos;
 };
 
 export const saveStoredVideos = (videos: VideoItem[]) => {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(videos));
-    // Dispatch storage event for live reactive sync across pages
-    window.dispatchEvent(new Event('jupiter_videos_updated'));
-  } catch (e) {
-    console.error('Failed to save videos', e);
-  }
+  _cachedVideos = videos;
+  window.dispatchEvent(new Event('jupiter_videos_updated'));
 };
 
-export const addVideo = (video: Omit<VideoItem, 'id'>): VideoItem => {
-  const current = getStoredVideos();
-  const newVideo: VideoItem = {
-    ...video,
-    id: `VID-${Date.now()}`,
+export const addVideo = async (video: Omit<VideoItem, 'id'>): Promise<VideoItem> => {
+  const payload = {
+    title: video.title,
+    videoUrl: video.videoUrl,
+    embedUrl: video.embedUrl,
+    views: video.views || '1.2K views',
+    duration: video.duration || '3:30',
+    image: video.image,
+    category: video.category,
+    description: video.description || 'Machinery in action live demonstration by Jupiter Industries.',
   };
-  const updated = [newVideo, ...current];
-  saveStoredVideos(updated);
 
   // Synchronize live to database
-  apiClient.post('/videos', {
-    title: newVideo.title,
-    videoUrl: newVideo.videoUrl,
-    embedUrl: newVideo.embedUrl,
-    views: newVideo.views,
-    duration: newVideo.duration,
-    image: newVideo.image,
-    category: newVideo.category,
-    description: newVideo.description,
-  }).then((res) => {
-    if (res.data?.data?.id) {
-      const currentList = getStoredVideos();
-      const nextList = currentList.map(v => v.id === newVideo.id ? { ...v, id: res.data.data.id } : v);
-      saveStoredVideos(nextList);
-    }
-  }).catch((err) => {
-    console.warn('Live DB video save failed (buffered locally):', err);
-  });
+  const res = await apiClient.post('/videos', payload);
+  const newVideo: VideoItem = res.data?.data || {
+    ...payload,
+    id: `VID-${Date.now()}`
+  };
 
+  _cachedVideos = [newVideo, ..._cachedVideos.filter(v => v.id !== newVideo.id)];
+  window.dispatchEvent(new Event('jupiter_videos_updated'));
   return newVideo;
 };
 
-export const deleteVideo = (id: string): void => {
-  const current = getStoredVideos();
-  const updated = current.filter(v => v.id !== id);
-  saveStoredVideos(updated);
-
-  // Delete live from database
-  apiClient.delete(`/videos/${encodeURIComponent(id)}`).catch((err) => {
-    console.warn('Live DB video delete failed:', err);
-  });
+export const deleteVideo = async (id: string): Promise<boolean> => {
+  await apiClient.delete(`/videos/${encodeURIComponent(id)}`);
+  _cachedVideos = _cachedVideos.filter(v => v.id !== id);
+  window.dispatchEvent(new Event('jupiter_videos_updated'));
+  return true;
 };
 
-export const resetToInitialVideos = (): VideoItem[] => {
-  try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_VIDEOS));
-    window.dispatchEvent(new Event('jupiter_videos_updated'));
-  } catch (e) {
-    console.error('Failed to reset videos', e);
-  }
-  return INITIAL_VIDEOS;
+export const resetToInitialVideos = async (): Promise<VideoItem[]> => {
+  _cachedVideos = [...INITIAL_VIDEOS];
+  window.dispatchEvent(new Event('jupiter_videos_updated'));
+  return _cachedVideos;
 };
 
-// Initial background sync
+// Initial background sync from backend
 fetchVideosFromDb().catch(() => {});
+

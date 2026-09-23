@@ -1,0 +1,37 @@
+{
+  "name": "Jupiter Industries | Industrial Brick & Concrete Machinery",
+  "short_name": "Jupiter Industries",
+  "description": "Jupiter Industries delivers high-performance fly ash brick machines, concrete block machines, paver block plants, batching plants and storage silos with turnkey Pan-India installation.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#001827",
+  "theme_color": "#001827",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": [
+    "business",
+    "manufacturing",
+    "productivity",
+    "utilities"
+  ]
+}

@@ -38,7 +38,8 @@ import {
   ShieldCheck,
   AlertCircle,
   Camera,
-  Wrench
+  Wrench,
+  Menu
 } from 'lucide-react';
 import { IMAGES } from '../assets/images/images';
 import '../styles/admin.css';
@@ -82,22 +83,20 @@ import {
   ProductItem,
   getStoredProducts,
   fetchProducts,
-  clearAllProducts,
   addProduct,
   updateProduct,
   deleteProduct,
-  CATEGORY_NAME_TO_SLUG_MAP,
-  getCategoryMetas,
-  updateCategoryMeta
+  clearAllProducts,
+  CATEGORY_NAME_TO_SLUG_MAP
 } from '../services/productService';
 import { seedBackendDatabase, checkBackendStatus } from '../services/seedService';
 import { DEFAULT_HIGHLIGHTS, DEFAULT_ADVANTAGES, DEFAULT_BADGES } from './MachineCategoryPage';
 import {
   ProjectItem,
   getStoredProjects,
-  clearAllProjects,
   addProject,
   deleteProject,
+  clearAllProjects,
   fetchProjectsFromDb
 } from '../services/projectService';
 import {
@@ -115,7 +114,8 @@ import {
   updateStoredEnquiryStatus,
   markStoredEnquiryAsRead,
   markAllStoredEnquiriesAsRead,
-  fetchEnquiriesFromDb
+  fetchEnquiriesFromDb,
+  normalizeEnquiryStatus
 } from '../services/enquiryService';
 
 // Helper to reliably extract an image string regardless of Vite/ES module wrapping
@@ -315,6 +315,7 @@ export const AdminDashboard: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => getCurrentUser());
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Profile & Avatar Settings State
   const [profileNameInput, setProfileNameInput] = useState(() => currentUser?.name || 'Jupiter Admin');
@@ -405,6 +406,7 @@ interface SeoSettings {
   const switchTab = (tabId: string) => {
     setSearchQuery('');
     setSearchParams({ tab: tabId });
+    setIsMobileSidebarOpen(false);
   };
   const currentMonthRange = (() => {
     const now = new Date();
@@ -507,8 +509,6 @@ interface SeoSettings {
 
   // Product Modals Sub-Tab States
   const [editProductTab, setEditProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
-  const [addProductTab, setAddProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
-  const [viewProductTab, setViewProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
 
   // Backend Seeding State
   const [isSeedingBackend, setIsSeedingBackend] = useState(false);
@@ -522,7 +522,7 @@ interface SeoSettings {
 
   const handleSeedBackend = async () => {
     setIsSeedingBackend(true);
-    setSeedProgress({ current: 0, total: 23, item: 'Connecting to backend...' });
+    setSeedProgress({ current: 0, total: 43, item: 'Connecting to backend...' });
     try {
       const result = await seedBackendDatabase((curr, tot, item) => {
         setSeedProgress({ current: curr, total: tot, item });
@@ -592,7 +592,7 @@ interface SeoSettings {
   // Safe handler to open Add Product modal with clean defaults
   const handleOpenAddProduct = (category?: string) => {
     try {
-      setAddProductTab('overview');
+      setEditProductTab('overview');
       const targetCat = category || (adminProductCategory !== 'All' ? adminProductCategory : 'Fly Ash Brick Machine');
       setNewProduct({
         name: '',
@@ -762,7 +762,7 @@ interface SeoSettings {
   // Real-time synchronization across all tabs and services
   React.useEffect(() => {
     fetchProducts().then(res => {
-      if (res && res.length > 0) setProducts(res);
+      if (Array.isArray(res)) setProducts(res);
     }).catch(() => { });
 
     fetchEnquiriesFromDb().then(res => {
@@ -770,19 +770,19 @@ interface SeoSettings {
     }).catch(() => { });
 
     fetchProjectsFromDb().then(res => {
-      if (res && res.length > 0) setProjects(res);
+      if (Array.isArray(res)) setProjects(res);
     }).catch(() => { });
 
     fetchGalleryPhotosFromDb().then(res => {
-      if (res && res.length > 0) setGallery(res);
+      if (Array.isArray(res)) setGallery(res);
     }).catch(() => { });
 
     fetchVideosFromDb().then(res => {
-      if (res && res.length > 0) setVideos(res);
+      if (Array.isArray(res)) setVideos(res);
     }).catch(() => { });
 
     fetchBlogsFromDb().then(res => {
-      if (res && res.length > 0) setBlogs(res);
+      if (Array.isArray(res)) setBlogs(res);
     }).catch(() => { });
 
     const syncAll = () => {
@@ -1215,7 +1215,7 @@ interface SeoSettings {
 
   const navMenuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'enquiries', label: 'Enquiries', icon: FileText, badge: enquiries.filter(e => e.status === 'New').length.toString() },
+    { id: 'enquiries', label: 'Enquiries', icon: FileText, badge: enquiries.filter(e => normalizeEnquiryStatus(e.status) === 'New').length.toString() },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'projects', label: 'Projects', icon: Building2 },
     { id: 'blogs', label: 'Blogs & Guides', icon: BookOpen },
@@ -1233,15 +1233,32 @@ interface SeoSettings {
 
   return (
     <div className="admin-app-wrapper">
+      {/* Mobile Sidebar Backdrop Overlay */}
+      {isMobileSidebarOpen && (
+        <div
+          className="admin-sidebar-backdrop"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          aria-label="Close navigation menu backdrop"
+        />
+      )}
+
       {/* ---------------------------------------------------------------------
-          1. LEFT SIDEBAR NAVIGATION
+          1. LEFT SIDEBAR NAVIGATION (Desktop Static + Mobile Drawer)
           --------------------------------------------------------------------- */}
-      <aside className="admin-sidebar">
+      <aside className={`admin-sidebar ${isMobileSidebarOpen ? 'open' : ''}`}>
         {/* Brand Logo Header */}
         <div className="admin-sidebar-header">
-          <Link to="/" className="admin-brand-link" title="Go to Public Website">
+          <Link to="/" className="admin-brand-link" title="Go to Public Website" onClick={() => setIsMobileSidebarOpen(false)}>
             <img src={resolveImg(IMAGES.logo)} alt="Jupiter Industries" className="admin-brand-logo-img" />
           </Link>
+          <button
+            type="button"
+            className="admin-sidebar-close-btn"
+            onClick={() => setIsMobileSidebarOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Sidebar Nav Items List */}
@@ -1269,6 +1286,36 @@ interface SeoSettings {
             );
           })}
         </nav>
+
+        {/* Mobile Drawer User & Quick Actions */}
+        <div className="admin-sidebar-mobile-actions">
+          <div className="admin-sidebar-user-card" onClick={() => switchTab('settings')}>
+            <div className="admin-avatar">
+              <img
+                src={currentUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80"}
+                alt={currentUser.name}
+              />
+            </div>
+            <div className="admin-user-info">
+              <span className="admin-user-name">{currentUser.name}</span>
+              <span className="admin-user-role">{currentUser.role}</span>
+            </div>
+          </div>
+          <div className="admin-sidebar-mobile-btns">
+            <Link to="/" className="admin-sidebar-mobile-btn" onClick={() => setIsMobileSidebarOpen(false)}>
+              <ExternalLink size={14} />
+              <span>Live Site</span>
+            </Link>
+            <button
+              type="button"
+              className="admin-sidebar-mobile-btn logout"
+              onClick={handleLogout}
+            >
+              <LogOut size={14} />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
 
         {/* Bottom Blueprint Vector Decoration */}
         <div className="admin-sidebar-bottom">
@@ -1318,11 +1365,22 @@ interface SeoSettings {
 
         {/* Top Header Bar */}
         <header className="admin-topbar">
-          {/* Breadcrumb / Page Path */}
-          <div className="admin-breadcrumb">
-            <span>Admin</span>
-            <span className="breadcrumb-separator">/</span>
-            <span className="breadcrumb-current">{activeTab === 'dashboard' ? 'Overview' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
+          {/* Left: Mobile Hamburger + Breadcrumb */}
+          <div className="admin-topbar-left">
+            <button
+              type="button"
+              className="admin-hamburger-btn"
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              aria-label="Toggle navigation menu"
+              title="Open Navigation Menu"
+            >
+              <Menu size={20} />
+            </button>
+            <div className="admin-breadcrumb">
+              <span>Admin</span>
+              <span className="breadcrumb-separator">/</span>
+              <span className="breadcrumb-current">{activeTab === 'dashboard' ? 'Overview' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</span>
+            </div>
           </div>
 
           {/* Search Box */}
@@ -1347,6 +1405,37 @@ interface SeoSettings {
 
           {/* Right Controls & Profile */}
           <div className="admin-topbar-right">
+            {/* Backend Database Status Badge */}
+            <div
+              className="admin-db-status-badge"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                background: backendHealth?.isOnline ? '#DCFCE7' : '#FEE2E2',
+                color: backendHealth?.isOnline ? '#15803D' : '#DC2626',
+                border: `1px solid ${backendHealth?.isOnline ? '#BBF7D0' : '#FECACA'}`,
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+              title={backendHealth?.isOnline ? `Backend Online (${backendHealth.productCount} products in DB)` : `Backend Offline (${backendHealth?.error || 'Connecting to port 5000...'})`}
+            >
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: backendHealth?.isOnline ? '#16A34A' : '#DC2626',
+                  flexShrink: 0
+                }}
+              />
+              <span>{backendHealth?.isOnline ? 'DB Online' : 'DB Offline'}</span>
+            </div>
+
             {/* Interactive Date Range Selector Dropdown */}
             <div className="admin-datepicker-wrapper">
               <div
@@ -1661,7 +1750,7 @@ interface SeoSettings {
                     </div>
                     <div className="admin-metric-value-wrap">
                       <span className="admin-metric-label">New Leads</span>
-                      <span className="admin-metric-num">{enquiries.filter(e => e.status === 'New').length}</span>
+                      <span className="admin-metric-num">{enquiries.filter(e => normalizeEnquiryStatus(e.status) === 'New').length}</span>
                     </div>
                   </div>
                   <div className="admin-metric-bottom">
@@ -2074,7 +2163,7 @@ interface SeoSettings {
                                 <td>
                                   <span
                                     onClick={() => handleToggleStatus(row.id, row)}
-                                    className={`admin-status-pill ${row.status === 'New' ? 'status-new' : (row.status === 'Contacted' ? 'status-contacted' : 'status-closed')}`}
+                                    className={`admin-status-pill ${normalizeEnquiryStatus(row.status) === 'New' ? 'status-new' : (normalizeEnquiryStatus(row.status) === 'Contacted' ? 'status-contacted' : 'status-closed')}`}
                                     style={{ cursor: 'pointer' }}
                                     title="Click to toggle status"
                                   >
@@ -2184,7 +2273,7 @@ interface SeoSettings {
                   >
                     {filter}
                     <span className="admin-pill-count">
-                      {filter === 'All' ? enquiries.length : enquiries.filter(e => e.status === filter).length}
+                      {filter === 'All' ? enquiries.length : enquiries.filter(e => normalizeEnquiryStatus(e.status) === filter).length}
                     </span>
                   </button>
                 ))}
@@ -2228,7 +2317,7 @@ interface SeoSettings {
                             <td>
                               <span
                                 onClick={() => handleToggleStatus(enq.id, enq)}
-                                className={`admin-status-pill ${enq.status === 'New' ? 'status-new' : (enq.status === 'Contacted' ? 'status-contacted' : 'status-closed')}`}
+                                className={`admin-status-pill ${normalizeEnquiryStatus(enq.status) === 'New' ? 'status-new' : (normalizeEnquiryStatus(enq.status) === 'Contacted' ? 'status-contacted' : 'status-closed')}`}
                                 style={{ cursor: 'pointer' }}
                                 title="Click to toggle status"
                               >
@@ -2298,8 +2387,8 @@ interface SeoSettings {
                           confirmText: 'Clear All Products',
                           variant: 'danger',
                           icon: 'alert',
-                          onConfirm: () => {
-                            clearAllProducts();
+                          onConfirm: async () => {
+                            await clearAllProducts();
                             setProducts([]);
                             triggerToast('All products cleared from catalog');
                           }
@@ -2599,8 +2688,8 @@ interface SeoSettings {
                           confirmText: 'Clear All Projects',
                           variant: 'danger',
                           icon: 'alert',
-                          onConfirm: () => {
-                            clearAllProjects();
+                          onConfirm: async () => {
+                            await clearAllProjects();
                             setProjects([]);
                             triggerToast('All projects removed');
                           }
@@ -2663,8 +2752,8 @@ interface SeoSettings {
                                 itemName: proj.title,
                                 confirmText: 'Delete Project',
                                 variant: 'danger',
-                                onConfirm: () => {
-                                  deleteProject(proj.id);
+                                onConfirm: async () => {
+                                  await deleteProject(proj.id);
                                   setProjects(getStoredProjects());
                                   triggerToast('Project removed');
                                 }
@@ -2711,10 +2800,10 @@ interface SeoSettings {
                           confirmText: 'Clear All Articles',
                           variant: 'danger',
                           icon: 'alert',
-                          onConfirm: () => {
-                            clearAllBlogs();
+                          onConfirm: async () => {
+                            await clearAllBlogs();
                             setBlogs([]);
-                            triggerToast('All blogs removed');
+                            triggerToast('All blogs removed from backend');
                           }
                         });
                       }}
@@ -2775,10 +2864,10 @@ interface SeoSettings {
                           <span style={{ fontSize: '0.78rem', color: '#001827', fontWeight: 600 }}>By {b.author}</span>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 const newT = prompt('Update Blog Title:', b.title);
                                 if (newT) {
-                                  updateBlog(b.id, { title: newT });
+                                  await updateBlog(b.id, { title: newT });
                                   setBlogs(getStoredBlogs());
                                   triggerToast('Blog article updated successfully');
                                 }
@@ -2796,8 +2885,8 @@ interface SeoSettings {
                                   itemName: b.title,
                                   confirmText: 'Delete Article',
                                   variant: 'danger',
-                                  onConfirm: () => {
-                                    deleteBlog(b.id);
+                                  onConfirm: async () => {
+                                    await deleteBlog(b.id);
                                     setBlogs(getStoredBlogs());
                                     triggerToast('Blog article deleted');
                                   }
@@ -2838,10 +2927,10 @@ interface SeoSettings {
                           confirmText: 'Clear All Photos',
                           variant: 'danger',
                           icon: 'alert',
-                          onConfirm: () => {
-                            clearAllGalleryPhotos();
+                          onConfirm: async () => {
+                            await clearAllGalleryPhotos();
                             setGallery([]);
-                            triggerToast('All gallery photos removed');
+                            triggerToast('All gallery photos removed from backend');
                           }
                         });
                       }}
@@ -2900,8 +2989,8 @@ interface SeoSettings {
                               itemName: gal.title,
                               confirmText: 'Remove Photo',
                               variant: 'danger',
-                              onConfirm: () => {
-                                deleteGalleryPhoto(gal.id);
+                              onConfirm: async () => {
+                                await deleteGalleryPhoto(gal.id);
                                 setGallery(getStoredGalleryPhotos());
                                 triggerToast('Image removed from gallery');
                               }
@@ -3002,8 +3091,8 @@ interface SeoSettings {
                                 itemName: vid.title,
                                 confirmText: 'Remove Video',
                                 variant: 'danger',
-                                onConfirm: () => {
-                                  deleteVideo(vid.id);
+                                onConfirm: async () => {
+                                  await deleteVideo(vid.id);
                                   const updated = videos.filter(v => v.id !== vid.id);
                                   setVideos(updated);
                                   triggerToast('Video removed');
@@ -4452,13 +4541,13 @@ interface SeoSettings {
             </div>
 
             <div className="modal-body-content">
-              <div style={{ display: 'grid', gridTemplateColumns: '0.85fr 1.15fr', gap: '28px', alignItems: 'center', marginBottom: '24px' }}>
+              <div className="admin-spec-modal-grid">
                 {/* Yellow framed machine image */}
-                <div style={{ border: '4px solid #FF9200', borderRadius: '10px', padding: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', minHeight: '260px' }}>
+                <div style={{ border: '4px solid #FF9200', borderRadius: '10px', padding: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', minHeight: '200px' }}>
                   <img
                     src={resolveImg(selectedProductForSpec.image)}
                     alt={selectedProductForSpec.name}
-                    style={{ maxHeight: '230px', width: 'auto', objectFit: 'contain' }}
+                    style={{ maxHeight: '230px', maxWidth: '100%', width: 'auto', objectFit: 'contain' }}
                   />
                 </div>
 
@@ -5248,21 +5337,25 @@ interface SeoSettings {
               </button>
             </div>
 
-            <form className="modal-body-content" onSubmit={(e) => {
+            <form className="modal-body-content" onSubmit={async (e) => {
               e.preventDefault();
-              const newProjItem = addProject({
-                title: newProject.title,
-                client: newProject.client || newProject.title,
-                location: newProject.location,
-                machine: newProject.machine || 'Automatic Plant JP-8000',
-                year: newProject.year || '2024',
-                status: newProject.status as any,
-                image: newProject.image || 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=800&q=80'
-              });
-              setProjects(getStoredProjects());
-              setIsAddProjectOpen(false);
-              setNewProject({ title: '', client: '', location: '', machine: '', year: '2024', status: 'Completed', image: '' });
-              triggerToast(`Project "${newProjItem.title}" saved successfully!`);
+              try {
+                const newProjItem = await addProject({
+                  title: newProject.title,
+                  client: newProject.client || newProject.title,
+                  location: newProject.location,
+                  machine: newProject.machine || 'Automatic Plant JP-8000',
+                  year: newProject.year || '2024',
+                  status: newProject.status as any,
+                  image: newProject.image || 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=800&q=80'
+                });
+                setProjects(getStoredProjects());
+                setIsAddProjectOpen(false);
+                setNewProject({ title: '', client: '', location: '', machine: '', year: '2024', status: 'Completed', image: '' });
+                triggerToast(`Project "${newProjItem.title}" saved successfully!`);
+              } catch (err: any) {
+                alert('Failed to save project to backend: ' + (err.message || 'Error'));
+              }
             }}>
               <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
                 <div className="form-group-item">
@@ -5344,20 +5437,24 @@ interface SeoSettings {
               </button>
             </div>
 
-            <form className="modal-body-content" onSubmit={(e) => {
+            <form className="modal-body-content" onSubmit={async (e) => {
               e.preventDefault();
-              const newArticle = addBlog({
-                title: newBlog.title,
-                category: newBlog.category,
-                readTime: newBlog.readTime || '5 min read',
-                author: 'Jupiter Technical Team',
-                image: newBlog.image || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
-                excerpt: newBlog.excerpt || newBlog.title
-              });
-              setBlogs(getStoredBlogs());
-              setIsAddBlogOpen(false);
-              setNewBlog({ title: '', category: 'Brick Making', readTime: '5 min read', excerpt: '', image: '' });
-              triggerToast(`Blog "${newArticle.title}" published successfully!`);
+              try {
+                const newArticle = await addBlog({
+                  title: newBlog.title,
+                  category: newBlog.category,
+                  readTime: newBlog.readTime || '5 min read',
+                  author: 'Jupiter Technical Team',
+                  image: newBlog.image || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+                  excerpt: newBlog.excerpt || newBlog.title
+                });
+                setBlogs(getStoredBlogs());
+                setIsAddBlogOpen(false);
+                setNewBlog({ title: '', category: 'Brick Making', readTime: '5 min read', excerpt: '', image: '' });
+                triggerToast(`Blog "${newArticle.title}" published successfully!`);
+              } catch (err: any) {
+                alert('Failed to save blog to backend: ' + (err.message || 'Error'));
+              }
             }}>
               <div className="form-group-item" style={{ marginBottom: '14px' }}>
                 <label className="form-field-label">Article Title</label>
@@ -5442,29 +5539,33 @@ interface SeoSettings {
               </button>
             </div>
 
-            <form className="modal-body-content" onSubmit={(e) => {
+            <form className="modal-body-content" onSubmit={async (e) => {
               e.preventDefault();
-              const addedPhoto = addGalleryPhoto({
-                title: newGallery.title,
-                category: newGallery.category,
-                location: newGallery.location || 'Coimbatore, Tamil Nadu',
-                machine: newGallery.machine || 'Jupiter Automatic Machinery',
-                output: newGallery.output || 'High Output Capacity',
-                description: newGallery.description || newGallery.title,
-                image: newGallery.image || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80'
-              });
-              setGallery(getStoredGalleryPhotos());
-              setIsAddGalleryOpen(false);
-              setNewGallery({
-                title: '',
-                category: 'Block Machines',
-                location: 'Coimbatore, Tamil Nadu',
-                machine: 'Jupiter Automatic Machinery',
-                output: '20,000 blocks / day',
-                description: '',
-                image: ''
-              });
-              triggerToast(`Photo "${addedPhoto.title}" published to Gallery!`);
+              try {
+                const addedPhoto = await addGalleryPhoto({
+                  title: newGallery.title,
+                  category: newGallery.category,
+                  location: newGallery.location || 'Coimbatore, Tamil Nadu',
+                  machine: newGallery.machine || 'Jupiter Automatic Machinery',
+                  output: newGallery.output || 'High Output Capacity',
+                  description: newGallery.description || newGallery.title,
+                  image: newGallery.image || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80'
+                });
+                setGallery(getStoredGalleryPhotos());
+                setIsAddGalleryOpen(false);
+                setNewGallery({
+                  title: '',
+                  category: 'Block Machines',
+                  location: 'Coimbatore, Tamil Nadu',
+                  machine: 'Jupiter Automatic Machinery',
+                  output: '20,000 blocks / day',
+                  description: '',
+                  image: ''
+                });
+                triggerToast(`Photo "${addedPhoto.title}" published to Gallery!`);
+              } catch (err: any) {
+                alert('Failed to save gallery photo to backend: ' + (err.message || 'Error'));
+              }
             }}>
               <div className="form-group-item" style={{ marginBottom: '14px' }}>
                 <label className="form-field-label">Photo Title</label>
@@ -5575,26 +5676,30 @@ interface SeoSettings {
               </button>
             </div>
 
-            <form className="modal-body-content" onSubmit={(e) => {
+            <form className="modal-body-content" onSubmit={async (e) => {
               e.preventDefault();
-              const ytId = getYouTubeId(newVideo.videoUrl);
-              const embedUrl = getYouTubeEmbedUrl(newVideo.videoUrl);
-              const thumb = newVideo.image || (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80');
+              try {
+                const ytId = getYouTubeId(newVideo.videoUrl);
+                const embedUrl = getYouTubeEmbedUrl(newVideo.videoUrl);
+                const thumb = newVideo.image || (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80');
 
-              addVideo({
-                title: newVideo.title || 'Jupiter Machinery Live Demonstration',
-                videoUrl: newVideo.videoUrl,
-                embedUrl: embedUrl,
-                views: '1.2K views',
-                duration: newVideo.duration || '3:30',
-                image: thumb,
-                category: (newVideo.category || 'Block Machines') as any,
-                description: 'Machinery in action live demonstration by Jupiter Industries.'
-              });
-              setVideos(getStoredVideos());
-              setIsAddVideoOpen(false);
-              setNewVideo({ title: '', duration: '3:30', image: '', videoUrl: '', category: 'Block Machines' });
-              triggerToast('YouTube video added successfully and saved to DB!');
+                await addVideo({
+                  title: newVideo.title || 'Jupiter Machinery Live Demonstration',
+                  videoUrl: newVideo.videoUrl,
+                  embedUrl: embedUrl,
+                  views: '1.2K views',
+                  duration: newVideo.duration || '3:30',
+                  image: thumb,
+                  category: (newVideo.category || 'Block Machines') as any,
+                  description: 'Machinery in action live demonstration by Jupiter Industries.'
+                });
+                setVideos(getStoredVideos());
+                setIsAddVideoOpen(false);
+                setNewVideo({ title: '', duration: '3:30', image: '', videoUrl: '', category: 'Block Machines' });
+                triggerToast('YouTube video added successfully and saved to DB!');
+              } catch (err: any) {
+                alert('Failed to save video to backend: ' + (err.message || 'Error'));
+              }
             }}>
               {/* YouTube URL Field */}
               <div className="form-group-item" style={{ marginBottom: '14px' }}>

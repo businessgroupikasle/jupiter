@@ -1,8 +1,39 @@
 # Jupiter Industries - Robots Exclusion File
+# Website: https://jupitergroups.in/
+
 User-agent: *
 Allow: /
+Allow: /assets/
+Allow: /images/
 Disallow: /admin
 Disallow: /admin/
+Disallow: /api/
 
-# Sitemap location
+# AI & LLM Search Crawlers (Explicitly Allowed for Indexing & Summarization)
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# Sitemap & LLMs Information
 Sitemap: https://jupitergroups.in/sitemap.xml
+Host: https://jupitergroups.in

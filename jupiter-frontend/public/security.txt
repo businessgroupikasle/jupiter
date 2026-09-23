@@ -1,0 +1,11 @@
+# Jupiter Industries - Security Vulnerability Disclosure Policy (RFC 9116)
+# Canonical location: https://jupitergroups.in/.well-known/security.txt
+
+Contact: mailto:security@jupitergroups.in
+Contact: mailto:mathivanan.md@jupitergroups.in
+Contact: https://jupitergroups.in/contact
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: en, ta
+Canonical: https://jupitergroups.in/.well-known/security.txt
+Policy: https://jupitergroups.in/privacy-policy
+Acknowledgments: https://jupitergroups.in/about
