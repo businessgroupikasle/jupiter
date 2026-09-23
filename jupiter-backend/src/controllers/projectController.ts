@@ -54,7 +54,43 @@ export const createProject = async (req: Request, res: Response, next: NextFunct
 export const updateProject = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;
-    const project = await (prisma as any).project.update({ where: { id }, data: req.body });
+    const allowedFields = ['title', 'client', 'location', 'machine', 'year', 'status', 'image', 'description', 'capacity'];
+    const updateData: any = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) {
+        updateData[key] = req.body[key];
+      }
+    }
+
+    const titleToMatch = req.body.title ? String(req.body.title).trim() : '';
+    const existing = await (prisma as any).project.findFirst({
+      where: {
+        OR: [
+          { id },
+          ...(titleToMatch ? [{ title: { equals: titleToMatch, mode: 'insensitive' as const } }] : []),
+        ],
+      },
+    });
+
+    let project;
+    if (existing) {
+      project = await (prisma as any).project.update({ where: { id: existing.id }, data: updateData });
+    } else {
+      project = await (prisma as any).project.create({
+        data: {
+          title: req.body.title || 'New Industrial Installation',
+          client: req.body.client || 'Valued Client',
+          location: req.body.location || 'Tamil Nadu, India',
+          machine: req.body.machine || 'Jupiter Automatic Machinery',
+          year: req.body.year ? String(req.body.year) : String(new Date().getFullYear()),
+          status: req.body.status || 'Completed',
+          image: req.body.image || '/images/arunachala-plant.jpg',
+          description: req.body.description || '',
+          capacity: req.body.capacity || 'High Production Output',
+        },
+      });
+    }
+
     res.status(200).json({ success: true, message: 'Project updated successfully', data: project });
   } catch (error) {
     next(error);

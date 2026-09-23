@@ -46,9 +46,12 @@ export const createApp = (): Application => {
         if (!origin) return callback(null, true);
         if (
           allowedOrigins.indexOf(origin) !== -1 ||
+          env.NODE_ENV === 'development' ||
           process.env.NODE_ENV === 'development' ||
+          // Allow any local IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x, localhost, 127.0.0.1) on any port
+          /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin) ||
           // Allow any subdomain of jupitergroups.in
-          /https?:\/\/([\w-]+\.)?jupitergroups\.in$/.test(origin)
+          /https?:\/\/([\w-]+\.)?jupitergroups\.in(:\d+)?$/.test(origin)
         ) {
           return callback(null, true);
         }
@@ -74,9 +77,9 @@ export const createApp = (): Application => {
   });
   app.use('/api', limiter);
 
-  // Body Parser
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // Body Parser (allow up to 50MB for rich product specs, gallery photos, and base64 images)
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Root route — API directory
   app.get('/', (req: Request, res: Response) => {

@@ -11,10 +11,13 @@ export const createEnquiry = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { name, email, phone, message } = req.body;
+    const { name, email, phone, message, status } = req.body;
+
+    // Always ensure status defaults to 'New'
+    const finalStatus = (status && typeof status === 'string' && status.trim()) ? status.trim() : 'New';
 
     const savedEnquiry = await prisma.enquiry.create({
-      data: { name, email, phone, message },
+      data: { name, email, phone, message, status: finalStatus },
     });
 
     // Trigger emails via Zoho SMTP (non-blocking)
@@ -46,6 +49,55 @@ export const getEnquiries = async (req: Request, res: Response, next: NextFuncti
     const enquiries = await prisma.enquiry.findMany({ orderBy: { createdAt: 'desc' } });
 
     res.status(200).json({ success: true, count: enquiries.length, data: enquiries });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateEnquiryStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const { status } = req.body;
+
+    if (!status || typeof status !== 'string') {
+      res.status(400).json({ success: false, message: 'Valid status is required' });
+      return;
+    }
+
+    const updated = await prisma.enquiry.update({
+      where: { id },
+      data: { status: status.trim() },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Enquiry status updated successfully',
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markEnquiryRead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const updated = await prisma.enquiry.update({
+      where: { id },
+      data: { isRead: true },
+    });
+    res.status(200).json({ success: true, message: 'Enquiry marked as read', data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const markAllEnquiriesRead = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    await prisma.enquiry.updateMany({
+      data: { isRead: true },
+    });
+    res.status(200).json({ success: true, message: 'All enquiries marked as read' });
   } catch (error) {
     next(error);
   }

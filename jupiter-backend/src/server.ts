@@ -6,15 +6,16 @@ import { seedDatabase } from './seed';
 const prisma = new PrismaClient();
 const app = createApp();
 
-const autoSeedIfEmpty = async () => {
+const checkDatabaseStatus = async () => {
   try {
-    const productCount = await prisma.product.count();
-    if (productCount === 0) {
-      console.log('⚡ Database empty. Automatically seeding catalog and initial data...');
-      await seedDatabase();
-    } else {
-      console.log(`📊 Database connected. Found ${productCount} products in catalog.`);
-    }
+    const [productCount, projectCount, galleryCount, videoCount] = await Promise.all([
+      prisma.product.count().catch(() => 0),
+      prisma.project.count().catch(() => 0),
+      prisma.galleryPhoto.count().catch(() => 0),
+      prisma.video.count().catch(() => 0),
+    ]);
+
+    console.log(`📊 Database connected. Catalog has ${productCount} products, ${projectCount} projects, ${galleryCount} gallery items, ${videoCount} videos.`);
   } catch (err: any) {
     console.warn('⚠️ Note on Database:', err.message);
   }
@@ -29,7 +30,7 @@ const server = app.listen(env.PORT, async () => {
   🛡️ Environment: ${env.NODE_ENV}
   `);
 
-  await autoSeedIfEmpty();
+  await checkDatabaseStatus();
 });
 
 // Graceful shutdown

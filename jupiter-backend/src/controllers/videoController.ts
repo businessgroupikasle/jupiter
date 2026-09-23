@@ -35,6 +35,54 @@ export const createVideo = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+export const updateVideo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const allowed = ['title', 'videoUrl', 'embedUrl', 'views', 'duration', 'image', 'category', 'description'];
+    const updateData: any = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        updateData[key] = req.body[key];
+      }
+    }
+
+    const titleToMatch = req.body.title ? String(req.body.title).trim() : '';
+    const existing = await (prisma as any).video.findFirst({
+      where: {
+        OR: [
+          { id },
+          ...(titleToMatch ? [{ title: { equals: titleToMatch, mode: 'insensitive' as const } }] : []),
+        ],
+      },
+    });
+
+    let video;
+    if (existing) {
+      video = await (prisma as any).video.update({
+        where: { id: existing.id },
+        data: updateData,
+      });
+    } else {
+      video = await (prisma as any).video.create({
+        data: {
+          title: req.body.title || 'Jupiter Industrial Machinery Demonstration',
+          videoUrl: req.body.videoUrl || '',
+          embedUrl: req.body.embedUrl || '',
+          views: req.body.views || '1.5K views',
+          duration: req.body.duration || '3:00',
+          image: req.body.image || '/images/video-thumb-default.jpg',
+          category: req.body.category || 'Block Machines',
+          description: req.body.description || '',
+        },
+      });
+    }
+
+    res.status(200).json({ success: true, message: 'Video updated successfully', data: video });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const deleteVideo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { id } = req.params;

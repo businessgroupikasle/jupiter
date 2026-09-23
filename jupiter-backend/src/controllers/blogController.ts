@@ -89,11 +89,18 @@ export const createBlog = async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    let candidateSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    if (!candidateSlug) candidateSlug = `blog-${Date.now()}`;
+    let finalSlug = candidateSlug;
+    let counter = 1;
+    while (await prisma.blog.findUnique({ where: { slug: finalSlug } })) {
+      finalSlug = `${candidateSlug}-${counter}`;
+      counter++;
+    }
 
     const blog = await prisma.blog.create({
       data: {
-        slug,
+        slug: finalSlug,
         title,
         excerpt: excerpt || title.substring(0, 120),
         content,
@@ -120,8 +127,60 @@ export const createBlog = async (req: Request, res: Response, next: NextFunction
 export const updateBlog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = req.params.id as string;
+    const allowed = ['title', 'slug', 'excerpt', 'content', 'category', 'readTime', 'authorName', 'authorRole', 'authorAvatar', 'date', 'image', 'tags', 'keyTakeaways', 'views'];
+    const updateData: any = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        updateData[key] = req.body[key];
+      }
+    }
 
-    const blog = await prisma.blog.update({ where: { id }, data: req.body });
+    const titleToMatch = req.body.title ? String(req.body.title).trim() : '';
+    const existing = await prisma.blog.findFirst({
+      where: {
+        OR: [
+          { id },
+          { slug: id },
+          ...(titleToMatch ? [{ title: { equals: titleToMatch, mode: 'insensitive' as const } }] : []),
+        ],
+      },
+    });
+
+    let blog;
+    if (existing) {
+      blog = await prisma.blog.update({ where: { id: existing.id }, data: updateData });
+    } else {
+      let candidateSlug = (req.body.slug || titleToMatch || 'blog')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+      if (!candidateSlug) candidateSlug = `blog-${Date.now()}`;
+      let finalSlug = candidateSlug;
+      let counter = 1;
+      while (await prisma.blog.findUnique({ where: { slug: finalSlug } })) {
+        finalSlug = `${candidateSlug}-${counter}`;
+        counter++;
+      }
+
+      blog = await prisma.blog.create({
+        data: {
+          slug: finalSlug,
+          title: req.body.title || 'Technical Article',
+          excerpt: req.body.excerpt || (req.body.title ? req.body.title.substring(0, 120) : ''),
+          content: req.body.content || req.body.title || 'Article details',
+          category: req.body.category || 'Brick Making',
+          readTime: req.body.readTime || '5 min read',
+          authorName: req.body.authorName || 'Jupiter Editorial Team',
+          authorRole: req.body.authorRole || 'Machinery Specialist',
+          authorAvatar: req.body.authorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
+          date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          image: req.body.image || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
+          tags: Array.isArray(req.body.tags) ? req.body.tags : ['Brick Machine', 'Jupiter'],
+          keyTakeaways: Array.isArray(req.body.keyTakeaways) ? req.body.keyTakeaways : ['Heavy-duty engineering', 'Pan-India technical support'],
+          views: 1,
+        },
+      });
+    }
 
     res.status(200).json({ success: true, message: 'Blog article updated successfully', data: formatBlog(blog) });
   } catch (error) {

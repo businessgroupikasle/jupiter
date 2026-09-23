@@ -5,19 +5,33 @@ const prisma = new PrismaClient();
 
 export const getDashboardStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const [enquiries, products, projects, blogs, gallery, reviews, deliveryLocations] = await Promise.all([
-      prisma.enquiry.count(),
-      prisma.product.count(),
-      prisma.project.count(),
-      prisma.blog.count(),
-      prisma.galleryPhoto.count(),
-      (prisma as any).review.count(),
-      (prisma as any).deliveryLocation.count(),
+    const [enquiries, products, projects, blogs, gallery, videos, faqs, deliveryLocations, users, reviews] = await Promise.all([
+      prisma.enquiry.count().catch(() => 0),
+      prisma.product.count().catch(() => 0),
+      prisma.project.count().catch(() => 0),
+      prisma.blog.count().catch(() => 0),
+      prisma.galleryPhoto.count().catch(() => 0),
+      prisma.video.count().catch(() => 0),
+      (prisma as any).faq.count().catch(() => 0),
+      (prisma as any).deliveryLocation.count().catch(() => 0),
+      (prisma as any).user.count().catch(() => 0),
+      (prisma as any).review.count().catch(() => 0),
     ]);
 
     res.status(200).json({
       success: true,
-      data: { enquiries, products, projects, blogs, gallery, reviews, deliveryLocations },
+      data: {
+        enquiries,
+        products,
+        projects,
+        blogs,
+        gallery,
+        videos,
+        faqs,
+        deliveryLocations,
+        users,
+        reviews,
+      },
     });
   } catch (error) {
     next(error);

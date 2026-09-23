@@ -21,7 +21,18 @@ export const createEnquirySchema = z.object({
       .min(5, 'Message must be at least 5 characters')
       .max(2000, 'Message must not exceed 2000 characters')
       .trim(),
+    status: z
+      .string()
+      .optional()
+      .default('New'),
+  }),
+});
+
+export const updateEnquiryStatusSchema = z.object({
+  body: z.object({
+    status: z.string({ required_error: 'Status is required' }).trim(),
   }),
 });
 
 export type CreateEnquiryInput = z.infer<typeof createEnquirySchema>['body'];
+export type UpdateEnquiryStatusInput = z.infer<typeof updateEnquiryStatusSchema>['body'];
