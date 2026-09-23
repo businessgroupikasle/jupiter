@@ -92,7 +92,7 @@ export const sendEnquiryAlertToMarketing = async (data: EnquiryMailData) => {
           </table>
 
           <div style="margin-top: 24px; text-align: center;">
-            <a href="http://localhost:5173/admin?tab=enquiries" style="background: #FF9200; color: #ffffff; padding: 10px 22px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3026'}/admin?tab=enquiries" style="background: #FF9200; color: #ffffff; padding: 10px 22px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">
               Open Admin Dashboard
             </a>
           </div>
