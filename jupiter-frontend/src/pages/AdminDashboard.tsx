@@ -86,8 +86,12 @@ import {
   addProduct,
   updateProduct,
   deleteProduct,
-  CATEGORY_NAME_TO_SLUG_MAP
+  CATEGORY_NAME_TO_SLUG_MAP,
+  getCategoryMetas,
+  updateCategoryMeta
 } from '../services/productService';
+import { seedBackendDatabase, checkBackendStatus } from '../services/seedService';
+import { DEFAULT_HIGHLIGHTS, DEFAULT_ADVANTAGES, DEFAULT_BADGES } from './MachineCategoryPage';
 import {
   ProjectItem,
   getStoredProjects,
@@ -501,8 +505,45 @@ interface SeoSettings {
     'Machine Spares'
   ];
 
-  // New Product Form State with Technical Specifications Builder
-  // New Product Form State with Full Technical Specifications Builder
+  // Product Modals Sub-Tab States
+  const [editProductTab, setEditProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
+  const [addProductTab, setAddProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
+  const [viewProductTab, setViewProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
+
+  // Backend Seeding State
+  const [isSeedingBackend, setIsSeedingBackend] = useState(false);
+  const [seedProgress, setSeedProgress] = useState<{ current: number; total: number; item: string } | null>(null);
+  const [backendHealth, setBackendHealth] = useState<{ isOnline: boolean; productCount: number; error?: string } | null>(null);
+
+  // Check backend health periodically
+  useEffect(() => {
+    checkBackendStatus().then(status => setBackendHealth(status)).catch(() => {});
+  }, []);
+
+  const handleSeedBackend = async () => {
+    setIsSeedingBackend(true);
+    setSeedProgress({ current: 0, total: 23, item: 'Connecting to backend...' });
+    try {
+      const result = await seedBackendDatabase((curr, tot, item) => {
+        setSeedProgress({ current: curr, total: tot, item });
+      });
+      if (result.success) {
+        triggerToast(`🌱 ${result.message}`);
+        setProducts(getStoredProducts());
+        const updatedHealth = await checkBackendStatus();
+        setBackendHealth(updatedHealth);
+      } else {
+        triggerToast(`⚠ ${result.message}`);
+      }
+    } catch (err: any) {
+      triggerToast(`Error seeding backend: ${err.message}`);
+    } finally {
+      setIsSeedingBackend(false);
+      setSeedProgress(null);
+    }
+  };
+
+  // New Product Form State with Full Technical Specifications & Content Builder
   const [newProduct, setNewProduct] = useState<{
     name: string;
     brandTag: string;
@@ -514,6 +555,9 @@ interface SeoSettings {
     galleryImages: string[];
     description: string;
     featureBadges: string[];
+    highlights: Array<{ title: string; description: string }>;
+    advantages: Array<{ title: string; description: string }>;
+    keyFeatures: string[];
     specColumns: string[];
     specRows: Array<Record<string, string>>;
   }>({
@@ -526,7 +570,14 @@ interface SeoSettings {
     image: '',
     galleryImages: [],
     description: '',
-    featureBadges: ['', '', '', ''],
+    featureBadges: [...DEFAULT_BADGES],
+    highlights: [...DEFAULT_HIGHLIGHTS],
+    advantages: [...DEFAULT_ADVANTAGES],
+    keyFeatures: [
+      'Heavy-Duty Fabricated Chassis',
+      'High Compaction Density',
+      'Low Power Consumption'
+    ],
     specColumns: ['Parameter', 'Details'],
     specRows: [
       { 'Parameter': 'Capacity', 'Details': '' },
@@ -541,6 +592,7 @@ interface SeoSettings {
   // Safe handler to open Add Product modal with clean defaults
   const handleOpenAddProduct = (category?: string) => {
     try {
+      setAddProductTab('overview');
       const targetCat = category || (adminProductCategory !== 'All' ? adminProductCategory : 'Fly Ash Brick Machine');
       setNewProduct({
         name: '',
@@ -552,7 +604,14 @@ interface SeoSettings {
         image: '',
         galleryImages: [],
         description: '',
-        featureBadges: ['', '', '', ''],
+        featureBadges: [...DEFAULT_BADGES],
+        highlights: [...DEFAULT_HIGHLIGHTS],
+        advantages: [...DEFAULT_ADVANTAGES],
+        keyFeatures: [
+          'Heavy-Duty Fabricated Chassis',
+          'High Compaction Density',
+          'Low Power Consumption'
+        ],
         specColumns: ['Parameter', 'Details'],
         specRows: [
           { 'Parameter': 'Capacity', 'Details': '' },
@@ -569,11 +628,21 @@ interface SeoSettings {
 
   // Safe handler to open Edit Product modal
   const handleOpenEditProduct = (prod: ProductItem) => {
+    setEditProductTab('overview');
     setEditingProduct({
       ...prod,
       brickSize: prod.brickSize || '',
-      featureBadges: prod.featureBadges && prod.featureBadges.length > 0 ? [...prod.featureBadges] : ['', '', '', ''],
+      featureBadges: prod.featureBadges && prod.featureBadges.length > 0 ? [...prod.featureBadges] : [...DEFAULT_BADGES],
       galleryImages: prod.galleryImages ? [...prod.galleryImages] : [],
+      highlights: prod.highlights && prod.highlights.length > 0 ? [...prod.highlights] : [...DEFAULT_HIGHLIGHTS],
+      advantages: prod.advantages && prod.advantages.length > 0 ? [...prod.advantages] : [...DEFAULT_ADVANTAGES],
+      keyFeatures: prod.keyFeatures && prod.keyFeatures.length > 0 ? [...prod.keyFeatures] : [
+        'Heavy-Duty Hydraulic Power Pack with foreign-brand proportional valves',
+        'Synchronized high-frequency bottom & top directional vibration systems',
+        'Automatic pallet feeding and stacked discharge mechanism',
+        'Modular interchangeable mould design for pavers, solid blocks & bricks',
+        'Low power consumption with high-efficiency IE3 electric motors'
+      ],
       specTableColumns: prod.specTableColumns && prod.specTableColumns.length > 0 ? [...prod.specTableColumns] : ['Parameter', 'Details'],
       specTableRows: prod.specTableRows && prod.specTableRows.length > 0 ? [...prod.specTableRows] : [
         { 'Parameter': 'Capacity', 'Details': prod.capacity || '' },
@@ -2253,6 +2322,29 @@ interface SeoSettings {
                   )}
                   <button
                     type="button"
+                    onClick={handleSeedBackend}
+                    disabled={isSeedingBackend}
+                    className="btn"
+                    style={{
+                      background: '#047857',
+                      color: '#FFFFFF',
+                      border: '1px solid #059669',
+                      padding: '10px 16px',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: isSeedingBackend ? 'not-allowed' : 'pointer',
+                      borderRadius: '6px'
+                    }}
+                    title="Seed all machinery models & specifications into the backend PostgreSQL database"
+                  >
+                    <Upload size={16} />
+                    <span>{isSeedingBackend ? `Seeding (${seedProgress?.current || 0}/${seedProgress?.total || 23})...` : 'Seed Backend DB'}</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -3925,6 +4017,9 @@ interface SeoSettings {
                 galleryImages: (newProduct.galleryImages || []).filter(img => Boolean(img && img.trim())),
                 description: newProduct.description || '',
                 featureBadges: (newProduct.featureBadges || []).filter(b => Boolean(b && b.trim())),
+                highlights: (newProduct.highlights || []).filter(h => h && h.title && h.title.trim()),
+                advantages: (newProduct.advantages || []).filter(a => a && a.title && a.title.trim()),
+                keyFeatures: (newProduct.keyFeatures || []).filter(Boolean),
                 specTableColumns: newProduct.specColumns,
                 specTableRows: (newProduct.specRows || []).filter(r => Object.values(r || {}).some(v => v && v.trim()))
               });
@@ -4498,6 +4593,45 @@ interface SeoSettings {
               </button>
             </div>
 
+            {/* Modal Sub-Tabs Header Bar */}
+            <div style={{
+              display: 'flex',
+              gap: '4px',
+              borderBottom: '2px solid #E2E8F0',
+              padding: '0 20px',
+              background: '#F8FAFC',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap'
+            }}>
+              {[
+                { id: 'overview', label: '1. Overview & Media' },
+                { id: 'highlights', label: `2. Product Highlights (${(editingProduct.highlights || []).length})` },
+                { id: 'specifications', label: '3. Technical Specs' },
+                { id: 'features', label: `4. Key Features (${(editingProduct.keyFeatures || []).length})` },
+                { id: 'advantages', label: `5. Advantages (${(editingProduct.advantages || []).length})` },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setEditProductTab(t.id as any)}
+                  style={{
+                    padding: '12px 14px',
+                    fontWeight: editProductTab === t.id ? 800 : 600,
+                    color: editProductTab === t.id ? '#FF9200' : '#475569',
+                    borderBottom: editProductTab === t.id ? '3px solid #FF9200' : '3px solid transparent',
+                    background: 'none',
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
             <form
               className="modal-body-content"
               onSubmit={async (e) => {
@@ -4517,6 +4651,9 @@ interface SeoSettings {
                   galleryImages: (editingProduct.galleryImages || []).filter(Boolean),
                   description: editingProduct.description,
                   featureBadges: (editingProduct.featureBadges || []).filter(Boolean),
+                  highlights: (editingProduct.highlights || []).filter(h => h && h.title && h.title.trim()),
+                  advantages: (editingProduct.advantages || []).filter(a => a && a.title && a.title.trim()),
+                  keyFeatures: (editingProduct.keyFeatures || []).filter(Boolean),
                   specTableColumns: editingProduct.specTableColumns,
                   specTableRows: editingProduct.specTableRows
                 });
@@ -4525,340 +4662,561 @@ interface SeoSettings {
                 triggerToast(`Product "${updated?.name || editingProduct.name}" updated successfully!`);
               }}
             >
-              {/* Basic Fields */}
-              <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
-                <div className="form-group-item">
-                  <label className="form-field-label">Header Subtitle / Brand</label>
-                  <input
-                    type="text"
-                    className="form-input-field"
-                    placeholder="e.g. JUPITER EQUIPMENTS"
-                    value={editingProduct.brandTag || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, brandTag: e.target.value })}
-                  />
-                </div>
-                <div className="form-group-item">
-                  <label className="form-field-label">Machine Model / Product Title <span className="text-orange">*</span></label>
-                  <input
-                    type="text"
-                    className="form-input-field"
-                    value={editingProduct.name || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
-                <div className="form-group-item">
-                  <label className="form-field-label">Category</label>
-                  <select
-                    className="form-input-field"
-                    value={editingProduct.category || 'Fly Ash Brick Machine'}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                  >
-                    <option value="Fly Ash Brick Machine">Fly Ash Brick Machine</option>
-                    <option value="Hollow and Solid Block Machine">Hollow and Solid Block Machine</option>
-                    <option value="Inter Block Making Machine">Inter Block Making Machine</option>
-                    <option value="Paver Block Machine">Paver Block Machine</option>
-                    <option value="Batching Plant">Batching Plant</option>
-                    <option value="Storage Silo">Storage Silo</option>
-                    <option value="Machine Spares">Machine Spares</option>
-                  </select>
-                </div>
-                <div className="form-group-item">
-                  <label className="form-field-label">Main Image URL / Upload</label>
-                  <input
-                    type="text"
-                    className="form-input-field"
-                    placeholder="https://... or upload below"
-                    value={resolveImg(editingProduct.image)}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {/* 3 Quick Specs: Capacity, Power, Brick/Mold Size */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
-                <div className="form-group-item">
-                  <label className="form-field-label">Production Capacity</label>
-                  <input
-                    type="text"
-                    className="form-input-field"
-                    placeholder="e.g. 15,000 – 20,000 Bricks/day"
-                    value={editingProduct.capacity || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, capacity: e.target.value })}
-                  />
-                </div>
-                <div className="form-group-item">
-                  <label className="form-field-label">Total Connected Power</label>
-                  <input
-                    type="text"
-                    className="form-input-field"
-                    placeholder="e.g. 15 H.P Electric Motor"
-                    value={editingProduct.power || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, power: e.target.value })}
-                  />
-                </div>
-                <div className="form-group-item">
-                  <label className="form-field-label">Brick / Mold Size</label>
-                  <input
-                    type="text"
-                    className="form-input-field"
-                    placeholder="e.g. 230 x 110 x 75 to 230 x 200 x 100"
-                    value={editingProduct.brickSize || ''}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, brickSize: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {/* Primary Machine Photo */}
-              <ImageUploadField
-                label="Primary Machine Equipment Picture"
-                value={resolveImg(editingProduct.image)}
-                onChange={(val) => setEditingProduct({ ...editingProduct, image: val })}
-                helperText="Upload equipment picture (PNG, JPG, WEBP)"
-              />
-
-              {/* Additional Gallery Thumbnails */}
-              <div style={{ marginTop: '14px', marginBottom: '14px', padding: '14px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                <label className="form-field-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>
-                  Additional Gallery Thumbnails (Product Details Page)
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <ImageUploadField
-                    label="Thumbnail 1"
-                    value={resolveImg(editingProduct.galleryImages?.[0] || '')}
-                    onChange={(val) => {
-                      const nextG = [...(editingProduct.galleryImages || [])];
-                      nextG[0] = val;
-                      setEditingProduct({ ...editingProduct, galleryImages: nextG });
-                    }}
-                    helperText="Angle 1 / Component view"
-                  />
-                  <ImageUploadField
-                    label="Thumbnail 2"
-                    value={resolveImg(editingProduct.galleryImages?.[1] || '')}
-                    onChange={(val) => {
-                      const nextG = [...(editingProduct.galleryImages || [])];
-                      nextG[1] = val;
-                      setEditingProduct({ ...editingProduct, galleryImages: nextG });
-                    }}
-                    helperText="Angle 2 / Output sample view"
-                  />
-                </div>
-              </div>
-
-              {/* 4 Feature Badges (Key Selling Points) */}
-              <div style={{ marginBottom: '14px', padding: '14px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-                <label className="form-field-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>
-                  4 Feature Badges (Quick Highlights)
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {[0, 1, 2, 3].map((bIdx) => (
-                    <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FF9200', background: '#FFF2E0', padding: '3px 7px', borderRadius: '4px' }}>
-                        #{bIdx + 1}
-                      </span>
+              {/* TAB 1: OVERVIEW & MEDIA */}
+              {editProductTab === 'overview' && (
+                <div>
+                  <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
+                    <div className="form-group-item">
+                      <label className="form-field-label">Header Subtitle / Brand</label>
                       <input
                         type="text"
                         className="form-input-field"
-                        placeholder={`Feature Badge ${bIdx + 1}`}
-                        value={editingProduct.featureBadges?.[bIdx] || ''}
-                        onChange={(e) => {
-                          const nextBadges = [...(editingProduct.featureBadges || ['', '', '', ''])];
-                          nextBadges[bIdx] = e.target.value;
-                          setEditingProduct({ ...editingProduct, featureBadges: nextBadges });
-                        }}
+                        placeholder="e.g. Fly Ash Making Machine & Rotary Hydraulic Plants"
+                        value={editingProduct.brandTag || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, brandTag: e.target.value })}
                       />
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="form-group-item" style={{ marginTop: '14px', marginBottom: '14px' }}>
-                <label className="form-field-label">Machine Overview & Description</label>
-                <textarea
-                  rows={3}
-                  className="form-textarea-field"
-                  value={editingProduct.description || ''}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                ></textarea>
-              </div>
-
-              {/* TECHNICAL SPECIFICATIONS MATRIX TABLE BUILDER */}
-              <div style={{ marginTop: '20px', marginBottom: '20px', border: '1.5px solid #E2E8F0', borderRadius: '10px', padding: '18px', background: '#F8FAFC' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ background: '#00233D', color: '#FF9200', padding: '4px 12px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 800, border: '1.5px solid #FF9200' }}>
-                      Technical Specifications
+                    <div className="form-group-item">
+                      <label className="form-field-label">Machine Model / Product Title <span className="text-orange">*</span></label>
+                      <input
+                        type="text"
+                        className="form-input-field"
+                        value={editingProduct.name || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                        required
+                      />
                     </div>
-                    <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Customizable specifications table (edit headers & rows)</span>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="admin-table-view-btn"
-                      onClick={() => {
-                        const colName = prompt('Enter New Column Name:', `Specification ${((editingProduct.specTableColumns || []).length + 1)}`);
-                        const currentCols = editingProduct.specTableColumns || ['Parameter', 'Details'];
-                        const currentRows = editingProduct.specTableRows || [];
-                        if (colName && !currentCols.includes(colName)) {
-                          const updatedCols = [...currentCols, colName];
-                          const updatedRows = currentRows.map(r => ({ ...(r || {}), [colName]: '' }));
-                          setEditingProduct({ ...editingProduct, specTableColumns: updatedCols, specTableRows: updatedRows });
-                        }
-                      }}
-                    >
-                      <Plus size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                      <span>Add Column</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-table-view-btn"
-                      style={{ background: '#001827', color: '#FFFFFF' }}
-                      onClick={() => {
-                        const currentCols = editingProduct.specTableColumns || ['Parameter', 'Details'];
-                        const currentRows = editingProduct.specTableRows || [];
-                        const newRowObj: Record<string, string> = {};
-                        currentCols.forEach(col => { newRowObj[col] = ''; });
-                        setEditingProduct({ ...editingProduct, specTableRows: [...currentRows, newRowObj] });
-                      }}
-                    >
-                      <Plus size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                      <span>Add Row</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="admin-table-view-btn"
-                      style={{ background: '#FEE2E2', color: '#DC2626', borderColor: '#FECACA' }}
-                      onClick={() => {
-                        const currentCols = editingProduct.specTableColumns || ['Parameter', 'Details'];
-                        const blankRow: Record<string, string> = {};
-                        currentCols.forEach(col => { blankRow[col] = ''; });
-                        setEditingProduct({ ...editingProduct, specTableRows: [blankRow] });
-                      }}
-                      title="Clear all rows"
-                    >
-                      <Trash2 size={13} style={{ display: 'inline', marginRight: '4px' }} />
-                      <span>Clear Table</span>
-                    </button>
+                  <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
+                    <div className="form-group-item">
+                      <label className="form-field-label">Category</label>
+                      <select
+                        className="form-input-field"
+                        value={editingProduct.category || 'Fly Ash Brick Machine'}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                      >
+                        <option value="Fly Ash Brick Machine">Fly Ash Brick Machine</option>
+                        <option value="Hollow and Solid Block Machine">Hollow and Solid Block Machine</option>
+                        <option value="Inter Block Making Machine">Inter Block Making Machine</option>
+                        <option value="Paver Block Machine">Paver Block Machine</option>
+                        <option value="Batching Plant">Batching Plant</option>
+                        <option value="Storage Silo">Storage Silo</option>
+                        <option value="Machine Spares">Machine Spares</option>
+                      </select>
+                    </div>
+                    <div className="form-group-item">
+                      <label className="form-field-label">Main Image URL / Upload</label>
+                      <input
+                        type="text"
+                        className="form-input-field"
+                        placeholder="https://... or upload below"
+                        value={resolveImg(editingProduct.image)}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3 Quick Specs: Capacity, Power, Brick/Mold Size */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+                    <div className="form-group-item">
+                      <label className="form-field-label">Production Capacity</label>
+                      <input
+                        type="text"
+                        className="form-input-field"
+                        placeholder="e.g. 10,000 – 20,000 Bricks / Day"
+                        value={editingProduct.capacity || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, capacity: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group-item">
+                      <label className="form-field-label">Total Connected Power</label>
+                      <input
+                        type="text"
+                        className="form-input-field"
+                        placeholder="e.g. 15 H.P + 2 H.P / 7.5 H.P + 2 H.P"
+                        value={editingProduct.power || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, power: e.target.value })}
+                      />
+                    </div>
+                    <div className="form-group-item">
+                      <label className="form-field-label">Brick / Mold Size</label>
+                      <input
+                        type="text"
+                        className="form-input-field"
+                        placeholder="e.g. 230 x 110 x 75 mm (Standard)"
+                        value={editingProduct.brickSize || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, brickSize: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Primary Machine Photo */}
+                  <ImageUploadField
+                    label="Primary Machine Equipment Picture"
+                    value={resolveImg(editingProduct.image)}
+                    onChange={(val) => setEditingProduct({ ...editingProduct, image: val })}
+                    helperText="Upload equipment picture (PNG, JPG, WEBP)"
+                  />
+
+                  {/* Additional Gallery Thumbnails */}
+                  <div style={{ marginTop: '14px', marginBottom: '14px', padding: '14px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    <label className="form-field-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>
+                      Additional Gallery Thumbnails (Product Details Page Carousel)
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                      <ImageUploadField
+                        label="Thumbnail 1"
+                        value={resolveImg(editingProduct.galleryImages?.[0] || '')}
+                        onChange={(val) => {
+                          const nextG = [...(editingProduct.galleryImages || [])];
+                          nextG[0] = val;
+                          setEditingProduct({ ...editingProduct, galleryImages: nextG });
+                        }}
+                        helperText="Angle 1 / Component view"
+                      />
+                      <ImageUploadField
+                        label="Thumbnail 2"
+                        value={resolveImg(editingProduct.galleryImages?.[1] || '')}
+                        onChange={(val) => {
+                          const nextG = [...(editingProduct.galleryImages || [])];
+                          nextG[1] = val;
+                          setEditingProduct({ ...editingProduct, galleryImages: nextG });
+                        }}
+                        helperText="Angle 2 / Output sample view"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4 Feature Badges (Key Selling Points) */}
+                  <div style={{ marginBottom: '14px', padding: '14px', background: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                    <label className="form-field-label" style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>
+                      4 Feature Badges (Quick Highlights in 2x2 Grid)
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      {[0, 1, 2, 3].map((bIdx) => (
+                        <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#FF9200', background: '#FFF2E0', padding: '3px 7px', borderRadius: '4px' }}>
+                            #{bIdx + 1}
+                          </span>
+                          <input
+                            type="text"
+                            className="form-input-field"
+                            placeholder={`Feature Badge ${bIdx + 1}`}
+                            value={editingProduct.featureBadges?.[bIdx] || ''}
+                            onChange={(e) => {
+                              const nextBadges = [...(editingProduct.featureBadges || ['', '', '', ''])];
+                              nextBadges[bIdx] = e.target.value;
+                              setEditingProduct({ ...editingProduct, featureBadges: nextBadges });
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-group-item" style={{ marginTop: '14px', marginBottom: '14px' }}>
+                    <label className="form-field-label">Machine Overview & Description</label>
+                    <textarea
+                      rows={3}
+                      className="form-textarea-field"
+                      value={editingProduct.description || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                    ></textarea>
                   </div>
                 </div>
+              )}
 
-                {/* Table Editor Grid */}
-                <div style={{ overflowX: 'auto', border: '1px solid #CBD5E1', borderRadius: '6px', background: '#FFFFFF' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                    <thead>
-                      <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #CBD5E1' }}>
-                        {(editingProduct.specTableColumns || []).map((col, cIdx) => (
-                          <th key={cIdx} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#001827', borderRight: '1px solid #CBD5E1', minWidth: '160px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                              <input
-                                type="text"
-                                value={col}
-                                title="Click to rename column header"
-                                style={{
-                                  fontWeight: 700,
-                                  fontSize: '0.82rem',
-                                  color: '#001827',
-                                  border: '1px solid #CBD5E1',
-                                  borderRadius: '4px',
-                                  padding: '4px 6px',
-                                  background: '#FFFFFF',
-                                  width: '100%'
-                                }}
-                                onChange={(e) => {
-                                  const newColName = e.target.value;
-                                  const oldColName = col;
-                                  const currentCols = editingProduct.specTableColumns || ['Parameter', 'Details'];
-                                  const updatedCols = [...currentCols];
-                                  updatedCols[cIdx] = newColName;
-                                  const currentRows = editingProduct.specTableRows || [];
-                                  const updatedRows = currentRows.map(r => {
-                                    const nr: Record<string, string> = {};
-                                    Object.entries(r || {}).forEach(([k, v]) => {
-                                      if (k === oldColName) nr[newColName] = v;
-                                      else nr[k] = v;
+              {/* TAB 2: PRODUCT HIGHLIGHTS (CARDS) */}
+              {editProductTab === 'highlights' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#00233D' }}>
+                        Product Highlights Cards
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748B' }}>
+                        These cards appear in the 2x2 grid under the "Product Highlights" tab on the live website.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-orange"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                      onClick={() => {
+                        const currentH = editingProduct.highlights || [];
+                        setEditingProduct({
+                          ...editingProduct,
+                          highlights: [...currentH, { title: `New Highlight ${currentH.length + 1}`, description: '' }]
+                        });
+                      }}
+                    >
+                      <Plus size={15} />
+                      <span>Add Highlight Card</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    {(editingProduct.highlights || []).map((hl, hIdx) => (
+                      <div key={hIdx} style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: '8px', padding: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#FF9200' }}>
+                            Card #{hIdx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedH = (editingProduct.highlights || []).filter((_, idx) => idx !== hIdx);
+                              setEditingProduct({ ...editingProduct, highlights: updatedH });
+                            }}
+                            className="admin-icon-btn text-danger"
+                            title="Remove Card"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          className="form-input-field"
+                          placeholder="Card Title (e.g. High Compaction Density)"
+                          style={{ marginBottom: '8px', fontWeight: 700 }}
+                          value={hl.title || ''}
+                          onChange={(e) => {
+                            const updatedH = [...(editingProduct.highlights || [])];
+                            updatedH[hIdx] = { ...updatedH[hIdx], title: e.target.value };
+                            setEditingProduct({ ...editingProduct, highlights: updatedH });
+                          }}
+                        />
+                        <textarea
+                          rows={2}
+                          className="form-textarea-field"
+                          placeholder="Card Description (e.g. Delivers sharp block corners, zero internal air voids...)"
+                          value={hl.description || ''}
+                          onChange={(e) => {
+                            const updatedH = [...(editingProduct.highlights || [])];
+                            updatedH[hIdx] = { ...updatedH[hIdx], description: e.target.value };
+                            setEditingProduct({ ...editingProduct, highlights: updatedH });
+                          }}
+                        ></textarea>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: TECHNICAL SPECIFICATIONS (MATRIX TABLE) */}
+              {editProductTab === 'specifications' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#00233D' }}>
+                        Technical Specifications Matrix Table
+                      </h4>
+                      <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Customizable specifications table (edit headers & rows)</span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="admin-table-view-btn"
+                        onClick={() => {
+                          const colName = prompt('Enter New Column Name:', `Specification ${((editingProduct.specTableColumns || []).length + 1)}`);
+                          const currentCols = editingProduct.specTableColumns || ['Parameter', 'Details'];
+                          const currentRows = editingProduct.specTableRows || [];
+                          if (colName && !currentCols.includes(colName)) {
+                            const updatedCols = [...currentCols, colName];
+                            const updatedRows = currentRows.map(r => ({ ...(r || {}), [colName]: '' }));
+                            setEditingProduct({ ...editingProduct, specTableColumns: updatedCols, specTableRows: updatedRows });
+                          }
+                        }}
+                      >
+                        <Plus size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                        <span>Add Column</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-table-view-btn"
+                        style={{ background: '#001827', color: '#FFFFFF' }}
+                        onClick={() => {
+                          const currentCols = editingProduct.specTableColumns || ['Parameter', 'Details'];
+                          const currentRows = editingProduct.specTableRows || [];
+                          const newRowObj: Record<string, string> = {};
+                          currentCols.forEach(col => { newRowObj[col] = ''; });
+                          setEditingProduct({ ...editingProduct, specTableRows: [...currentRows, newRowObj] });
+                        }}
+                      >
+                        <Plus size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                        <span>Add Row</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-table-view-btn"
+                        style={{ background: '#FEE2E2', color: '#DC2626', borderColor: '#FECACA' }}
+                        onClick={() => {
+                          const currentCols = editingProduct.specTableColumns || ['Parameter', 'Details'];
+                          const blankRow: Record<string, string> = {};
+                          currentCols.forEach(col => { blankRow[col] = ''; });
+                          setEditingProduct({ ...editingProduct, specTableRows: [blankRow] });
+                        }}
+                        title="Clear all rows"
+                      >
+                        <Trash2 size={13} style={{ display: 'inline', marginRight: '4px' }} />
+                        <span>Clear Table</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Table Editor Grid */}
+                  <div style={{ overflowX: 'auto', border: '1px solid #CBD5E1', borderRadius: '6px', background: '#FFFFFF' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ background: '#F1F5F9', borderBottom: '2px solid #CBD5E1' }}>
+                          {(editingProduct.specTableColumns || []).map((col, cIdx) => (
+                            <th key={cIdx} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700, color: '#001827', borderRight: '1px solid #CBD5E1', minWidth: '160px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                                <input
+                                  type="text"
+                                  value={col}
+                                  title="Click to rename column header"
+                                  style={{
+                                    fontWeight: 700,
+                                    fontSize: '0.82rem',
+                                    color: '#001827',
+                                    border: '1px solid #CBD5E1',
+                                    borderRadius: '4px',
+                                    padding: '4px 6px',
+                                    background: '#FFFFFF',
+                                    width: '100%'
+                                  }}
+                                  onChange={(e) => {
+                                    const newColName = e.target.value;
+                                    const oldColName = col;
+                                    const currentCols = editingProduct.specTableColumns || ['Parameter', 'Details'];
+                                    const updatedCols = [...currentCols];
+                                    updatedCols[cIdx] = newColName;
+                                    const currentRows = editingProduct.specTableRows || [];
+                                    const updatedRows = currentRows.map(r => {
+                                      const nr: Record<string, string> = {};
+                                      Object.entries(r || {}).forEach(([k, v]) => {
+                                        if (k === oldColName) nr[newColName] = v;
+                                        else nr[k] = v;
+                                      });
+                                      return nr;
                                     });
-                                    return nr;
-                                  });
-                                  setEditingProduct({ ...editingProduct, specTableColumns: updatedCols, specTableRows: updatedRows });
-                                }}
-                              />
-                              {(editingProduct.specTableColumns || []).length > 1 && (
+                                    setEditingProduct({ ...editingProduct, specTableColumns: updatedCols, specTableRows: updatedRows });
+                                  }}
+                                />
+                                {(editingProduct.specTableColumns || []).length > 1 && (
+                                  <button
+                                    type="button"
+                                    title={`Remove "${col}" column`}
+                                    style={{ color: '#EF4444', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 800, padding: '2px 4px' }}
+                                    onClick={() => {
+                                      const updatedCols = (editingProduct.specTableColumns || []).filter((_, idx) => idx !== cIdx);
+                                      setEditingProduct({ ...editingProduct, specTableColumns: updatedCols });
+                                    }}
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            </th>
+                          ))}
+                          <th style={{ width: '50px', padding: '10px', textAlign: 'center' }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(editingProduct.specTableRows || []).map((row, rIdx) => {
+                          if (!row) return null;
+                          return (
+                            <tr key={rIdx} style={{ borderBottom: '1px solid #E2E8F0', background: rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
+                              {(editingProduct.specTableColumns || []).map((col, cIdx) => {
+                                const cellVal = row && typeof row[col] === 'string' ? row[col] : (row && row[col] != null ? String(row[col]) : '');
+                                return (
+                                  <td key={cIdx} style={{ padding: '6px 8px', borderRight: '1px solid #E2E8F0' }}>
+                                    <input
+                                      type="text"
+                                      value={cellVal}
+                                      placeholder={cIdx === 0 ? 'e.g. Capacity / Power' : 'e.g. Details or value'}
+                                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '4px', fontSize: '0.85rem' }}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedRows = [...(editingProduct.specTableRows || [])];
+                                        updatedRows[rIdx] = { ...(updatedRows[rIdx] || {}), [col]: val };
+                                        setEditingProduct({ ...editingProduct, specTableRows: updatedRows });
+                                      }}
+                                    />
+                                  </td>
+                                );
+                              })}
+                              <td style={{ textAlign: 'center', padding: '6px' }}>
                                 <button
                                   type="button"
-                                  title={`Remove "${col}" column`}
-                                  style={{ color: '#EF4444', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 800, padding: '2px 4px' }}
+                                  title="Delete Row"
+                                  style={{ color: '#EF4444', border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }}
                                   onClick={() => {
-                                    const updatedCols = (editingProduct.specTableColumns || []).filter((_, idx) => idx !== cIdx);
-                                    setEditingProduct({ ...editingProduct, specTableColumns: updatedCols });
+                                    const updatedRows = (editingProduct.specTableRows || []).filter((_, idx) => idx !== rIdx);
+                                    setEditingProduct({ ...editingProduct, specTableRows: updatedRows.length > 0 ? updatedRows : [{ [(editingProduct.specTableColumns || ['Parameter'])[0]]: '', [(editingProduct.specTableColumns || ['Parameter', 'Details'])[1] || 'Details']: '' }] });
                                   }}
                                 >
-                                  ✕
+                                  <Trash2 size={15} />
                                 </button>
-                              )}
-                            </div>
-                          </th>
-                        ))}
-                        <th style={{ width: '50px', padding: '10px', textAlign: 'center' }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(editingProduct.specTableRows || []).map((row, rIdx) => {
-                        if (!row) return null;
-                        return (
-                          <tr key={rIdx} style={{ borderBottom: '1px solid #E2E8F0', background: rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
-                            {(editingProduct.specTableColumns || []).map((col, cIdx) => {
-                              const cellVal = row && typeof row[col] === 'string' ? row[col] : (row && row[col] != null ? String(row[col]) : '');
-                              return (
-                                <td key={cIdx} style={{ padding: '6px 8px', borderRight: '1px solid #E2E8F0' }}>
-                                  <input
-                                    type="text"
-                                    value={cellVal}
-                                    placeholder={cIdx === 0 ? 'e.g. Capacity / Power' : 'e.g. Details or value'}
-                                    style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '4px', fontSize: '0.85rem' }}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      const updatedRows = [...(editingProduct.specTableRows || [])];
-                                      updatedRows[rIdx] = { ...(updatedRows[rIdx] || {}), [col]: val };
-                                      setEditingProduct({ ...editingProduct, specTableRows: updatedRows });
-                                    }}
-                                  />
-                                </td>
-                              );
-                            })}
-                            <td style={{ textAlign: 'center', padding: '6px' }}>
-                              <button
-                                type="button"
-                                title="Delete Row"
-                                style={{ color: '#EF4444', border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }}
-                                onClick={() => {
-                                  const updatedRows = (editingProduct.specTableRows || []).filter((_, idx) => idx !== rIdx);
-                                  setEditingProduct({ ...editingProduct, specTableRows: updatedRows.length > 0 ? updatedRows : [{ [(editingProduct.specTableColumns || ['Parameter'])[0]]: '', [(editingProduct.specTableColumns || ['Parameter', 'Details'])[1] || 'Details']: '' }] });
-                                }}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              {/* TAB 4: KEY FEATURES (BULLET LIST) */}
+              {editProductTab === 'features' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#00233D' }}>
+                        Key Features Bullet Points
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748B' }}>
+                        These appear with orange checkmark icons under the "Features" tab on the live website.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-orange"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                      onClick={() => {
+                        const currentF = editingProduct.keyFeatures || [];
+                        setEditingProduct({
+                          ...editingProduct,
+                          keyFeatures: [...currentF, '']
+                        });
+                      }}
+                    >
+                      <Plus size={15} />
+                      <span>Add Feature Bullet</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {(editingProduct.keyFeatures || []).map((feat, fIdx) => (
+                      <div key={fIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F8FAFC', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                        <Check size={18} style={{ color: '#FF9200', flexShrink: 0 }} />
+                        <input
+                          type="text"
+                          className="form-input-field"
+                          placeholder="e.g. Heavy-Duty Hydraulic Power Pack with foreign-brand proportional valves"
+                          value={feat}
+                          onChange={(e) => {
+                            const updatedF = [...(editingProduct.keyFeatures || [])];
+                            updatedF[fIdx] = e.target.value;
+                            setEditingProduct({ ...editingProduct, keyFeatures: updatedF });
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updatedF = (editingProduct.keyFeatures || []).filter((_, idx) => idx !== fIdx);
+                            setEditingProduct({ ...editingProduct, keyFeatures: updatedF });
+                          }}
+                          className="admin-icon-btn text-danger"
+                          title="Remove Bullet"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: ADVANTAGES (CARDS) */}
+              {editProductTab === 'advantages' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#00233D' }}>
+                        Advantages Cards
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748B' }}>
+                        These cards appear in the 2x2 grid under the "Advantages" tab on the live website.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-orange"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                      onClick={() => {
+                        const currentA = editingProduct.advantages || [];
+                        setEditingProduct({
+                          ...editingProduct,
+                          advantages: [...currentA, { title: `New Advantage ${currentA.length + 1}`, description: '' }]
+                        });
+                      }}
+                    >
+                      <Plus size={15} />
+                      <span>Add Advantage Card</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    {(editingProduct.advantages || []).map((adv, aIdx) => (
+                      <div key={aIdx} style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: '8px', padding: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#FF9200' }}>
+                            Advantage #{aIdx + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedA = (editingProduct.advantages || []).filter((_, idx) => idx !== aIdx);
+                              setEditingProduct({ ...editingProduct, advantages: updatedA });
+                            }}
+                            className="admin-icon-btn text-danger"
+                            title="Remove Advantage"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          className="form-input-field"
+                          placeholder="Advantage Title (e.g. Reduced Cement Consumption)"
+                          style={{ marginBottom: '8px', fontWeight: 700 }}
+                          value={adv.title || ''}
+                          onChange={(e) => {
+                            const updatedA = [...(editingProduct.advantages || [])];
+                            updatedA[aIdx] = { ...updatedA[aIdx], title: e.target.value };
+                            setEditingProduct({ ...editingProduct, advantages: updatedA });
+                          }}
+                        />
+                        <textarea
+                          rows={2}
+                          className="form-textarea-field"
+                          placeholder="Advantage Description (e.g. Optimum particle packing reduces cement ratio by up to 25-30%...)"
+                          value={adv.description || ''}
+                          onChange={(e) => {
+                            const updatedA = [...(editingProduct.advantages || [])];
+                            updatedA[aIdx] = { ...updatedA[aIdx], description: e.target.value };
+                            setEditingProduct({ ...editingProduct, advantages: updatedA });
+                          }}
+                        ></textarea>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #E2E8F0' }}>
                 <button
                   type="submit"
                   className="btn btn-orange"
                   style={{ flex: 1, justifyContent: 'center', padding: '12px', fontSize: '0.95rem' }}
                 >
                   <Save size={18} />
-                  <span>Save Machine Changes</span>
+                  <span>Save Machine Changes & Content</span>
                 </button>
                 <button
                   type="button"

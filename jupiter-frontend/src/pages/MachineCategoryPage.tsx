@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { useParams, useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -25,6 +26,22 @@ import { WhatsAppIcon } from '../components/WhatsAppButton';
 import { IMAGES } from '../assets/images/images';
 import { PhoneInputWithCountry } from '../components/PhoneInputWithCountry';
 import { validateName, validatePhone, validateEmail } from '../utils/validation';
+
+export const DEFAULT_BADGES = ['Durable Construction', 'Consistent Dimensions', 'Lower Water Absorption', 'Cost-Effective Solution'];
+
+export const DEFAULT_HIGHLIGHTS = [
+  { title: 'High Compaction Density', description: 'Delivers sharp block corners, zero internal air voids, and high early compressive strength.' },
+  { title: 'Siemens / Delta PLC Automation', description: 'Fully automated cycle management with simple one-touch touchscreen control and safety interlocks.' },
+  { title: 'CNC Hardened Alloy Steel Moulds', description: 'Wear-resistant dies machined to exact tolerances ensuring hundreds of thousands of cycles.' },
+  { title: 'Heavy-Duty Fabricated Chassis', description: 'Stress-relieved solid steel frame engineered to dampen vibration and withstand continuous 24/7 duty.' },
+];
+
+export const DEFAULT_ADVANTAGES = [
+  { title: 'Reduced Cement Consumption', description: 'Optimum particle packing and vibration density reduces cement ratio by up to 25-30% while retaining strength.' },
+  { title: 'Zero Plant Downtime', description: 'Backed by Coimbatore OEM spare parts stock and emergency 24-hour service dispatch across India.' },
+  { title: 'Uniform Dimensions & Smooth Finish', description: 'Eliminates thick plastering mortar requirements, cutting masonry installation labor costs.' },
+  { title: 'Faster Return on Investment', description: 'High production speed with minimal labor dependency ensures early project break-even and profitability.' },
+];
 
 interface SpareItemCardProps {
   spare: SubMachineItem;
@@ -285,6 +302,20 @@ export const MachineCategoryPage: React.FC = () => {
   }, [currentSlug, updateTrigger]);
 
   const isSparesCategory = currentSlug === 'machine-spares' || (categoryData && categoryData.slug === 'machine-spares');
+
+  // Dynamic SEO meta tags per machine category
+  useSeoMeta({
+    title: categoryData
+      ? `${categoryData.name} | Jupiter Industries – Industrial Machinery Manufacturer`
+      : 'Machine Category | Jupiter Industries',
+    description: categoryData
+      ? `Buy ${categoryData.name} from Jupiter Industries. ${categoryData.subTitle || categoryData.introDescription?.slice(0, 120) || 'High-performance industrial machinery with turnkey Pan-India support.'}`
+      : 'Browse our range of industrial brick & block making machines. Jupiter Industries – trusted manufacturer across India.',
+    keywords: categoryData
+      ? `${categoryData.name}, Jupiter Industries, Buy ${categoryData.name} India, Industrial Machinery Coimbatore`
+      : 'Industrial Machinery, Brick Machine, Block Machine, Jupiter Industries',
+    ogUrl: `https://jupitergroups.in/${currentSlug}`,
+  });
 
   const displaySpares = useMemo(() => {
     if (!categoryData || !isSparesCategory) return [];
@@ -689,7 +720,7 @@ export const MachineCategoryPage: React.FC = () => {
                   <h1 className="pdp-title">{activeMachine.name}</h1>
 
                   <div className="pdp-subtitle">
-                    {categoryData.subTitle || 'Durable Machinery for Strong, Efficient Masonry Construction'}
+                    {activeMachine.brandTag || categoryData.subTitle || 'Durable Machinery for Strong, Efficient Masonry Construction'}
                   </div>
 
                   <p className="pdp-desc">
@@ -699,22 +730,19 @@ export const MachineCategoryPage: React.FC = () => {
 
                   {/* 4 Feature Badges in 2x2 Grid */}
                   <div className="pdp-features-grid">
-                    <div className="pdp-feature-item">
-                      <Hexagon size={20} className="pdp-feature-icon" />
-                      <span>Durable Construction</span>
-                    </div>
-                    <div className="pdp-feature-item">
-                      <Scan size={20} className="pdp-feature-icon" />
-                      <span>Consistent Dimensions</span>
-                    </div>
-                    <div className="pdp-feature-item">
-                      <Droplets size={20} className="pdp-feature-icon" />
-                      <span>Lower Water Absorption</span>
-                    </div>
-                    <div className="pdp-feature-item">
-                      <Coins size={20} className="pdp-feature-icon" />
-                      <span>Cost-Effective Solution</span>
-                    </div>
+                    {(activeMachine?.featureBadges && activeMachine.featureBadges.filter(Boolean).length > 0
+                      ? activeMachine.featureBadges.filter(Boolean)
+                      : DEFAULT_BADGES
+                    ).map((badge, bIdx) => {
+                      const icons = [Hexagon, Scan, Droplets, Coins];
+                      const IconComp = icons[bIdx % icons.length];
+                      return (
+                        <div key={bIdx} className="pdp-feature-item">
+                          <IconComp size={20} className="pdp-feature-icon" />
+                          <span>{badge}</span>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Quick Key Specifications List (Key : Value) */}
@@ -846,22 +874,15 @@ export const MachineCategoryPage: React.FC = () => {
                   {/* TAB 3: PRODUCT HIGHLIGHTS */}
                   {activeTab === 'highlights' && (
                     <div className="pdp-cards-grid">
-                      <div className="pdp-feature-card">
-                        <h5>High Compaction Density</h5>
-                        <p>Delivers sharp block corners, zero internal air voids, and high early compressive strength.</p>
-                      </div>
-                      <div className="pdp-feature-card">
-                        <h5>Siemens / Delta PLC Automation</h5>
-                        <p>Fully automated cycle management with simple one-touch touchscreen control and safety interlocks.</p>
-                      </div>
-                      <div className="pdp-feature-card">
-                        <h5>CNC Hardened Alloy Steel Moulds</h5>
-                        <p>Wear-resistant dies machined to exact tolerances ensuring hundreds of thousands of cycles.</p>
-                      </div>
-                      <div className="pdp-feature-card">
-                        <h5>Heavy-Duty Fabricated Chassis</h5>
-                        <p>Stress-relieved solid steel frame engineered to dampen vibration and withstand continuous 24/7 duty.</p>
-                      </div>
+                      {(activeMachine?.highlights && activeMachine.highlights.length > 0
+                        ? activeMachine.highlights
+                        : DEFAULT_HIGHLIGHTS
+                      ).map((hl, idx) => (
+                        <div key={idx} className="pdp-feature-card">
+                          <h5>{hl.title}</h5>
+                          <p>{hl.description}</p>
+                        </div>
+                      ))}
                     </div>
                   )}
 
@@ -891,22 +912,15 @@ export const MachineCategoryPage: React.FC = () => {
                   {/* ADVANTAGES TAB */}
                   {activeTab === 'advantages' && (
                     <div className="pdp-cards-grid">
-                      <div className="pdp-feature-card">
-                        <h5>Reduced Cement Consumption</h5>
-                        <p>Optimum particle packing and vibration density reduces cement ratio by up to 25-30% while retaining strength.</p>
-                      </div>
-                      <div className="pdp-feature-card">
-                        <h5>Zero Plant Downtime</h5>
-                        <p>Backed by Coimbatore OEM spare parts stock and emergency 24-hour service dispatch across India.</p>
-                      </div>
-                      <div className="pdp-feature-card">
-                        <h5>Uniform Dimensions & Smooth Finish</h5>
-                        <p>Eliminates thick plastering mortar requirements, cutting masonry installation labor costs.</p>
-                      </div>
-                      <div className="pdp-feature-card">
-                        <h5>Faster Return on Investment</h5>
-                        <p>High production speed with minimal labor dependency ensures early project break-even and profitability.</p>
-                      </div>
+                      {(activeMachine?.advantages && activeMachine.advantages.length > 0
+                        ? activeMachine.advantages
+                        : DEFAULT_ADVANTAGES
+                      ).map((adv, idx) => (
+                        <div key={idx} className="pdp-feature-card">
+                          <h5>{adv.title}</h5>
+                          <p>{adv.description}</p>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import {
   ArrowRight,
   ShieldCheck,
@@ -20,6 +21,13 @@ import isoCertificationImg from '../assets/images/about/iso certification.jpg';
 import about1FacilityImg from '../assets/images/about/about1.jpeg';
 
 export const AboutPage: React.FC = () => {
+  useSeoMeta({
+    title: 'About Jupiter Industries | 35+ Years of Machinery Manufacturing Excellence',
+    description: 'Learn about Jupiter Industries – a 35+ year legacy of engineering fly ash brick machines, block making plants, and concrete batching equipment. ISO certified, 500+ installations across India.',
+    keywords: 'About Jupiter Industries, Machinery Manufacturer Coimbatore, ISO Certified Brick Machine, 35 Years Machinery Experience, Industrial Equipment Manufacturer India',
+    ogUrl: 'https://jupitergroups.in/about',
+  });
+
   const [showCertModal, setShowCertModal] = useState(false);
 
   return (

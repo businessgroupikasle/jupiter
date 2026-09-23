@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { useSearchParams, Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Package } from 'lucide-react';
 import { PageBanner } from '../components/PageBanner';
@@ -10,6 +11,13 @@ import {
 } from '../services/productService';
 
 export const ProductsPage: React.FC = () => {
+  useSeoMeta({
+    title: 'Our Machines | Fly Ash Brick, Block & Paver Machines – Jupiter Industries',
+    description: 'Explore Jupiter Industries’ full range of industrial machinery – fly ash brick machines, hollow block machines, interlocking brick machines, paver block plants, batching plants and storage silos.',
+    keywords: 'Buy Fly Ash Brick Machine, Block Making Machine Price India, Paver Block Plant, Batching Plant Manufacturer, Machine Spares, Jupiter Industries Products',
+    ogUrl: 'https://jupitergroups.in/machines',
+  });
+
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || 'all-machines';
   const [activeFilter, setActiveFilter] = useState(initialCategory);

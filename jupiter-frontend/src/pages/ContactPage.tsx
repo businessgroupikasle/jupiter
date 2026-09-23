@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { 
   Phone, 
   Mail, 
@@ -18,6 +19,12 @@ import { PhoneInputWithCountry } from '../components/PhoneInputWithCountry';
 import { validateName, validatePhone, validateEmail } from '../utils/validation';
 
 export const ContactPage: React.FC = () => {
+  useSeoMeta({
+    title: 'Contact Jupiter Industries | Get a Free Machinery Quote',
+    description: 'Contact Jupiter Industries for machinery inquiries, pricing, and installation support. Call us or send an enquiry – we serve customers across all of India from Coimbatore, Tamil Nadu.',
+    keywords: 'Contact Jupiter Industries, Machinery Quote Request, Brick Machine Enquiry, Industrial Equipment Supplier Contact, Coimbatore Machinery Manufacturer Phone',
+    ogUrl: 'https://jupitergroups.in/contact',
+  });
   // Form State
   const [formData, setFormData] = useState({
     name: '',

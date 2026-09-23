@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { MapPin, Play, ArrowRight, X, ExternalLink, Image as ImageIcon, Film, ZoomIn, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { VideoItem, getStoredVideos, getYouTubeEmbedUrl, fetchVideosFromDb } from '../services/videoService';
@@ -7,6 +8,13 @@ import { GalleryPhotoItem, getStoredGalleryPhotos, fetchGalleryPhotosFromDb } fr
 import { PageBanner } from '../components/PageBanner';
 
 export const ProjectsPage: React.FC = () => {
+  useSeoMeta({
+    title: 'Projects & Gallery | Jupiter Industries Machinery Installations',
+    description: 'View Jupiter Industries’ project gallery – 500+ successful brick & block machine installations across India. Watch our machines in action through videos and customer site photos.',
+    keywords: 'Jupiter Industries Projects, Brick Machine Installation Gallery, Block Machine Videos India, Industrial Machinery Site Work, Fly Ash Machine Customer Projects',
+    ogUrl: 'https://jupitergroups.in/projects',
+  });
+
   // Main Dual Options Switcher: 'videos' or 'photos'
   const [mainTab, setMainTab] = useState<'photos' | 'videos'>('videos');
 

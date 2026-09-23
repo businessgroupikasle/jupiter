@@ -1,9 +1,15 @@
 import React from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Leaf, Box, Settings, Users, Home, ChevronRight } from 'lucide-react';
 import flyAsh404Bg from '../assets/images/Machines/flyash.png';
 
 export const NotFoundPage: React.FC = () => {
+  useSeoMeta({
+    title: 'Page Not Found | Jupiter Industries',
+    description: 'The page you’re looking for could not be found. Browse Jupiter Industries’ range of industrial machinery or return to the homepage.',
+  });
+
   return (
     <div className="notfound-flyash-page">
       {/* Background Visual Layers with Exact Fly Ash Brick Machine Photo */}

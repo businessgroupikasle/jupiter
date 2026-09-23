@@ -1,9 +1,17 @@
 import React from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { PageBanner } from '../components/PageBanner';
 import { FileText, Shield, Wrench, Truck, Award, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const TermsConditionsPage: React.FC = () => {
+  useSeoMeta({
+    title: 'Terms & Conditions | Jupiter Industries',
+    description: 'Review the Terms & Conditions governing use of Jupiter Industries’ website, machinery purchases, warranty policies, and service agreements.',
+    keywords: 'Jupiter Industries Terms, Machinery Purchase Terms, Warranty Policy, Industrial Equipment Terms and Conditions',
+    ogUrl: 'https://jupitergroups.in/terms-and-conditions',
+  });
+
   return (
     <div className="terms-conditions-page">
       <PageBanner

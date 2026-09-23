@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { PageBanner } from '../components/PageBanner';
 import { Link } from 'react-router-dom';
 import { 
@@ -10,6 +11,13 @@ import {
 } from 'lucide-react';
 
 export const SitemapPage: React.FC = () => {
+  useSeoMeta({
+    title: 'Sitemap | Jupiter Industries',
+    description: 'Explore the complete sitemap of Jupiter Industries website – find all pages including product categories, gallery, blog, contact, and legal pages.',
+    keywords: 'Jupiter Industries Sitemap, All Pages, Website Structure',
+    ogUrl: 'https://jupitergroups.in/sitemap',
+  });
+
   const siteSections = [
     {
       title: 'Main Navigation Pages',

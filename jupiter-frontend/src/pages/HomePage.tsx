@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { Hero } from '../components/Hero';
 import { TrustedLogos } from '../components/TrustedLogos';
 import { AboutFeatureSection } from '../components/AboutFeatureSection';
@@ -11,6 +12,13 @@ import { FAQSection } from '../components/FAQSection';
 import { X } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
+  useSeoMeta({
+    title: 'Jupiter Industries | Fly Ash Brick & Concrete Block Machine Manufacturer',
+    description: 'Jupiter Industries – Leading manufacturer of fly ash brick machines, hollow block machines, paver block plants, batching plants and storage silos. Pan-India installation & service support.',
+    keywords: 'Fly Ash Brick Machine, Concrete Block Machine, Paver Block Machine, Interlocking Brick Machine, Batching Plant, Storage Silo, Coimbatore Machinery Manufacturer, Jupiter Industries',
+    ogUrl: 'https://jupitergroups.in/',
+  });
+
   const [videoModal, setVideoModal] = useState<{ isOpen: boolean; url: string; title: string }>({
     isOpen: false,
     url: '',

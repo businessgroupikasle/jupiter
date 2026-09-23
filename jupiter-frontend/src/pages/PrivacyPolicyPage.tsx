@@ -1,9 +1,17 @@
 import React from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { PageBanner } from '../components/PageBanner';
 import { ShieldCheck, Lock, Eye, FileText, CheckCircle, Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const PrivacyPolicyPage: React.FC = () => {
+  useSeoMeta({
+    title: 'Privacy Policy | Jupiter Industries',
+    description: 'Read the Privacy Policy of Jupiter Industries – learn how we collect, use, and protect your personal data when you use our website or contact us for machinery enquiries.',
+    keywords: 'Jupiter Industries Privacy Policy, Data Protection, Industrial Machinery Website Privacy',
+    ogUrl: 'https://jupitergroups.in/privacy-policy',
+  });
+
   return (
     <div className="privacy-policy-page">
       <PageBanner

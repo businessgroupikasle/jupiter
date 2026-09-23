@@ -133,6 +133,18 @@ export const INITIAL_DEFAULT_PRODUCTS: ProductItem[] = [
       { 'Technical Specifications': 'Pressure', '15 Bricks Model': '150 Bar', '8 Bricks Model': '150 Bar' },
       { 'Technical Specifications': 'Hydraulic Cylinders', '15 Bricks Model': '6 Nos', '8 Bricks Model': '6 Nos' },
       { 'Technical Specifications': 'Hydraulic Oil Capacity', '15 Bricks Model': '400 Ltrs', '8 Bricks Model': '125 Ltrs' }
+    ],
+    highlights: [
+      { title: 'High Compaction Density', description: 'Delivers sharp block corners, zero internal air voids, and high early compressive strength.' },
+      { title: 'Siemens / Delta PLC Automation', description: 'Fully automated cycle management with simple one-touch touchscreen control and safety interlocks.' },
+      { title: 'CNC Hardened Alloy Steel Moulds', description: 'Wear-resistant dies machined to exact tolerances ensuring hundreds of thousands of cycles.' },
+      { title: 'Heavy-Duty Fabricated Chassis', description: 'Stress-relieved solid steel frame engineered to dampen vibration and withstand continuous 24/7 duty.' },
+    ],
+    advantages: [
+      { title: 'Reduced Cement Consumption', description: 'Optimum particle packing and vibration density reduces cement ratio by up to 25-30% while retaining strength.' },
+      { title: 'Zero Plant Downtime', description: 'Backed by Coimbatore OEM spare parts stock and emergency 24-hour service dispatch across India.' },
+      { title: 'Uniform Dimensions & Smooth Finish', description: 'Eliminates thick plastering mortar requirements, cutting masonry installation labor costs.' },
+      { title: 'Faster Return on Investment', description: 'High production speed with minimal labor dependency ensures early project break-even and profitability.' },
     ]
   },
 
@@ -816,14 +828,23 @@ export const updateProduct = async (id: string, updates: Partial<ProductItem>): 
 
   // 2. Sync to backend API and database
   try {
-    const payload: any = {};
-    if (updates.name) payload.name = updates.name;
-    if (updates.category) payload.category = updates.category;
-    if (updates.description) payload.description = updates.description;
-    if (updates.capacity) payload.capacity = updates.capacity;
-    if (updates.power) payload.power = updates.power;
-    if (updates.image) payload.image = updates.image;
-    if (updates.specs) payload.specifications = updates.specs;
+    const specsPayload = {
+      ...(updates.specs || {}),
+      brandTag: updates.brandTag,
+      brickSize: updates.brickSize,
+      galleryImages: updates.galleryImages,
+      featureBadges: updates.featureBadges,
+      specTableColumns: updates.specTableColumns,
+      specTableRows: updates.specTableRows,
+      highlights: updates.highlights,
+      advantages: updates.advantages,
+      keyFeatures: updates.keyFeatures,
+    };
+
+    const payload: any = {
+      ...updates,
+      specifications: specsPayload
+    };
 
     apiClient.put(`/products/${encodeURIComponent(id)}`, payload, { timeout: 10000 }).catch((err) => {
       console.warn('Live DB product update failed:', err);
@@ -967,11 +988,45 @@ const BASE_CATEGORY_METAS: Record<string, { name: string; subTitle: string; intr
   }
 };
 
+const CATEGORY_METAS_STORAGE_KEY = 'jupiter_category_metas';
+
+export const getCategoryMetas = (): Record<string, { name: string; subTitle: string; introDescription: string; heroImage: string; aliases: string[] }> => {
+  try {
+    const raw = localStorage.getItem(CATEGORY_METAS_STORAGE_KEY);
+    if (raw) {
+      const overrides = JSON.parse(raw);
+      const merged = { ...BASE_CATEGORY_METAS };
+      Object.keys(overrides).forEach(slug => {
+        if (merged[slug]) {
+          merged[slug] = { ...merged[slug], ...overrides[slug] };
+        } else {
+          merged[slug] = overrides[slug];
+        }
+      });
+      return merged;
+    }
+  } catch (e) {}
+  return { ...BASE_CATEGORY_METAS };
+};
+
+export const updateCategoryMeta = (slug: string, updates: Partial<{ name: string; subTitle: string; introDescription: string; heroImage: string }>) => {
+  try {
+    const raw = localStorage.getItem(CATEGORY_METAS_STORAGE_KEY);
+    const overrides = raw ? JSON.parse(raw) : {};
+    overrides[slug] = { ...(BASE_CATEGORY_METAS[slug] || {}), ...(overrides[slug] || {}), ...updates };
+    localStorage.setItem(CATEGORY_METAS_STORAGE_KEY, JSON.stringify(overrides));
+    window.dispatchEvent(new Event('jupiter_products_updated'));
+  } catch (e) {
+    console.error('Error saving category meta:', e);
+  }
+};
+
 export const getDynamicCategories = (): MachineCategoryData[] => {
   const allProds = getStoredProducts();
+  const metas = getCategoryMetas();
 
-  return Object.keys(BASE_CATEGORY_METAS).map(slug => {
-    const meta = BASE_CATEGORY_METAS[slug];
+  return Object.keys(metas).map(slug => {
+    const meta = metas[slug];
     const matchingProds = allProds.filter(p => {
       if (p.categorySlug === slug) return true;
       const catName = (SLUG_TO_CATEGORY_NAME_MAP[slug] || '').toLowerCase();
@@ -1016,8 +1071,18 @@ export const getDynamicCategories = (): MachineCategoryData[] => {
         keyFeatures: p.keyFeatures || ['Industrial Grade Heavy-Duty Construction', 'High Efficiency Low Power Consumption', 'Precision Engineered Output'],
         specTableColumns: p.specTableColumns,
         specTableRows: p.specTableRows,
-        highlights: p.highlights,
-        advantages: p.advantages
+        highlights: p.highlights && p.highlights.length > 0 ? p.highlights : [
+          { title: 'High Compaction Density', description: 'Delivers sharp block corners, zero internal air voids, and high early compressive strength.' },
+          { title: 'Siemens / Delta PLC Automation', description: 'Fully automated cycle management with simple one-touch touchscreen control and safety interlocks.' },
+          { title: 'CNC Hardened Alloy Steel Moulds', description: 'Wear-resistant dies machined to exact tolerances ensuring hundreds of thousands of cycles.' },
+          { title: 'Heavy-Duty Fabricated Chassis', description: 'Stress-relieved solid steel frame engineered to dampen vibration and withstand continuous 24/7 duty.' },
+        ],
+        advantages: p.advantages && p.advantages.length > 0 ? p.advantages : [
+          { title: 'Reduced Cement Consumption', description: 'Optimum particle packing and vibration density reduces cement ratio by up to 25-30% while retaining strength.' },
+          { title: 'Zero Plant Downtime', description: 'Backed by Coimbatore OEM spare parts stock and emergency 24-hour service dispatch across India.' },
+          { title: 'Uniform Dimensions & Smooth Finish', description: 'Eliminates thick plastering mortar requirements, cutting masonry installation labor costs.' },
+          { title: 'Faster Return on Investment', description: 'High production speed with minimal labor dependency ensures early project break-even and profitability.' },
+        ]
       };
     });
 

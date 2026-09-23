@@ -1,9 +1,17 @@
 import React from 'react';
+import { useSeoMeta } from '../utils/useSeoMeta';
 import { Link } from 'react-router-dom';
 import { Clock, ArrowRight, Home } from 'lucide-react';
 import { PageBanner } from '../components/PageBanner';
 
 export const BlogPage: React.FC = () => {
+  useSeoMeta({
+    title: 'Blog & Industry Insights | Jupiter Industries',
+    description: 'Read expert articles and industry insights from Jupiter Industries on brick manufacturing, concrete block production, batching plant operations, and machinery maintenance tips.',
+    keywords: 'Jupiter Industries Blog, Brick Machine Industry News, Concrete Block Manufacturing Tips, Machinery Maintenance Guide, Fly Ash Brick Production',
+    ogUrl: 'https://jupitergroups.in/blog',
+  });
+
   return (
     <div className="blog-page-view">
       <PageBanner
