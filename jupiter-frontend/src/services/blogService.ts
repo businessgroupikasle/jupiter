@@ -1,5 +1,5 @@
 import { IMAGES } from '../assets/images/images';
-import { apiClient, API_BASE_URL } from './api';
+import { apiClient } from './api';
 
 export interface BlogItem {
   id: string;

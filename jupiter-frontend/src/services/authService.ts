@@ -123,11 +123,11 @@ export const loginAdmin = (email: string, password: string): { success: boolean;
   
   const found = users.find((u) => u.email.toLowerCase() === cleanEmail);
   if (!found) {
-    return { success: false, error: 'No admin account found with this email. Default: admin@jupiter.com / admin123' };
+    return { success: false, error: 'No admin account found with this email.' };
   }
 
   if (found.passwordHash !== password) {
-    return { success: false, error: 'Incorrect password. Default: admin@jupiter.com / admin123' };
+    return { success: false, error: 'Incorrect password.' };
   }
 
   setCurrentUser(found);

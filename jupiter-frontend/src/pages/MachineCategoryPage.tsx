@@ -720,7 +720,7 @@ export const MachineCategoryPage: React.FC = () => {
                   <h1 className="pdp-title">{activeMachine.name}</h1>
 
                   <div className="pdp-subtitle">
-                    {activeMachine.brandTag || categoryData.subTitle || 'Durable Machinery for Strong, Efficient Masonry Construction'}
+                    {activeMachine.brandTag || activeMachine.subCategoryTag || categoryData.subTitle || 'Durable Machinery for Strong, Efficient Masonry Construction'}
                   </div>
 
                   <p className="pdp-desc">

@@ -204,20 +204,6 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
           </p>
         </div>
 
-        {/* Default credentials hint */}
-        <div style={{
-          background: '#F0F9FF',
-          border: '1px solid #BAE6FD',
-          color: '#0369A1',
-          padding: '10px 14px',
-          borderRadius: '10px',
-          marginBottom: '18px',
-          fontSize: '0.82rem',
-          lineHeight: 1.45,
-          fontWeight: 500,
-        }}>
-          <strong>Default Login:</strong> admin@jupiter.com / admin123
-        </div>
 
         {/* Error / Feedback Alert */}
         {errorMsg && (

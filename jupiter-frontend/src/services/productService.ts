@@ -10,6 +10,7 @@ export interface SubMachineItem {
   id: string;
   name: string;
   subCategoryTag: string;
+  brandTag?: string;
   image: string;
   galleryImages?: string[];
   description: string;
@@ -863,6 +864,7 @@ export const getDynamicCategories = (): MachineCategoryData[] => {
         id: p.id,
         name: p.name,
         subCategoryTag: p.brandTag || p.category,
+        brandTag: p.brandTag || p.category,
         image: p.image,
         galleryImages: p.galleryImages || [],
         description: p.description || `${p.name} built with heavy-duty components for long-term production.`,
