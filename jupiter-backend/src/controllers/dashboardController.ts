@@ -12,10 +12,10 @@ export const getDashboardStats = async (req: Request, res: Response, next: NextF
       prisma.blog.count().catch(() => 0),
       prisma.galleryPhoto.count().catch(() => 0),
       prisma.video.count().catch(() => 0),
-      (prisma as any).faq.count().catch(() => 0),
-      (prisma as any).deliveryLocation.count().catch(() => 0),
-      (prisma as any).user.count().catch(() => 0),
-      (prisma as any).review.count().catch(() => 0),
+      prisma.faq.count().catch(() => 0),
+      prisma.deliveryLocation.count().catch(() => 0),
+      prisma.user.count().catch(() => 0),
+      prisma.review.count().catch(() => 0),
     ]);
 
     res.status(200).json({

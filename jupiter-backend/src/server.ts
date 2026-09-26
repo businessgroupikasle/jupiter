@@ -1,21 +1,27 @@
 import { createApp } from './app';
 import { env } from './config/env';
 import { PrismaClient } from '@prisma/client';
-import { seedDatabase } from './seed';
+
+import { ensureEnquiryCounterInitialized } from './controllers/enquiryController';
+import { normalizeProductOrders } from './controllers/productController';
 
 const prisma = new PrismaClient();
 const app = createApp();
 
 const checkDatabaseStatus = async () => {
   try {
-    const [productCount, projectCount, galleryCount, videoCount] = await Promise.all([
+    const [productCount, projectCount, galleryCount, videoCount, enquiryCount] = await Promise.all([
       prisma.product.count().catch(() => 0),
       prisma.project.count().catch(() => 0),
       prisma.galleryPhoto.count().catch(() => 0),
       prisma.video.count().catch(() => 0),
+      prisma.enquiry.count().catch(() => 0),
     ]);
 
-    console.log(`📊 Database connected. Catalog has ${productCount} products, ${projectCount} projects, ${galleryCount} gallery items, ${videoCount} videos.`);
+    await ensureEnquiryCounterInitialized();
+    await normalizeProductOrders();
+
+    console.log(`📊 Database connected. Catalog has ${productCount} products, ${projectCount} projects, ${galleryCount} gallery items, ${videoCount} videos, ${enquiryCount} enquiries.`);
   } catch (err: any) {
     console.warn('⚠️ Note on Database:', err.message);
   }

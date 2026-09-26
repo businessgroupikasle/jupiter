@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getGalleryPhotos,
+  getGalleryPhotoById,
   createGalleryPhoto,
   updateGalleryPhoto,
   deleteGalleryPhoto,
@@ -10,6 +11,7 @@ import {
 const router = Router();
 
 router.get('/gallery', getGalleryPhotos);
+router.get('/gallery/:id', getGalleryPhotoById);
 router.post('/gallery', createGalleryPhoto);
 router.put('/gallery/:id', updateGalleryPhoto);
 router.delete('/gallery/:id', deleteGalleryPhoto);

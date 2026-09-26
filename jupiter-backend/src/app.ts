@@ -2,6 +2,8 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import fs from 'fs';
 import { env } from './config/env';
 import enquiryRoutes from './routes/enquiryRoutes';
 import blogRoutes from './routes/blogRoutes';
@@ -15,28 +17,23 @@ import deliveryLocationRoutes from './routes/deliveryLocationRoutes';
 import userRoutes from './routes/userRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
+import authRoutes from './routes/authRoutes';
+import uploadRoutes from './routes/uploadRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const createApp = (): Application => {
   const app = express();
 
   // Security Middleware
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  }));
 
-  // CORS Middleware - allows localhost (dev) and live production domain
+  // CORS Middleware - enables CORS only for the local frontend URL http://localhost:3026
   const allowedOrigins = [
     env.FRONTEND_URL,
-    // Local development
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174',
-    'http://localhost:3000',
-    // Live production domains
-    'https://jupitergroups.in',
-    'https://www.jupitergroups.in',
-    'http://jupitergroups.in',
-    'http://www.jupitergroups.in',
+    'http://localhost:3026',
+    'http://127.0.0.1:3026',
   ];
 
   app.use(
@@ -46,12 +43,7 @@ export const createApp = (): Application => {
         if (!origin) return callback(null, true);
         if (
           allowedOrigins.indexOf(origin) !== -1 ||
-          env.NODE_ENV === 'development' ||
-          process.env.NODE_ENV === 'development' ||
-          // Allow any local IP (192.168.x.x, 10.x.x.x, 172.16-31.x.x, localhost, 127.0.0.1) on any port
-          /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin) ||
-          // Allow any subdomain of jupitergroups.in
-          /https?:\/\/([\w-]+\.)?jupitergroups\.in(:\d+)?$/.test(origin)
+          /^http:\/\/(localhost|127\.0\.0\.1|172\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)
         ) {
           return callback(null, true);
         }
@@ -67,7 +59,7 @@ export const createApp = (): Application => {
   // Rate Limiting
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 200, // limit each IP to 200 requests per windowMs
+    max: 1000, // allow up to 1000 requests per windowMs for comprehensive tests & dashboards
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -81,6 +73,13 @@ export const createApp = (): Application => {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+  // Static uploads directory
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+
   // Root route — API directory
   app.get('/', (req: Request, res: Response) => {
     res.json({
@@ -88,6 +87,9 @@ export const createApp = (): Application => {
       version: '2.0.0',
       endpoints: {
         health: '/api/health',
+        auth: '/api/auth/login',
+        forgotPassword: '/api/auth/forgot-password',
+        resetPassword: '/api/auth/reset-password',
         enquiries: '/api/enquiries',
         products: '/api/products',
         projects: '/api/projects',
@@ -100,6 +102,7 @@ export const createApp = (): Application => {
         users: '/api/users',
         deliveryLocations: '/api/delivery-locations',
         dashboard: '/api/dashboard/stats',
+        upload: '/api/upload',
       },
     });
   });
@@ -110,6 +113,7 @@ export const createApp = (): Application => {
   });
 
   // Core content routes
+  app.use('/api', authRoutes);
   app.use('/api', enquiryRoutes);
   app.use('/api', productRoutes);
   app.use('/api', projectRoutes);
@@ -124,6 +128,7 @@ export const createApp = (): Application => {
   app.use('/api', userRoutes);
   app.use('/api', reviewRoutes);
   app.use('/api', dashboardRoutes);
+  app.use('/api', uploadRoutes);
 
   // 404 Handler
   app.use((req: Request, res: Response) => {

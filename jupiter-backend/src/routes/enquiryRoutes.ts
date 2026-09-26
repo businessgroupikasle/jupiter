@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import {
   createEnquiry,
   getEnquiries,
+  getEnquiryById,
   updateEnquiryStatus,
   markEnquiryRead,
   markAllEnquiriesRead,
@@ -26,6 +27,7 @@ router.get('/health', (req: Request, res: Response) => {
 // Enquiry routes
 router.post('/enquiries', validateRequest(createEnquirySchema), createEnquiry);
 router.get('/enquiries', getEnquiries);
+router.get('/enquiries/:id', getEnquiryById);
 router.patch('/enquiries/mark-all-read', markAllEnquiriesRead);
 router.post('/enquiries/mark-all-read', markAllEnquiriesRead);
 router.patch('/enquiries/:id/status', validateRequest(updateEnquiryStatusSchema), updateEnquiryStatus);

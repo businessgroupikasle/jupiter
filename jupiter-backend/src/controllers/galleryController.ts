@@ -3,10 +3,31 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const getIdParam = (req: Request): string => {
+  const { id } = req.params;
+  return Array.isArray(id) ? id[0] : (id as string);
+};
+
 export const getGalleryPhotos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const photos = await (prisma as any).galleryPhoto.findMany({ orderBy: { createdAt: 'desc' } });
+    const photos = await prisma.galleryPhoto.findMany({ orderBy: { createdAt: 'desc' } });
     res.status(200).json({ success: true, count: photos.length, data: photos });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getGalleryPhotoById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = getIdParam(req);
+    const photo = await prisma.galleryPhoto.findUnique({ where: { id } });
+
+    if (!photo) {
+      res.status(404).json({ success: false, message: 'Gallery photo not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: photo });
   } catch (error) {
     next(error);
   }
@@ -16,7 +37,7 @@ export const createGalleryPhoto = async (req: Request, res: Response, next: Next
   try {
     const { title, category, location, machine, output, image, description } = req.body;
 
-    const photo = await (prisma as any).galleryPhoto.create({
+    const photo = await prisma.galleryPhoto.create({
       data: {
         title: title || 'Manufacturing Machinery Photo',
         category: category || 'Manufacturing Plants',
@@ -36,7 +57,7 @@ export const createGalleryPhoto = async (req: Request, res: Response, next: Next
 
 export const updateGalleryPhoto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getIdParam(req);
     const allowed = ['title', 'category', 'location', 'machine', 'output', 'image', 'description'];
     const updateData: any = {};
     for (const key of allowed) {
@@ -46,7 +67,7 @@ export const updateGalleryPhoto = async (req: Request, res: Response, next: Next
     }
 
     const titleToMatch = req.body.title ? String(req.body.title).trim() : '';
-    const existing = await (prisma as any).galleryPhoto.findFirst({
+    const existing = await prisma.galleryPhoto.findFirst({
       where: {
         OR: [
           { id },
@@ -57,12 +78,12 @@ export const updateGalleryPhoto = async (req: Request, res: Response, next: Next
 
     let photo;
     if (existing) {
-      photo = await (prisma as any).galleryPhoto.update({
+      photo = await prisma.galleryPhoto.update({
         where: { id: existing.id },
         data: updateData,
       });
     } else {
-      photo = await (prisma as any).galleryPhoto.create({
+      photo = await prisma.galleryPhoto.create({
         data: {
           title: req.body.title || 'Manufacturing Machinery Photo',
           category: req.body.category || 'Manufacturing Plants',
@@ -83,8 +104,8 @@ export const updateGalleryPhoto = async (req: Request, res: Response, next: Next
 
 export const deleteGalleryPhoto = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
-    await (prisma as any).galleryPhoto.deleteMany({ where: { id } });
+    const id = getIdParam(req);
+    await prisma.galleryPhoto.deleteMany({ where: { id } });
     res.status(200).json({ success: true, message: 'Gallery photo deleted successfully' });
   } catch (error) {
     next(error);
@@ -93,7 +114,7 @@ export const deleteGalleryPhoto = async (req: Request, res: Response, next: Next
 
 export const clearAllGalleryPhotos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    await (prisma as any).galleryPhoto.deleteMany({});
+    await prisma.galleryPhoto.deleteMany({});
     res.status(200).json({ success: true, message: 'All gallery photos cleared successfully' });
   } catch (error) {
     next(error);

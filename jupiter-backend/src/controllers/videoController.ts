@@ -3,10 +3,31 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const getIdParam = (req: Request): string => {
+  const { id } = req.params;
+  return Array.isArray(id) ? id[0] : (id as string);
+};
+
 export const getVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const videos = await (prisma as any).video.findMany({ orderBy: { createdAt: 'desc' } });
+    const videos = await prisma.video.findMany({ orderBy: { createdAt: 'desc' } });
     res.status(200).json({ success: true, count: videos.length, data: videos });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getVideoById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = getIdParam(req);
+    const video = await prisma.video.findUnique({ where: { id } });
+
+    if (!video) {
+      res.status(404).json({ success: false, message: 'Video not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: video });
   } catch (error) {
     next(error);
   }
@@ -16,7 +37,7 @@ export const createVideo = async (req: Request, res: Response, next: NextFunctio
   try {
     const { title, videoUrl, embedUrl, views, duration, image, category, description } = req.body;
 
-    const video = await (prisma as any).video.create({
+    const video = await prisma.video.create({
       data: {
         title: title || 'Jupiter Industrial Machinery Demonstration',
         videoUrl: videoUrl || '',
@@ -37,7 +58,7 @@ export const createVideo = async (req: Request, res: Response, next: NextFunctio
 
 export const updateVideo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = getIdParam(req);
     const allowed = ['title', 'videoUrl', 'embedUrl', 'views', 'duration', 'image', 'category', 'description'];
     const updateData: any = {};
     for (const key of allowed) {
@@ -47,7 +68,7 @@ export const updateVideo = async (req: Request, res: Response, next: NextFunctio
     }
 
     const titleToMatch = req.body.title ? String(req.body.title).trim() : '';
-    const existing = await (prisma as any).video.findFirst({
+    const existing = await prisma.video.findFirst({
       where: {
         OR: [
           { id },
@@ -58,12 +79,12 @@ export const updateVideo = async (req: Request, res: Response, next: NextFunctio
 
     let video;
     if (existing) {
-      video = await (prisma as any).video.update({
+      video = await prisma.video.update({
         where: { id: existing.id },
         data: updateData,
       });
     } else {
-      video = await (prisma as any).video.create({
+      video = await prisma.video.create({
         data: {
           title: req.body.title || 'Jupiter Industrial Machinery Demonstration',
           videoUrl: req.body.videoUrl || '',
@@ -85,8 +106,8 @@ export const updateVideo = async (req: Request, res: Response, next: NextFunctio
 
 export const deleteVideo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id } = req.params;
-    await (prisma as any).video.deleteMany({ where: { id } });
+    const id = getIdParam(req);
+    await prisma.video.deleteMany({ where: { id } });
     res.status(200).json({ success: true, message: 'Video deleted successfully' });
   } catch (error) {
     next(error);
@@ -95,7 +116,7 @@ export const deleteVideo = async (req: Request, res: Response, next: NextFunctio
 
 export const clearAllVideos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    await (prisma as any).video.deleteMany({});
+    await prisma.video.deleteMany({});
     res.status(200).json({ success: true, message: 'All videos cleared successfully' });
   } catch (error) {
     next(error);

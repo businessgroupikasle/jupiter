@@ -4,10 +4,10 @@ import { z } from 'zod';
 dotenv.config();
 
 const envSchema = z.object({
-  PORT: z.string().default('5000').transform((val) => parseInt(val, 10)),
+  PORT: z.string().default('5026').transform((val) => parseInt(val, 10)),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: z.string().optional().default('postgresql://postgres:postgres@localhost:5432/jupiter_db'),
-  FRONTEND_URL: z.string().default('http://localhost:5173'),
+  FRONTEND_URL: z.string().default('http://localhost:3026'),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

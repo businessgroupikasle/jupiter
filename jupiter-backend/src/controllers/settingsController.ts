@@ -3,14 +3,32 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const ALLOWED_SETTING_FIELDS = [
+  'adminDisplayName',
+  'adminEmail',
+  'maintenanceMode',
+  'maintenanceHeadline',
+  'estimatedDowntime',
+  'publicNotice',
+  'emergencyHotline',
+  'emergencyEmail',
+  'allowAdminBypass',
+  'companyLegalName',
+  'primaryHotline',
+  'primaryEmail',
+  'address',
+  'gstNumber',
+  'socialLinks',
+];
+
 // GET /api/settings
 export const getSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    let settings = await (prisma as any).setting.findUnique({ where: { id: 'site_settings' } });
+    let settings = await prisma.setting.findUnique({ where: { id: 'site_settings' } });
 
     if (!settings) {
       // Create default settings if none exist yet
-      settings = await (prisma as any).setting.create({
+      settings = await prisma.setting.create({
         data: { id: 'site_settings' },
       });
     }
@@ -24,12 +42,19 @@ export const getSettings = async (req: Request, res: Response, next: NextFunctio
 // PUT /api/settings
 export const updateSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = req.body;
+    const rawData = req.body || {};
+    const sanitizedData: any = {};
 
-    const settings = await (prisma as any).setting.upsert({
+    for (const key of ALLOWED_SETTING_FIELDS) {
+      if (rawData[key] !== undefined) {
+        sanitizedData[key] = rawData[key];
+      }
+    }
+
+    const settings = await prisma.setting.upsert({
       where: { id: 'site_settings' },
-      update: data,
-      create: { id: 'site_settings', ...data },
+      update: sanitizedData,
+      create: { id: 'site_settings', ...sanitizedData },
     });
 
     res.status(200).json({ success: true, message: 'Settings updated successfully', data: settings });

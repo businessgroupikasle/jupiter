@@ -92,7 +92,7 @@ export const sendEnquiryAlertToMarketing = async (data: EnquiryMailData) => {
           </table>
 
           <div style="margin-top: 24px; text-align: center;">
-            <a href="http://localhost:5173/admin?tab=enquiries" style="background: #FF9200; color: #ffffff; padding: 10px 22px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3026'}/admin?tab=enquiries" style="background: #FF9200; color: #ffffff; padding: 10px 22px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block;">
               Open Admin Dashboard
             </a>
           </div>
@@ -188,3 +188,91 @@ export const sendThankYouEmailToCustomer = async (data: EnquiryMailData) => {
     html: htmlContent
   });
 };
+
+// 3. Send Password Reset Email with OTP & Reset Link to Admin User
+export const sendPasswordResetEmail = async (
+  email: string,
+  name: string,
+  resetLink: string,
+  otp?: string
+) => {
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 24px; color: #001827;">
+      <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 14px rgba(0,0,0,0.06);">
+        <!-- Header -->
+        <div style="background: #001827; padding: 28px 24px; border-bottom: 4px solid #FF9200; text-align: center;">
+          <div style="font-size: 26px; font-weight: 900; letter-spacing: 2px; color: #ffffff;">
+            JUPITER <span style="color: #FF9200;">INDUSTRIES</span>
+          </div>
+          <p style="color: #94a3b8; margin: 6px 0 0; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;">
+            Admin Portal • Security & Authentication
+          </p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 32px 24px;">
+          <h3 style="color: #001827; margin-top: 0; font-size: 18px;">Password Reset OTP & Verification</h3>
+          <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+            Hello <strong>${name || 'Admin'}</strong>,
+          </p>
+          <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+            We received a request to reset your password for the Jupiter Admin account (<strong>${email}</strong>).
+          </p>
+
+          ${otp ? `
+          <!-- 6-digit OTP Box -->
+          <div style="margin: 28px 0; background: #fff8eb; border: 2px dashed #FF9200; border-radius: 10px; padding: 22px; text-align: center;">
+            <div style="font-size: 12px; font-weight: bold; color: #b45309; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">
+              Your 6-Digit Password Reset OTP
+            </div>
+            <div style="font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #001827; font-family: 'Courier New', monospace; margin: 6px 0;">
+              ${otp}
+            </div>
+            <p style="color: #78350f; font-size: 12px; margin: 8px 0 0; font-weight: 500;">
+              ⏱️ Valid for <strong>30 minutes</strong> • One-time use only
+            </p>
+          </div>
+          ` : ''}
+
+          <!-- Direct Reset Link -->
+          <div style="text-align: center; margin: 28px 0;">
+            <p style="color: #64748b; font-size: 13px; margin: 0 0 12px;">You can also reset your password directly using the button below:</p>
+            <a href="${resetLink}" style="background: #FF9200; color: #ffffff; padding: 13px 30px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 2px 6px rgba(255, 146, 0, 0.3);">
+              Reset Password
+            </a>
+          </div>
+
+          <div style="background: #f8fafc; border-left: 4px solid #64748b; padding: 12px 16px; border-radius: 4px; margin: 20px 0;">
+            <p style="color: #64748b; font-size: 12px; margin: 0; line-height: 1.5;">
+              Direct URL:<br />
+              <a href="${resetLink}" style="color: #0284c7; word-break: break-all; font-size: 12px;">${resetLink}</a>
+            </p>
+          </div>
+
+          <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin-top: 24px;">
+            If you did not request this OTP or reset, please ignore this email. Your admin account is completely safe.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 28px 0 20px;" />
+
+          <p style="color: #94a3b8; font-size: 12px; margin: 0; line-height: 1.5;">
+            Jupiter Industries Admin Security Desk • Coimbatore, Tamil Nadu
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #001827; padding: 16px 24px; text-align: center; font-size: 11px; color: #94a3b8;">
+          © 2026 Jupiter Industries. All rights reserved. • SF No. 342, Trichy Road, Coimbatore, Tamil Nadu, India.
+        </div>
+      </div>
+    </div>
+  `;
+
+  return transporter.sendMail({
+    from: `"Jupiter Admin Security" <${smtpUser}>`,
+    to: email,
+    subject: `🔐 Your Password Reset OTP: ${otp || 'Jupiter Admin'}`,
+    html: htmlContent,
+  });
+};
+

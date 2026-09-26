@@ -9,6 +9,7 @@ datasource db {
 
 model Enquiry {
   id        String   @id @default(cuid())
+  enquiryId String   @unique
   name      String
   email     String
   phone     String
@@ -17,8 +18,18 @@ model Enquiry {
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
   @@index([createdAt])
   @@index([status])
+  @@index([enquiryId])
+  @@index([productId])
+}
+
+model EnquiryCounter {
+  id      String @id @default("enquiry_counter")
+  lastSeq Int    @default(0)
 }
 
 model Product {
@@ -29,13 +40,54 @@ model Product {
   description    String?  @db.Text
   capacity       String
   power          String
+  brickSize      String?
   image          String
   enquiryCount   Int      @default(0)
   specifications Json?
+  isActive       Boolean  @default(true)
+  order          Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  images         ProductImage[]
+  details        ProductDetailItem[]
+  enquiries      Enquiry[]
+
   @@index([category])
+  @@index([order])
+  @@index([isActive])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  isPrimary Boolean  @default(false)
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+}
+
+model ProductDetailItem {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type        String   // e.g., "KeyFeature", "Highlight", "Specification", "Feature", "Advantage"
+  title       String
+  description String?  @db.Text
+  value       String?  // Optional: for key-value pairs
+  icon        String?  // Optional: for icons or images
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
+  @@index([type])
 }
 
 model Blog {
@@ -148,12 +200,15 @@ model User {
   avatar    String?
   status    String   @default("Active") // Active, Inactive
   phone     String?
-  password  String?
-  lastLogin DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  password             String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  lastLogin            DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([email])
+  @@index([resetPasswordToken])
 }
 
 model Setting {
@@ -192,4 +247,3 @@ model Review {
 
   @@index([status])
 }
-

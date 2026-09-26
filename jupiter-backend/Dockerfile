@@ -37,7 +37,8 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 5000
+EXPOSE 5026
 
-# Run prisma db push, seed default data, then start server
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npx ts-node prisma/seed.ts && node dist/server.js"]
+# Run prisma db push, then start server
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/server.js"]
+

@@ -193,10 +193,29 @@ export const deleteBlog = async (req: Request, res: Response, next: NextFunction
   try {
     const id = req.params.id as string;
 
-    await prisma.blog.delete({ where: { id } });
+    await prisma.blog.deleteMany({
+      where: {
+        OR: [
+          { id },
+          { slug: id },
+          { title: { equals: id, mode: 'insensitive' } },
+        ],
+      },
+    });
 
     res.status(200).json({ success: true, message: 'Blog article deleted successfully' });
   } catch (error) {
     next(error);
   }
 };
+
+// DELETE /api/blogs (Clear All)
+export const clearAllBlogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    await prisma.blog.deleteMany({});
+    res.status(200).json({ success: true, message: 'All blogs deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+

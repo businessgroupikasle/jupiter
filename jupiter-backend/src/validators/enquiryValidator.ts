@@ -25,6 +25,9 @@ export const createEnquirySchema = z.object({
       .string()
       .optional()
       .default('New'),
+    productId: z
+      .string()
+      .optional(),
   }),
 });
 
