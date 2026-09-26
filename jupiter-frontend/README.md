@@ -21,14 +21,14 @@ npm install
 ### 2. Environment Variables
 Copy `.env.example` to `.env`:
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5026/api
 ```
 
 ### 3. Run Development Server
 ```bash
 npm run dev
 ```
-Open `http://localhost:5173` in your browser.
+Open `http://localhost:3026` in your browser.
 
 ### 4. Build for Production
 ```bash

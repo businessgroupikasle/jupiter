@@ -19,7 +19,7 @@ import {
   Check,
   Search
 } from 'lucide-react';
-import { getCategoryBySlug, SubMachineItem, fetchProducts } from '../data/machineProducts';
+import { getCategoryBySlug, SubMachineItem, fetchProducts } from '../services/productService';
 import { submitEnquiry } from '../services/api';
 import { PageBanner } from '../components/PageBanner';
 import { WhatsAppIcon } from '../components/WhatsAppButton';
@@ -335,6 +335,7 @@ export const MachineCategoryPage: React.FC = () => {
       if (modelParam) {
         const foundIdx = categoryData.subMachines.findIndex(
           m => m.id.toLowerCase() === modelParam.toLowerCase() ||
+               (m.slug && m.slug.toLowerCase() === modelParam.toLowerCase()) ||
                m.name.toLowerCase().includes(modelParam.toLowerCase())
         );
         if (foundIdx !== -1) {
@@ -793,7 +794,7 @@ export const MachineCategoryPage: React.FC = () => {
                     onClick={() => setActiveTab('highlights')}
                     className={`pdp-tab-item ${activeTab === 'highlights' ? 'active' : ''}`}
                   >
-                    Product Highlights
+                    Product Description
                   </button>
                   <button
                     type="button"
@@ -814,7 +815,7 @@ export const MachineCategoryPage: React.FC = () => {
                     onClick={() => setActiveTab('advantages')}
                     className={`pdp-tab-item ${activeTab === 'advantages' ? 'active' : ''}`}
                   >
-                    Advantages
+                    Applications
                   </button>
                 </nav>
 

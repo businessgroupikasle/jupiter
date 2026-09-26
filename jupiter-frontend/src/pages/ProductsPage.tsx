@@ -79,25 +79,25 @@ export const ProductsPage: React.FC = () => {
     const targetSlug = catObj.slug.toLowerCase();
 
     if (targetSlug === 'fly-ash-brick-machine') {
-      return pCat.includes('fly ash') || pSlug.includes('fly-ash');
+      return pSlug === 'fly-ash-brick-machine' || pCat.includes('fly ash');
     }
     if (targetSlug === 'hollow-and-solid-block-machine') {
-      return pCat.includes('hollow') || pCat.includes('solid') || pSlug.includes('hollow') || pSlug.includes('solid');
+      return pSlug === 'hollow-and-solid-block-machine' || pCat.includes('hollow') || pCat.includes('solid') || (pCat.includes('block') && !pCat.includes('paver') && !pCat.includes('inter'));
     }
     if (targetSlug === 'inter-block-making-machine') {
-      return pCat.includes('inter') || pSlug.includes('inter');
+      return pSlug === 'inter-block-making-machine' || pCat.includes('inter');
     }
     if (targetSlug === 'paver-block-machine') {
-      return pCat.includes('paver') || pSlug.includes('paver');
+      return pSlug === 'paver-block-machine' || pCat.includes('paver');
     }
     if (targetSlug === 'batching-plant') {
-      return pCat.includes('batching') || pSlug.includes('batching');
+      return pSlug === 'batching-plant' || pCat.includes('batch') || pCat.includes('mix');
     }
     if (targetSlug === 'storage-silo') {
-      return pCat.includes('silo') || pSlug.includes('silo');
+      return pSlug === 'storage-silo' || pCat.includes('silo');
     }
     if (targetSlug === 'machine-spares') {
-      return isSpare;
+      return pSlug === 'machine-spares' || isSpare;
     }
 
     return p.category === catObj.catName || p.categorySlug === catObj.slug;

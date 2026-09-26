@@ -1,3 +1,4 @@
+import { apiClient } from '../services/api';
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
@@ -19,6 +20,9 @@ import {
   Users,
   HardHat,
   Eye,
+  EyeOff,
+  ArrowUp,
+  ArrowDown,
   Plus,
   X,
   ExternalLink,
@@ -43,6 +47,22 @@ import {
 } from 'lucide-react';
 import { IMAGES } from '../assets/images/images';
 import '../styles/admin.css';
+import {
+  FAQItem,
+  getStoredFaqs,
+  fetchFaqsFromDb,
+  addFaq,
+  updateFaq,
+  deleteFaq,
+  clearAllFaqs
+} from '../services/faqService';
+import {
+  MachineDeliveryLocationItem,
+  getStoredDeliveryLocations,
+  fetchDeliveryLocationsFromDb,
+  addDeliveryLocation,
+  deleteDeliveryLocation,
+} from '../services/deliveryLocationService';
 import {
   getCurrentUser,
   logoutAdmin,
@@ -83,14 +103,16 @@ import {
   ProductItem,
   getStoredProducts,
   fetchProducts,
+  fetchProductById,
   addProduct,
   updateProduct,
   deleteProduct,
   clearAllProducts,
+  reorderProduct,
+  toggleProductStatus,
   CATEGORY_NAME_TO_SLUG_MAP
 } from '../services/productService';
-import { seedBackendDatabase, checkBackendStatus } from '../services/seedService';
-import { DEFAULT_HIGHLIGHTS, DEFAULT_ADVANTAGES, DEFAULT_BADGES } from './MachineCategoryPage';
+
 import {
   ProjectItem,
   getStoredProjects,
@@ -169,8 +191,22 @@ const ImageUploadField: React.FC<{
           ctx.drawImage(img, 0, 0, width, height);
           const compressed = canvas.toDataURL('image/jpeg', 0.82);
           onChange(compressed);
+          apiClient.post('/upload', { image: compressed, filename: file.name })
+            .then(res => {
+              if (res.data?.url) {
+                onChange(res.data.url);
+              }
+            })
+            .catch(() => {});
         } else {
           onChange(rawData);
+          apiClient.post('/upload', { image: rawData, filename: file.name })
+            .then(res => {
+              if (res.data?.url) {
+                onChange(res.data.url);
+              }
+            })
+            .catch(() => {});
         }
       };
       img.onerror = () => {
@@ -270,6 +306,7 @@ export interface EnquiryItem {
   phone: string;
   email?: string;
   product: string;
+  productId?: string;
   date: string;
   status: 'New' | 'Contacted' | 'Closed' | 'In Progress';
   message?: string;
@@ -288,25 +325,9 @@ export interface GalleryItem {
   image: string;
 }
 
-export interface FAQItem {
-  id: string;
-  question: string;
-  answer: string;
-  category: string;
-}
+// FAQItem imported from faqService
 
-export interface MachineDeliveryLocationItem {
-  id: string;
-  clientName: string;
-  locationCity: string;
-  state: string;
-  machineModel: string;
-  deliveryDate: string;
-  status: 'Delivered & Operational' | 'In Transit' | 'Installation Ongoing';
-  transportVehicle?: string;
-  contactPhone: string;
-  notes?: string;
-}
+// MachineDeliveryLocationItem imported from deliveryLocationService
 
 // Backwards compatibility alias
 export type ServiceLocationItem = MachineDeliveryLocationItem;
@@ -508,42 +529,33 @@ interface SeoSettings {
   ];
 
   // Product Modals Sub-Tab States
+  const [addProductTab, setAddProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
   const [editProductTab, setEditProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
 
-  // Backend Seeding State
-  const [isSeedingBackend, setIsSeedingBackend] = useState(false);
-  const [seedProgress, setSeedProgress] = useState<{ current: number; total: number; item: string } | null>(null);
-  const [backendHealth, setBackendHealth] = useState<{ isOnline: boolean; productCount: number; error?: string } | null>(null);
 
-  // Check backend health periodically
-  useEffect(() => {
-    checkBackendStatus().then(status => setBackendHealth(status)).catch(() => {});
-  }, []);
 
-  const handleSeedBackend = async () => {
-    setIsSeedingBackend(true);
-    setSeedProgress({ current: 0, total: 43, item: 'Connecting to backend...' });
-    try {
-      const result = await seedBackendDatabase((curr, tot, item) => {
-        setSeedProgress({ current: curr, total: tot, item });
-      });
-      if (result.success) {
-        triggerToast(`🌱 ${result.message}`);
-        setProducts(getStoredProducts());
-        const updatedHealth = await checkBackendStatus();
-        setBackendHealth(updatedHealth);
-      } else {
-        triggerToast(`⚠ ${result.message}`);
-      }
-    } catch (err: any) {
-      triggerToast(`Error seeding backend: ${err.message}`);
-    } finally {
-      setIsSeedingBackend(false);
-      setSeedProgress(null);
-    }
-  };
+  // Helper to create a completely blank, empty product form state
+  const createEmptyProductForm = (category: string = 'Fly Ash Brick Machine', order: number = 1) => ({
+    name: '',
+    brandTag: '',
+    category,
+    capacity: '',
+    power: '',
+    brickSize: '',
+    image: '',
+    galleryImages: [] as string[],
+    description: '',
+    featureBadges: [] as string[],
+    highlights: [] as Array<{ title: string; description: string }>,
+    advantages: [] as Array<{ title: string; description: string }>,
+    keyFeatures: [] as string[],
+    specColumns: ['Parameter', 'Details'] as string[],
+    specRows: [] as Array<Record<string, string>>,
+    status: 'Active' as const,
+    order,
+  });
 
-  // New Product Form State with Full Technical Specifications & Content Builder
+  // New Product Form State with Full Technical Specifications & Content Builder (Starts completely empty)
   const [newProduct, setNewProduct] = useState<{
     name: string;
     brandTag: string;
@@ -560,65 +572,20 @@ interface SeoSettings {
     keyFeatures: string[];
     specColumns: string[];
     specRows: Array<Record<string, string>>;
-  }>({
-    name: '',
-    brandTag: '',
-    category: 'Fly Ash Brick Machine',
-    capacity: '',
-    power: '',
-    brickSize: '',
-    image: '',
-    galleryImages: [],
-    description: '',
-    featureBadges: [...DEFAULT_BADGES],
-    highlights: [...DEFAULT_HIGHLIGHTS],
-    advantages: [...DEFAULT_ADVANTAGES],
-    keyFeatures: [
-      'Heavy-Duty Fabricated Chassis',
-      'High Compaction Density',
-      'Low Power Consumption'
-    ],
-    specColumns: ['Parameter', 'Details'],
-    specRows: [
-      { 'Parameter': 'Capacity', 'Details': '' },
-      { 'Parameter': 'Power', 'Details': '' },
-      { 'Parameter': 'Brick Size', 'Details': '' }
-    ],
-  });
+    status: 'Active' | 'Draft' | 'Inactive';
+    order: number;
+  }>(() => createEmptyProductForm('Fly Ash Brick Machine', 1));
 
   // Editing Product Modal State
   const [editingProduct, setEditingProduct] = useState<ProductItem | null>(null);
 
-  // Safe handler to open Add Product modal with clean defaults
+  // Safe handler to open Add Product modal with ALL fields completely empty
   const handleOpenAddProduct = (category?: string) => {
     try {
+      setAddProductTab('overview');
       setEditProductTab('overview');
       const targetCat = category || (adminProductCategory !== 'All' ? adminProductCategory : 'Fly Ash Brick Machine');
-      setNewProduct({
-        name: '',
-        brandTag: '',
-        category: targetCat,
-        capacity: '',
-        power: '',
-        brickSize: '',
-        image: '',
-        galleryImages: [],
-        description: '',
-        featureBadges: [...DEFAULT_BADGES],
-        highlights: [...DEFAULT_HIGHLIGHTS],
-        advantages: [...DEFAULT_ADVANTAGES],
-        keyFeatures: [
-          'Heavy-Duty Fabricated Chassis',
-          'High Compaction Density',
-          'Low Power Consumption'
-        ],
-        specColumns: ['Parameter', 'Details'],
-        specRows: [
-          { 'Parameter': 'Capacity', 'Details': '' },
-          { 'Parameter': 'Power', 'Details': '' },
-          { 'Parameter': 'Brick Size', 'Details': '' }
-        ],
-      });
+      setNewProduct(createEmptyProductForm(targetCat, products.length + 1));
       setIsAddProductOpen(true);
     } catch (err) {
       console.error('Error opening add product modal:', err);
@@ -626,35 +593,131 @@ interface SeoSettings {
     }
   };
 
-  // Safe handler to open Edit Product modal
-  const handleOpenEditProduct = (prod: ProductItem) => {
+  // Safe handler to close Add Product modal and reset state
+  const handleCloseAddProduct = () => {
+    setIsAddProductOpen(false);
+    setAddProductTab('overview');
+    const targetCat = adminProductCategory !== 'All' ? adminProductCategory : 'Fly Ash Brick Machine';
+    setNewProduct(createEmptyProductForm(targetCat, products.length + 1));
+  };
+
+  // Action in progress state (for disabling buttons and preventing double clicks)
+  const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
+
+  // Safe handler to open Edit Product modal with existing product data (no hardcoded fallback samples)
+  const handleOpenEditProduct = async (prod: ProductItem) => {
     setEditProductTab('overview');
     setEditingProduct({
       ...prod,
       brickSize: prod.brickSize || '',
-      featureBadges: prod.featureBadges && prod.featureBadges.length > 0 ? [...prod.featureBadges] : [...DEFAULT_BADGES],
+      status: prod.status || 'Active',
+      order: prod.order !== undefined ? prod.order : 0,
+      featureBadges: prod.featureBadges ? [...prod.featureBadges] : [],
       galleryImages: prod.galleryImages ? [...prod.galleryImages] : [],
-      highlights: prod.highlights && prod.highlights.length > 0 ? [...prod.highlights] : [...DEFAULT_HIGHLIGHTS],
-      advantages: prod.advantages && prod.advantages.length > 0 ? [...prod.advantages] : [...DEFAULT_ADVANTAGES],
-      keyFeatures: prod.keyFeatures && prod.keyFeatures.length > 0 ? [...prod.keyFeatures] : [
-        'Heavy-Duty Hydraulic Power Pack with foreign-brand proportional valves',
-        'Synchronized high-frequency bottom & top directional vibration systems',
-        'Automatic pallet feeding and stacked discharge mechanism',
-        'Modular interchangeable mould design for pavers, solid blocks & bricks',
-        'Low power consumption with high-efficiency IE3 electric motors'
-      ],
+      highlights: prod.highlights ? [...prod.highlights] : [],
+      advantages: prod.advantages ? [...prod.advantages] : [],
+      keyFeatures: prod.keyFeatures ? [...prod.keyFeatures] : [],
       specTableColumns: prod.specTableColumns && prod.specTableColumns.length > 0 ? [...prod.specTableColumns] : ['Parameter', 'Details'],
-      specTableRows: prod.specTableRows && prod.specTableRows.length > 0 ? [...prod.specTableRows] : [
-        { 'Parameter': 'Capacity', 'Details': prod.capacity || '' },
-        { 'Parameter': 'Power', 'Details': prod.power || '' }
-      ]
+      specTableRows: prod.specTableRows ? [...prod.specTableRows] : []
     });
+
+    try {
+      const full = await fetchProductById(prod.id);
+      if (full) {
+        setEditingProduct({
+          ...full,
+          brickSize: full.brickSize || '',
+          status: full.status || 'Active',
+          order: full.order !== undefined ? full.order : 0,
+          featureBadges: full.featureBadges ? [...full.featureBadges] : [],
+          galleryImages: full.galleryImages ? [...full.galleryImages] : [],
+          highlights: full.highlights ? [...full.highlights] : [],
+          advantages: full.advantages ? [...full.advantages] : [],
+          keyFeatures: full.keyFeatures ? [...full.keyFeatures] : [],
+          specTableColumns: full.specTableColumns && full.specTableColumns.length > 0 ? [...full.specTableColumns] : ['Parameter', 'Details'],
+          specTableRows: full.specTableRows ? [...full.specTableRows] : []
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to load full product for edit:', err);
+    }
   };
 
-  // Live product URL helper
+  // Live product URL helper (uses product slug)
   const getProductLiveUrl = (prod: ProductItem) => {
     const slug = prod.categorySlug || CATEGORY_NAME_TO_SLUG_MAP[prod.category] || 'fly-ash-brick-machine';
-    return `/machines/${slug}?model=${encodeURIComponent(prod.id)}`;
+    const prodSlug = prod.slug || (prod.name ? prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : prod.id);
+    return `/machines/${slug}?model=${encodeURIComponent(prodSlug)}`;
+  };
+
+  // Product Card Action Handlers
+  const handleProductReorder = async (prod: ProductItem, direction: 'up' | 'down', e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (actionInProgressId) return;
+    setActionInProgressId(`reorder-${direction}-${prod.id}`);
+    try {
+      const updated = await reorderProduct(prod.id, direction);
+      setProducts(updated);
+      triggerToast(`Product "${prod.name}" moved ${direction}!`);
+    } catch (err: any) {
+      triggerToast(err?.response?.data?.message || err?.message || `Failed to move product ${direction}`);
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
+  const handleProductToggleStatus = async (prod: ProductItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (actionInProgressId) return;
+    setActionInProgressId(`toggle-${prod.id}`);
+    try {
+      const updated = await toggleProductStatus(prod.id, prod.status || 'Active');
+      const fresh = await fetchProducts();
+      setProducts(fresh);
+      triggerToast(`Product status set to ${updated?.status || (prod.status === 'Active' ? 'Inactive' : 'Active')}`);
+    } catch (err: any) {
+      triggerToast(err?.response?.data?.message || err?.message || 'Failed to toggle product status');
+    } finally {
+      setActionInProgressId(null);
+    }
+  };
+
+  const handleProductOpenSpec = async (prod: ProductItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedProductForSpec(prod);
+    try {
+      const full = await fetchProductById(prod.id);
+      if (full) {
+        setSelectedProductForSpec(full);
+      }
+    } catch (err) {
+      console.warn('Failed to load full specifications by ID:', err);
+    }
+  };
+
+  const handleProductDelete = (prod: ProductItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    requestConfirm({
+      title: 'Delete Product',
+      message: 'Are you sure you want to delete this product from the machinery catalog?',
+      itemName: prod.name,
+      confirmText: 'Delete Product',
+      variant: 'danger',
+      icon: 'trash',
+      onConfirm: async () => {
+        setActionInProgressId(`delete-${prod.id}`);
+        try {
+          await deleteProduct(prod.id);
+          const fresh = await fetchProducts();
+          setProducts(fresh);
+          triggerToast('Product removed successfully');
+        } catch (err: any) {
+          triggerToast(err?.response?.data?.message || err?.message || 'Failed to delete product');
+        } finally {
+          setActionInProgressId(null);
+        }
+      }
+    });
   };
 
   const [newProject, setNewProject] = useState({
@@ -785,6 +848,14 @@ interface SeoSettings {
       if (Array.isArray(res)) setBlogs(res);
     }).catch(() => { });
 
+    fetchFaqsFromDb().then(res => {
+      if (Array.isArray(res)) setFaqs(res);
+    }).catch(() => { });
+
+    fetchDeliveryLocationsFromDb().then(res => {
+      if (Array.isArray(res)) setLocations(res);
+    }).catch(() => { });
+
     const syncAll = () => {
       try {
         setEnquiries(getStoredEnquiries() || []);
@@ -793,6 +864,8 @@ interface SeoSettings {
         setGallery(getStoredGalleryPhotos() || []);
         setVideos(getStoredVideos() || []);
         setBlogs(getStoredBlogs() || []);
+        setFaqs(getStoredFaqs() || []);
+        setLocations(getStoredDeliveryLocations() || []);
       } catch (err) {
         console.error('Error in syncAll:', err);
       }
@@ -817,119 +890,15 @@ interface SeoSettings {
     };
   }, []);
 
-  const [faqs, setFaqs] = useState<FAQItem[]>([
-    {
-      id: 'FAQ-01',
-      question: 'What is the daily power consumption of the automatic brick plant?',
-      answer: 'Power consumption depends on the model capacity. Standard plants operate between 18 HP to 35 HP total connected load with energy-efficient hydraulic drives.',
-      category: 'Technical Specifications'
-    },
-    {
-      id: 'FAQ-02',
-      question: 'Do you provide on-site foundation layout and operator training?',
-      answer: 'Yes, our factory technicians handle complete turnkey foundation design, mechanical/electrical installation, and 7-day on-site operator training.',
-      category: 'Installation & Support'
-    },
-    {
-      id: 'FAQ-03',
-      question: 'What is the warranty period on hydraulic cylinders and PLC units?',
-      answer: 'We provide an industry-leading 24-month comprehensive warranty on hydraulic cylinders and electrical PLC panels with guaranteed Pan-India spares dispatch.',
-      category: 'Warranty & Spares'
-    }
-  ]);
-
-  const DEFAULT_DELIVERY_LOCATIONS: MachineDeliveryLocationItem[] = [
-    {
-      id: 'DEL-01',
-      clientName: 'Priya Fly Ash Bricks & Blocks',
-      locationCity: 'Salem Industrial Estate',
-      state: 'Tamil Nadu',
-      machineModel: 'Fully Automatic 6-Cavity Fly Ash Brick Machine',
-      deliveryDate: '12 Mar 2026',
-      status: 'Delivered & Operational',
-      transportVehicle: '12-Wheeler Hydraulic Trailer (Direct Coimbatore Dispatch)',
-      contactPhone: '+91 98765 43210',
-      notes: 'Installed and fully commissioned. 14,000 bricks/shift output verified.'
-    },
-    {
-      id: 'DEL-02',
-      clientName: 'Sri Murugan Paver Works',
-      locationCity: 'Madurai Ring Road',
-      state: 'Tamil Nadu',
-      machineModel: 'Hydraulic Interlocking Paver Block Machine',
-      deliveryDate: '28 Feb 2026',
-      status: 'Delivered & Operational',
-      transportVehicle: 'Direct Haulage Container',
-      contactPhone: '+91 91234 56789',
-      notes: 'Color feeder unit & 100-ton hydraulic press commissioned successfully.'
-    },
-    {
-      id: 'DEL-03',
-      clientName: 'Metro Infrastructure & Precast Ltd',
-      locationCity: 'Peenya Industrial Area, Bengaluru',
-      state: 'Karnataka',
-      machineModel: 'Heavy Duty Solid & Hollow Concrete Block Machine',
-      deliveryDate: '15 Mar 2026',
-      status: 'Installation Ongoing',
-      transportVehicle: 'Multi-Axle Heavy Hauler',
-      contactPhone: '+91 99887 66554',
-      notes: 'Foundation curing completed; factory engineers assembling hydraulic powerpack.'
-    },
-    {
-      id: 'DEL-04',
-      clientName: 'Deccan Concrete Products',
-      locationCity: 'Patancheru, Hyderabad',
-      state: 'Telangana',
-      machineModel: 'Automatic Brick Making Plant with 50-Ton Storage Silo',
-      deliveryDate: '18 Mar 2026',
-      status: 'In Transit',
-      transportVehicle: 'Low-Bed Machinery Carrier (TN-38-AF-4421)',
-      contactPhone: '+91 90001 23456',
-      notes: 'Dispatched from Coimbatore plant on 16 March. Expected on-site arrival tomorrow.'
-    },
-    {
-      id: 'DEL-05',
-      clientName: 'Western Precast Elements',
-      locationCity: 'Chakan Industrial Zone, Pune',
-      state: 'Maharashtra',
-      machineModel: 'High-Density Hydraulic Paver & Kerb Stone Press',
-      deliveryDate: '22 Jan 2026',
-      status: 'Delivered & Operational',
-      transportVehicle: 'Heavy Long-Chassis Truck',
-      contactPhone: '+91 98765 43214',
-      notes: 'Commercial production active. Supplying municipal smart city curb projects.'
-    },
-    {
-      id: 'DEL-06',
-      clientName: 'Gujarat Ash Brick Corporation',
-      locationCity: 'GIDC Industrial Estate, Surat',
-      state: 'Gujarat',
-      machineModel: '4-Brick Rotary High-Pressure Hydraulic Machine',
-      deliveryDate: '10 Feb 2026',
-      status: 'Delivered & Operational',
-      transportVehicle: 'Heavy Haulage Truck',
-      contactPhone: '+91 98765 43215',
-      notes: 'Rotary table indexing calibrated. Operating 2 shifts continuously.'
-    }
-  ];
-
-  const [locations, setLocations] = useState<MachineDeliveryLocationItem[]>(() => {
-    try {
-      const raw = localStorage.getItem('jupiter_machine_delivery_locations');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) { }
-    return DEFAULT_DELIVERY_LOCATIONS;
+  const [faqs, setFaqs] = useState<FAQItem[]>(() => {
+    try { return getStoredFaqs() || []; } catch { return []; }
   });
 
-  const saveDeliveryLocations = (locs: MachineDeliveryLocationItem[]) => {
-    setLocations(locs);
-    try {
-      localStorage.setItem('jupiter_machine_delivery_locations', JSON.stringify(locs));
-    } catch (e) { }
-  };
+  const [locations, setLocations] = useState<MachineDeliveryLocationItem[]>(() => {
+    try { return getStoredDeliveryLocations() || []; } catch { return []; }
+  });
+
+  
 
   // Admin Users List State
   const [usersList, setUsersList] = useState<AdminUser[]>(() => {
@@ -1096,15 +1065,28 @@ interface SeoSettings {
     setNotificationsOpen(false);
   };
 
+  const filterProductId = searchParams.get('productId');
+  const filteredProductObj = filterProductId ? products.find(p => p.id === filterProductId) : null;
+
   // Filtered lists based on search and filters
   const filteredEnquiries = enquiries.filter(enq => {
     const matchesFilter = enquiryFilter === 'All' || enq.status === enquiryFilter;
+
+    // Filter by specific product ID if navigated from a product card
+    const matchesProductId = !filterProductId ||
+      enq.productId === filterProductId ||
+      (filteredProductObj && enq.product && (
+        enq.product.toLowerCase().trim() === filteredProductObj.name.toLowerCase().trim() ||
+        enq.product.toLowerCase().includes(filteredProductObj.name.toLowerCase()) ||
+        filteredProductObj.name.toLowerCase().includes(enq.product.toLowerCase())
+      ));
+
     const matchesSearch = searchQuery === '' ||
       enq.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       enq.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
       enq.phone.includes(searchQuery) ||
       (enq.location && enq.location.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesFilter && matchesSearch;
+    return matchesFilter && matchesProductId && matchesSearch;
   });
 
   // Helper to reliably match product category without false positives (e.g. "block" matching "lock")
@@ -1149,7 +1131,7 @@ interface SeoSettings {
     const matchesSearch = query === '' || pName.includes(query) || pCat.includes(query);
 
     return matchesCategory && matchesSearch;
-  });
+  }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const filteredProjects = (projects || []).filter(prj =>
     prj && (
@@ -1405,37 +1387,6 @@ interface SeoSettings {
 
           {/* Right Controls & Profile */}
           <div className="admin-topbar-right">
-            {/* Backend Database Status Badge */}
-            <div
-              className="admin-db-status-badge"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 12px',
-                borderRadius: '20px',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                background: backendHealth?.isOnline ? '#DCFCE7' : '#FEE2E2',
-                color: backendHealth?.isOnline ? '#15803D' : '#DC2626',
-                border: `1px solid ${backendHealth?.isOnline ? '#BBF7D0' : '#FECACA'}`,
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-              title={backendHealth?.isOnline ? `Backend Online (${backendHealth.productCount} products in DB)` : `Backend Offline (${backendHealth?.error || 'Connecting to port 5000...'})`}
-            >
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: backendHealth?.isOnline ? '#16A34A' : '#DC2626',
-                  flexShrink: 0
-                }}
-              />
-              <span>{backendHealth?.isOnline ? 'DB Online' : 'DB Offline'}</span>
-            </div>
-
             {/* Interactive Date Range Selector Dropdown */}
             <div className="admin-datepicker-wrapper">
               <div
@@ -2279,6 +2230,49 @@ interface SeoSettings {
                 ))}
               </div>
 
+              {/* Product Filter Active Banner */}
+              {filterProductId && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: '#FFF7ED',
+                  border: '1px solid #FFEDD5',
+                  padding: '10px 16px',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9A3412', fontSize: '0.88rem' }}>
+                    <Package size={16} className="text-orange" />
+                    <span>
+                      Filtered by Product: <strong>{filteredProductObj?.name || filterProductId}</strong>
+                    </span>
+                    <span style={{ fontSize: '0.78rem', color: '#EA580C', background: '#FFEDD5', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                      {filteredEnquiries.length} enquiries
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams);
+                      next.delete('productId');
+                      setSearchParams(next);
+                    }}
+                    className="btn"
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid #FDBA74',
+                      color: '#C2410C',
+                      padding: '4px 10px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700
+                    }}
+                  >
+                    Clear Filter (Show All)
+                  </button>
+                </div>
+              )}
+
               {/* Enquiries Full Table */}
               <div className="admin-card">
                 <div className="admin-table-responsive-wrapper">
@@ -2409,29 +2403,7 @@ interface SeoSettings {
                       <span>Clear All</span>
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={handleSeedBackend}
-                    disabled={isSeedingBackend}
-                    className="btn"
-                    style={{
-                      background: '#047857',
-                      color: '#FFFFFF',
-                      border: '1px solid #059669',
-                      padding: '10px 16px',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      cursor: isSeedingBackend ? 'not-allowed' : 'pointer',
-                      borderRadius: '6px'
-                    }}
-                    title="Seed all machinery models & specifications into the backend PostgreSQL database"
-                  >
-                    <Upload size={16} />
-                    <span>{isSeedingBackend ? `Seeding (${seedProgress?.current || 0}/${seedProgress?.total || 23})...` : 'Seed Backend DB'}</span>
-                  </button>
+
                   <button
                     type="button"
                     onClick={(e) => {
@@ -2587,81 +2559,211 @@ interface SeoSettings {
                     </div>
                   </div>
                 ) : (
-                  filteredProducts.map((prod) => (
-                    <div
-                      key={prod.id}
-                      className="admin-card admin-product-card-item"
-                      onClick={() => setSelectedProductForSpec(prod)}
-                      style={{ cursor: 'pointer' }}
-                      title="Click to open product specifications & details"
-                    >
-                      <div className="admin-prod-card-thumb">
-                        <img src={resolveImg(prod.image)} alt={prod.name} />
-                        <span className="admin-prod-category-badge">{prod.category}</span>
-                      </div>
-                      <div className="admin-prod-card-body">
-                        <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '8px' }}>{prod.name}</h3>
-                        <div className="admin-prod-specs-row">
-                          <span><strong>Capacity:</strong> {prod.capacity || 'Standard'}</span>
-                          <span><strong>Power:</strong> {prod.power || 'Electric'}</span>
+                  filteredProducts.map((prod, pIdx) => {
+                    const prodEnquiriesCount = Math.max(
+                      typeof prod.enquiriesCount === 'number' ? prod.enquiriesCount : 0,
+                      enquiries.filter(e => (e.productId && e.productId === prod.id) || (e.product && prod.name && (e.product.toLowerCase().trim() === prod.name.toLowerCase().trim() || e.product.toLowerCase().includes(prod.name.toLowerCase()) || prod.name.toLowerCase().includes(e.product.toLowerCase())))).length
+                    );
+
+                    return (
+                      <div
+                        key={prod.id}
+                        className="admin-card admin-product-card-item"
+                        onClick={(e) => handleProductOpenSpec(prod, e)}
+                        style={{ cursor: 'pointer' }}
+                        title="Click to open product specifications & details"
+                      >
+                        <div className="admin-prod-card-thumb" style={{ position: 'relative' }}>
+                          <img src={resolveImg(prod.image)} alt={prod.name} />
+                          <span className="admin-prod-category-badge">{prod.category}</span>
+                          <span style={{
+                            position: 'absolute',
+                            top: '10px',
+                            left: '10px',
+                            background: prod.status === 'Inactive' ? '#EF4444' : '#10B981',
+                            color: '#FFFFFF',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.5px',
+                            textTransform: 'uppercase',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }}>
+                            {prod.status || 'Active'}
+                          </span>
+                          <span style={{
+                            position: 'absolute',
+                            bottom: '10px',
+                            left: '10px',
+                            background: 'rgba(0, 35, 61, 0.85)',
+                            color: '#FFFFFF',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '4px'
+                          }}>
+                            #{prod.order ?? (pIdx + 1)}
+                          </span>
                         </div>
-                        <div className="admin-prod-card-footer">
-                          <span className="text-orange" style={{ fontSize: '0.82rem', fontWeight: 600 }}>{prod.enquiriesCount || 0} Enquiries received</span>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedProductForSpec(prod)}
-                              className="admin-table-view-btn"
-                              title="View Technical Specifications & Full Details"
-                              style={{ background: '#00233D', color: '#FFFFFF', borderColor: '#00233D', padding: '6px 12px', fontSize: '0.8rem', fontWeight: 700 }}
-                            >
-                              <Eye size={14} style={{ display: 'inline', marginRight: '4px' }} />
-                              <span>Open Product</span>
-                            </button>
-                            <a
-                              href={getProductLiveUrl(prod)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="admin-icon-btn"
-                              title="View on Live Website"
-                            >
-                              <ExternalLink size={15} />
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditProduct(prod)}
-                              className="admin-icon-btn"
-                              title="Edit Product Details & Specifications"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                requestConfirm({
-                                  title: 'Delete Product',
-                                  message: 'Are you sure you want to delete this product from the machinery catalog?',
-                                  itemName: prod.name,
-                                  confirmText: 'Delete Product',
-                                  variant: 'danger',
-                                  icon: 'trash',
-                                  onConfirm: async () => {
-                                    await deleteProduct(prod.id);
-                                    setProducts(getStoredProducts());
-                                    triggerToast('Product removed successfully');
-                                  }
-                                });
-                              }}
-                              className="admin-icon-btn text-danger"
-                              title="Delete Product"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                        <div className="admin-prod-card-body">
+                          <h3 className="admin-prod-card-title" title={prod.name}>
+                            {prod.name}
+                          </h3>
+
+                          <div className="admin-prod-specs-row">
+                            <span title={prod.capacity || 'Standard'}>
+                              <strong>Capacity:</strong> {prod.capacity || 'Standard'}
+                            </span>
+                            <span title={prod.power || 'Electric'}>
+                              <strong>Power:</strong> {prod.power || 'Electric'}
+                            </span>
+                          </div>
+
+                          <div className="admin-prod-card-footer">
+                            <div className="admin-prod-enquiries-row">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSearchQuery('');
+                                  setSearchParams({ tab: 'enquiries', productId: prod.id });
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: 0,
+                                  margin: 0,
+                                  cursor: 'pointer',
+                                  color: '#FF9200',
+                                  fontWeight: 700,
+                                  fontSize: '0.88rem',
+                                  textAlign: 'left',
+                                  display: 'inline-flex',
+                                  alignItems: 'center'
+                                }}
+                                title={`Click to view enquiries for ${prod.name}`}
+                              >
+                                {prodEnquiriesCount} Enquiries received
+                              </button>
+                            </div>
+
+                            <div className="admin-prod-actions-row" onClick={(e) => e.stopPropagation()}>
+                              <div className="admin-prod-actions-left">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleProductReorder(prod, 'up', e)}
+                                  disabled={pIdx === 0 || !!actionInProgressId}
+                                  className="admin-icon-btn"
+                                  title={pIdx === 0 ? "Already first product" : "Move Up"}
+                                  style={{
+                                    opacity: pIdx === 0 || !!actionInProgressId ? 0.35 : 1,
+                                    cursor: pIdx === 0 || !!actionInProgressId ? 'not-allowed' : 'pointer',
+                                    padding: '5px'
+                                  }}
+                                >
+                                  <ArrowUp size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleProductReorder(prod, 'down', e)}
+                                  disabled={pIdx === filteredProducts.length - 1 || !!actionInProgressId}
+                                  className="admin-icon-btn"
+                                  title={pIdx === filteredProducts.length - 1 ? "Already last product" : "Move Down"}
+                                  style={{
+                                    opacity: pIdx === filteredProducts.length - 1 || !!actionInProgressId ? 0.35 : 1,
+                                    cursor: pIdx === filteredProducts.length - 1 || !!actionInProgressId ? 'not-allowed' : 'pointer',
+                                    padding: '5px'
+                                  }}
+                                >
+                                  <ArrowDown size={15} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleProductToggleStatus(prod, e)}
+                                  disabled={!!actionInProgressId}
+                                  className="admin-icon-btn"
+                                  title={prod.status === 'Inactive' ? 'Activate Product (Click to make Active)' : 'Deactivate Product (Click to make Inactive)'}
+                                  style={{
+                                    color: prod.status === 'Inactive' ? '#EF4444' : '#10B981',
+                                    opacity: !!actionInProgressId ? 0.45 : 1,
+                                    cursor: !!actionInProgressId ? 'not-allowed' : 'pointer',
+                                    padding: '5px'
+                                  }}
+                                >
+                                  {prod.status === 'Inactive' ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                              </div>
+
+                              <div className="admin-prod-actions-right">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleProductOpenSpec(prod, e)}
+                                  disabled={!!actionInProgressId}
+                                  className="admin-table-view-btn"
+                                  title="View Technical Specifications & Full Details"
+                                  style={{
+                                    background: '#00233D',
+                                    color: '#FFFFFF',
+                                    borderColor: '#00233D',
+                                    padding: '6px 12px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 700,
+                                    opacity: !!actionInProgressId ? 0.6 : 1,
+                                    cursor: !!actionInProgressId ? 'not-allowed' : 'pointer'
+                                  }}
+                                >
+                                  <Eye size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                                  <span>Open Product</span>
+                                </button>
+                                <a
+                                  href={getProductLiveUrl(prod)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="admin-icon-btn"
+                                  title="View on Live Website"
+                                  style={{ padding: '5px' }}
+                                >
+                                  <ExternalLink size={15} />
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenEditProduct(prod);
+                                  }}
+                                  disabled={!!actionInProgressId}
+                                  className="admin-icon-btn"
+                                  title="Edit Product Details & Specifications"
+                                  style={{
+                                    opacity: !!actionInProgressId ? 0.45 : 1,
+                                    cursor: !!actionInProgressId ? 'not-allowed' : 'pointer',
+                                    padding: '5px'
+                                  }}
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleProductDelete(prod, e)}
+                                  disabled={!!actionInProgressId}
+                                  className="admin-icon-btn text-danger"
+                                  title="Delete Product"
+                                  style={{
+                                    opacity: !!actionInProgressId ? 0.45 : 1,
+                                    cursor: !!actionInProgressId ? 'not-allowed' : 'pointer',
+                                    padding: '5px'
+                                  }}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -3123,10 +3225,47 @@ interface SeoSettings {
                   <h1 className="admin-page-title">Frequently Asked Questions Manager</h1>
                   <p className="admin-page-subtitle">Manage client questions regarding machinery technical specifications, foundation, warranty and delivery.</p>
                 </div>
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsAddFAQOpen(true); }} className="btn btn-orange">
-                  <Plus size={18} />
-                  <span>Add FAQ</span>
-                </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {faqs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        requestConfirm({
+                          title: 'Clear All FAQs',
+                          message: 'Are you sure you want to remove all FAQs from the database?',
+                          confirmText: 'Clear All FAQs',
+                          variant: 'danger',
+                          icon: 'alert',
+                          onConfirm: async () => {
+                            await clearAllFaqs();
+                            setFaqs([]);
+                            triggerToast('All FAQs removed');
+                          }
+                        });
+                      }}
+                      className="btn"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: '#FEE2E2',
+                        color: '#DC2626',
+                        border: '1px solid #FCA5A5',
+                        fontWeight: 600,
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Trash2 size={16} />
+                      <span>Clear All</span>
+                    </button>
+                  )}
+                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsAddFAQOpen(true); }} className="btn btn-orange">
+                    <Plus size={18} />
+                    <span>Add FAQ</span>
+                  </button>
+                </div>
               </div>
 
               <div className="admin-faqs-stack-list">
@@ -3136,11 +3275,12 @@ interface SeoSettings {
                       <span className="admin-faq-cat-tag">{faq.category}</span>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             const newQ = prompt('Edit Question:', faq.question);
                             const newA = prompt('Edit Answer:', faq.answer);
                             if (newQ && newA) {
-                              setFaqs(prev => prev.map(f => f.id === faq.id ? { ...f, question: newQ, answer: newA } : f));
+                              await updateFaq(faq.id, { question: newQ, answer: newA });
+                              setFaqs(getStoredFaqs());
                               triggerToast('FAQ updated successfully');
                             }
                           }}
@@ -3149,9 +3289,21 @@ interface SeoSettings {
                           <Edit size={16} />
                         </button>
                         <button
+                          type="button"
                           onClick={() => {
-                            setFaqs(prev => prev.filter(f => f.id !== faq.id));
-                            triggerToast('FAQ deleted');
+                            requestConfirm({
+                              title: 'Delete FAQ',
+                              message: 'Are you sure you want to delete this FAQ?',
+                              itemName: faq.question,
+                              confirmText: 'Delete FAQ',
+                              variant: 'danger',
+                              icon: 'trash',
+                              onConfirm: async () => {
+                                await deleteFaq(faq.id);
+                                setFaqs(getStoredFaqs());
+                                triggerToast('FAQ deleted successfully');
+                              }
+                            });
                           }}
                           className="admin-icon-btn text-danger"
                         >
@@ -3245,9 +3397,9 @@ interface SeoSettings {
                                     itemName: `${loc.clientName} (${loc.state})`,
                                     confirmText: 'Remove Record',
                                     variant: 'danger',
-                                    onConfirm: () => {
-                                      const updated = locations.filter(l => l.id !== loc.id);
-                                      saveDeliveryLocations(updated);
+                                    onConfirm: async () => {
+                                      await deleteDeliveryLocation(loc.id);
+                                      setLocations(getStoredDeliveryLocations());
                                       triggerToast('Delivery location removed');
                                     }
                                   });
@@ -4077,16 +4229,55 @@ interface SeoSettings {
           MODAL 2: ADD NEW PRODUCT MODAL WITH TECHNICAL SPECIFICATIONS BUILDER
           --------------------------------------------------------------------- */}
       {isAddProductOpen && (
-        <div className="modal-backdrop-overlay" onClick={() => setIsAddProductOpen(false)}>
+        <div className="modal-backdrop-overlay" onClick={handleCloseAddProduct}>
           <div className="modal-content-card" style={{ maxWidth: '860px', maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-bar">
               <div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#001827' }}>Add Machinery Product & Specifications</h3>
                 <span style={{ fontSize: '0.78rem', color: '#64748B' }}>Publish machine models with multi-tier Technical Specification tables</span>
               </div>
-              <button className="modal-close-btn" onClick={() => setIsAddProductOpen(false)}>
+              <button className="modal-close-btn" onClick={handleCloseAddProduct}>
                 <X size={20} />
               </button>
+            </div>
+
+            {/* Modal Sub-Tabs Header Bar */}
+            <div style={{
+              display: 'flex',
+              gap: '4px',
+              borderBottom: '2px solid #E2E8F0',
+              padding: '0 20px',
+              background: '#F8FAFC',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap'
+            }}>
+              {[
+                { id: 'overview', label: '1. Overview & Media' },
+                { id: 'highlights', label: '2. Product Highlights' },
+                { id: 'specifications', label: '3. Technical Specs' },
+                { id: 'features', label: '4. Key Features' },
+                { id: 'advantages', label: '5. Advantages' },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setAddProductTab(t.id as any)}
+                  style={{
+                    padding: '12px 14px',
+                    fontWeight: addProductTab === t.id ? 800 : 600,
+                    color: addProductTab === t.id ? '#FF9200' : '#475569',
+                    borderBottom: addProductTab === t.id ? '3px solid #FF9200' : '3px solid transparent',
+                    background: 'none',
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
             <form className="modal-body-content" onSubmit={async (e) => {
@@ -4110,14 +4301,19 @@ interface SeoSettings {
                 advantages: (newProduct.advantages || []).filter(a => a && a.title && a.title.trim()),
                 keyFeatures: (newProduct.keyFeatures || []).filter(Boolean),
                 specTableColumns: newProduct.specColumns,
-                specTableRows: (newProduct.specRows || []).filter(r => Object.values(r || {}).some(v => v && v.trim()))
+                specTableRows: (newProduct.specRows || []).filter(r => Object.values(r || {}).some(v => v && v.trim())),
+                status: newProduct.status || 'Active',
+                order: newProduct.order !== undefined ? Number(newProduct.order) : products.length + 1
               });
               setProducts(getStoredProducts());
-              setIsAddProductOpen(false);
+              handleCloseAddProduct();
               triggerToast(`Product "${newProdItem?.name || newProduct.name}" published successfully!`);
             }}>
 
-              {/* Basic Fields */}
+              {/* TAB 1: OVERVIEW & MEDIA */}
+              {addProductTab === 'overview' && (
+                <div>
+                  {/* Basic Fields */}
               <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
                 <div className="form-group-item">
                   <label className="form-field-label">Header Subtitle / Brand</label>
@@ -4167,6 +4363,30 @@ interface SeoSettings {
                     placeholder="https://... or upload below"
                     value={resolveImg(newProduct.image)}
                     onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
+                <div className="form-group-item">
+                  <label className="form-field-label">Status (Visibility)</label>
+                  <select
+                    className="form-input-field"
+                    value={newProduct.status || 'Active'}
+                    onChange={(e) => setNewProduct({ ...newProduct, status: e.target.value as any })}
+                  >
+                    <option value="Active">Active (Published on website)</option>
+                    <option value="Inactive">Inactive (Hidden from public website)</option>
+                  </select>
+                </div>
+                <div className="form-group-item">
+                  <label className="form-field-label">Display Order</label>
+                  <input
+                    type="number"
+                    className="form-input-field"
+                    placeholder="e.g. 1"
+                    value={newProduct.order ?? 1}
+                    onChange={(e) => setNewProduct({ ...newProduct, order: parseInt(e.target.value) || 0 })}
                   />
                 </div>
               </div>
@@ -4279,7 +4499,12 @@ interface SeoSettings {
                   onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                 ></textarea>
               </div>
+                </div>
+              )}
 
+              {/* TAB 3: TECHNICAL SPECIFICATIONS */}
+              {addProductTab === 'specifications' && (
+                <div>
               {/* TECHNICAL SPECIFICATIONS MATRIX TABLE BUILDER */}
               <div style={{ marginTop: '20px', marginBottom: '20px', border: '1.5px solid #E2E8F0', borderRadius: '10px', padding: '18px', background: '#F8FAFC' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
@@ -4324,9 +4549,7 @@ interface SeoSettings {
                       className="admin-table-view-btn"
                       style={{ background: '#FEE2E2', color: '#DC2626', borderColor: '#FECACA' }}
                       onClick={() => {
-                        const blankRow: Record<string, string> = {};
-                        (newProduct.specColumns || []).forEach(col => { blankRow[col] = ''; });
-                        setNewProduct({ ...newProduct, specRows: [blankRow] });
+                        setNewProduct({ ...newProduct, specRows: [] });
                       }}
                       title="Clear all rows"
                     >
@@ -4394,45 +4617,53 @@ interface SeoSettings {
                       </tr>
                     </thead>
                     <tbody>
-                      {(newProduct.specRows || []).map((row, rIdx) => {
-                        if (!row) return null;
-                        return (
-                          <tr key={rIdx} style={{ borderBottom: '1px solid #E2E8F0', background: rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
-                            {(newProduct.specColumns || []).map((col, cIdx) => {
-                              const cellVal = row && typeof row[col] === 'string' ? row[col] : (row && row[col] != null ? String(row[col]) : '');
-                              return (
-                                <td key={cIdx} style={{ padding: '6px 8px', borderRight: '1px solid #E2E8F0' }}>
-                                  <input
-                                    type="text"
-                                    value={cellVal}
-                                    placeholder={cIdx === 0 ? 'e.g. Capacity / Power' : 'e.g. Details or value'}
-                                    style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '4px', fontSize: '0.85rem' }}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      const updatedRows = [...(newProduct.specRows || [])];
-                                      updatedRows[rIdx] = { ...(updatedRows[rIdx] || {}), [col]: val };
-                                      setNewProduct({ ...newProduct, specRows: updatedRows });
-                                    }}
-                                  />
-                                </td>
-                              );
-                            })}
-                            <td style={{ textAlign: 'center', padding: '6px' }}>
-                              <button
-                                type="button"
-                                title="Delete Row"
-                                style={{ color: '#EF4444', border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }}
-                                onClick={() => {
-                                  const updatedRows = (newProduct.specRows || []).filter((_, idx) => idx !== rIdx);
-                                  setNewProduct({ ...newProduct, specRows: updatedRows.length > 0 ? updatedRows : [{ [newProduct.specColumns[0] || 'Parameter']: '', [newProduct.specColumns[1] || 'Details']: '' }] });
-                                }}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {(newProduct.specRows || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={(newProduct.specColumns || []).length + 1} style={{ textAlign: 'center', padding: '24px', color: '#94A3B8', fontSize: '0.85rem' }}>
+                            No specifications added yet. Click "+ Add Row" above to add specification parameters.
+                          </td>
+                        </tr>
+                      ) : (
+                        (newProduct.specRows || []).map((row, rIdx) => {
+                          if (!row) return null;
+                          return (
+                            <tr key={rIdx} style={{ borderBottom: '1px solid #E2E8F0', background: rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
+                              {(newProduct.specColumns || []).map((col, cIdx) => {
+                                const cellVal = row && typeof row[col] === 'string' ? row[col] : (row && row[col] != null ? String(row[col]) : '');
+                                return (
+                                  <td key={cIdx} style={{ padding: '6px 8px', borderRight: '1px solid #E2E8F0' }}>
+                                    <input
+                                      type="text"
+                                      value={cellVal}
+                                      placeholder={cIdx === 0 ? 'e.g. Capacity / Power' : 'e.g. Details or value'}
+                                      style={{ width: '100%', padding: '6px 8px', border: '1px solid #CBD5E1', borderRadius: '4px', fontSize: '0.85rem' }}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedRows = [...(newProduct.specRows || [])];
+                                        updatedRows[rIdx] = { ...(updatedRows[rIdx] || {}), [col]: val };
+                                        setNewProduct({ ...newProduct, specRows: updatedRows });
+                                      }}
+                                    />
+                                  </td>
+                                );
+                              })}
+                              <td style={{ textAlign: 'center', padding: '6px' }}>
+                                <button
+                                  type="button"
+                                  title="Delete Row"
+                                  style={{ color: '#EF4444', border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }}
+                                  onClick={() => {
+                                    const updatedRows = (newProduct.specRows || []).filter((_, idx) => idx !== rIdx);
+                                    setNewProduct({ ...newProduct, specRows: updatedRows });
+                                  }}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -4447,17 +4678,21 @@ interface SeoSettings {
                 <div style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.1fr', gap: '24px', alignItems: 'center' }}>
                   {/* Left: Yellow framed Image */}
                   <div style={{ border: '4px solid #FF9200', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', minHeight: '220px' }}>
-                    <img
-                      src={resolveImg(newProduct.image) || resolveImg(IMAGES.flyAshMachine) || resolveImg(IMAGES.performanceMachine) || ''}
-                      alt="Preview"
-                      style={{ maxHeight: '190px', width: 'auto', objectFit: 'contain' }}
-                    />
+                    {resolveImg(newProduct.image) ? (
+                      <img
+                        src={resolveImg(newProduct.image)}
+                        alt="Preview"
+                        style={{ maxHeight: '190px', width: 'auto', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>No image uploaded yet</span>
+                    )}
                   </div>
 
                   {/* Right: Technical Specs Table */}
                   <div>
                     <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#00233D', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                      {newProduct.brandTag || 'JUPITER EQUIPMENTS'}
+                      {newProduct.brandTag || ''}
                     </div>
                     <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: '#00233D', marginBottom: '14px', lineHeight: 1.1 }}>
                       {newProduct.name || 'Machine Model Title'}
@@ -4501,7 +4736,348 @@ interface SeoSettings {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+                </div>
+              )}
+
+              {/* TAB 2: HIGHLIGHTS */}
+              {addProductTab === 'highlights' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#00233D' }}>
+                        Product Highlights Cards
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748B' }}>
+                        These cards appear at the top section under the main product image.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-orange"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                      onClick={() => {
+                        const currentH = newProduct.highlights || [];
+                        setNewProduct({
+                          ...newProduct,
+                          highlights: [...currentH, { title: '', description: '' }]
+                        });
+                      }}
+                    >
+                      <Plus size={15} />
+                      <span>Add Highlight</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {(newProduct.highlights || []).length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '32px', background: '#F8FAFC', borderRadius: '8px', border: '1px dashed #CBD5E1', color: '#94A3B8', fontSize: '0.85rem' }}>
+                        No highlights added yet. Click "+ Add Highlight" above to add product highlights.
+                      </div>
+                    ) : (
+                      (newProduct.highlights || []).map((hl, hIdx) => (
+                        <div key={hIdx} style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#F8FAFC', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '6px' }}>
+                            <input
+                              type="text"
+                              className="form-input-field"
+                              placeholder="Highlight Title (e.g. Model, Max Pressure)"
+                              style={{ fontWeight: 700 }}
+                              value={hl.title || ''}
+                              onChange={(e) => {
+                                const updatedH = [...(newProduct.highlights || [])];
+                                updatedH[hIdx] = { ...updatedH[hIdx], title: e.target.value };
+                                setNewProduct({ ...newProduct, highlights: updatedH });
+                              }}
+                            />
+                            <textarea
+                              rows={2}
+                              className="form-textarea-field"
+                              placeholder="Highlight Description"
+                              value={hl.description || ''}
+                              onChange={(e) => {
+                                const updatedH = [...(newProduct.highlights || [])];
+                                updatedH[hIdx] = { ...updatedH[hIdx], description: e.target.value };
+                                setNewProduct({ ...newProduct, highlights: updatedH });
+                              }}
+                            ></textarea>
+                          </div>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (hIdx === 0) return;
+                                const items = [...(newProduct.highlights || [])];
+                                const temp = items[hIdx - 1];
+                                items[hIdx - 1] = items[hIdx];
+                                items[hIdx] = temp;
+                                setNewProduct({ ...newProduct, highlights: items });
+                              }}
+                              disabled={hIdx === 0}
+                              className="admin-icon-btn"
+                              title="Move Up"
+                              style={{ opacity: hIdx === 0 ? 0.3 : 1, padding: '4px' }}
+                            >
+                              <ArrowUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const items = [...(newProduct.highlights || [])];
+                                if (hIdx >= items.length - 1) return;
+                                const temp = items[hIdx + 1];
+                                items[hIdx + 1] = items[hIdx];
+                                items[hIdx] = temp;
+                                setNewProduct({ ...newProduct, highlights: items });
+                              }}
+                              disabled={hIdx === (newProduct.highlights || []).length - 1}
+                              className="admin-icon-btn"
+                              title="Move Down"
+                              style={{ opacity: hIdx === (newProduct.highlights || []).length - 1 ? 0.3 : 1, padding: '4px' }}
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedH = (newProduct.highlights || []).filter((_, idx) => idx !== hIdx);
+                              setNewProduct({ ...newProduct, highlights: updatedH });
+                            }}
+                            className="admin-icon-btn text-danger"
+                            title="Remove Highlight"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: KEY FEATURES (BULLETS) */}
+              {addProductTab === 'features' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#00233D' }}>
+                        Key Features Bullet Points
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748B' }}>
+                        These appear with orange checkmark icons under the "Features" tab on the live website.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-orange"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                      onClick={() => {
+                        const currentF = newProduct.keyFeatures || [];
+                        setNewProduct({
+                          ...newProduct,
+                          keyFeatures: [...currentF, '']
+                        });
+                      }}
+                    >
+                      <Plus size={15} />
+                      <span>Add Feature Bullet</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {(newProduct.keyFeatures || []).length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '32px', background: '#F8FAFC', borderRadius: '8px', border: '1px dashed #CBD5E1', color: '#94A3B8', fontSize: '0.85rem' }}>
+                        No key features added yet. Click "+ Add Feature Bullet" above to add bullet points.
+                      </div>
+                    ) : (
+                      (newProduct.keyFeatures || []).map((feat, fIdx) => (
+                        <div key={fIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F8FAFC', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                          <Check size={18} style={{ color: '#FF9200', flexShrink: 0 }} />
+                          <input
+                            type="text"
+                            className="form-input-field"
+                            placeholder="e.g. Heavy-Duty Hydraulic Power Pack with foreign-brand proportional valves"
+                            value={feat}
+                            onChange={(e) => {
+                              const updatedF = [...(newProduct.keyFeatures || [])];
+                              updatedF[fIdx] = e.target.value;
+                              setNewProduct({ ...newProduct, keyFeatures: updatedF });
+                            }}
+                          />
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (fIdx === 0) return;
+                                const items = [...(newProduct.keyFeatures || [])];
+                                const temp = items[fIdx - 1];
+                                items[fIdx - 1] = items[fIdx];
+                                items[fIdx] = temp;
+                                setNewProduct({ ...newProduct, keyFeatures: items });
+                              }}
+                              disabled={fIdx === 0}
+                              className="admin-icon-btn"
+                              title="Move Bullet Up"
+                              style={{ opacity: fIdx === 0 ? 0.3 : 1, padding: '3px' }}
+                            >
+                              <ArrowUp size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const items = [...(newProduct.keyFeatures || [])];
+                                if (fIdx >= items.length - 1) return;
+                                const temp = items[fIdx + 1];
+                                items[fIdx + 1] = items[fIdx];
+                                items[fIdx] = temp;
+                                setNewProduct({ ...newProduct, keyFeatures: items });
+                              }}
+                              disabled={fIdx === (newProduct.keyFeatures || []).length - 1}
+                              className="admin-icon-btn"
+                              title="Move Bullet Down"
+                              style={{ opacity: fIdx === (newProduct.keyFeatures || []).length - 1 ? 0.3 : 1, padding: '3px' }}
+                            >
+                              <ArrowDown size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedF = (newProduct.keyFeatures || []).filter((_, idx) => idx !== fIdx);
+                                setNewProduct({ ...newProduct, keyFeatures: updatedF });
+                              }}
+                              className="admin-icon-btn text-danger"
+                              title="Remove Bullet"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: ADVANTAGES (CARDS) */}
+              {addProductTab === 'advantages' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#00233D' }}>
+                        Product Advantages
+                      </h4>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748B' }}>
+                        These cards appear in the 2x2 grid under the "Advantages" tab on the live website.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-orange"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                      onClick={() => {
+                        const currentA = newProduct.advantages || [];
+                        setNewProduct({
+                          ...newProduct,
+                          advantages: [...currentA, { title: '', description: '' }]
+                        });
+                      }}
+                    >
+                      <Plus size={15} />
+                      <span>Add Advantage Card</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    {(newProduct.advantages || []).length === 0 ? (
+                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '32px', background: '#F8FAFC', borderRadius: '8px', border: '1px dashed #CBD5E1', color: '#94A3B8', fontSize: '0.85rem' }}>
+                        No advantages added yet. Click "+ Add Advantage Card" above to add advantages.
+                      </div>
+                    ) : (
+                      (newProduct.advantages || []).map((adv, aIdx) => (
+                        <div key={aIdx} style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: '8px', padding: '14px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#FF9200' }}>
+                              Advantage #{aIdx + 1}
+                            </span>
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (aIdx === 0) return;
+                                  const items = [...(newProduct.advantages || [])];
+                                  const temp = items[aIdx - 1];
+                                  items[aIdx - 1] = items[aIdx];
+                                  items[aIdx] = temp;
+                                  setNewProduct({ ...newProduct, advantages: items });
+                                }}
+                                disabled={aIdx === 0}
+                                className="admin-icon-btn"
+                                title="Move Advantage Up"
+                                style={{ opacity: aIdx === 0 ? 0.3 : 1, padding: '3px' }}
+                              >
+                                <ArrowUp size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const items = [...(newProduct.advantages || [])];
+                                  if (aIdx >= items.length - 1) return;
+                                  const temp = items[aIdx + 1];
+                                  items[aIdx + 1] = items[aIdx];
+                                  items[aIdx] = temp;
+                                  setNewProduct({ ...newProduct, advantages: items });
+                                }}
+                                disabled={aIdx === (newProduct.advantages || []).length - 1}
+                                className="admin-icon-btn"
+                                title="Move Advantage Down"
+                                style={{ opacity: aIdx === (newProduct.advantages || []).length - 1 ? 0.3 : 1, padding: '3px' }}
+                              >
+                                <ArrowDown size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedA = (newProduct.advantages || []).filter((_, idx) => idx !== aIdx);
+                                  setNewProduct({ ...newProduct, advantages: updatedA });
+                                }}
+                                className="admin-icon-btn text-danger"
+                                title="Remove Advantage"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            type="text"
+                            className="form-input-field"
+                            placeholder="Advantage Title (e.g. Reduced Cement Consumption)"
+                            style={{ marginBottom: '8px', fontWeight: 700 }}
+                            value={adv.title || ''}
+                            onChange={(e) => {
+                              const updatedA = [...(newProduct.advantages || [])];
+                              updatedA[aIdx] = { ...updatedA[aIdx], title: e.target.value };
+                              setNewProduct({ ...newProduct, advantages: updatedA });
+                            }}
+                          />
+                          <textarea
+                            rows={2}
+                            className="form-textarea-field"
+                            placeholder="Advantage Description"
+                            value={adv.description || ''}
+                            onChange={(e) => {
+                              const updatedA = [...(newProduct.advantages || [])];
+                              updatedA[aIdx] = { ...updatedA[aIdx], description: e.target.value };
+                              setNewProduct({ ...newProduct, advantages: updatedA });
+                            }}
+                          ></textarea>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
                 <button type="submit" className="btn btn-orange" style={{ flex: 1, justifyContent: 'center', padding: '14px', fontSize: '1rem' }}>
                   <Plus size={18} />
                   <span>Publish Product & Technical Specifications</span>
@@ -4509,7 +5085,7 @@ interface SeoSettings {
                 <button
                   type="button"
                   className="btn"
-                  onClick={() => setIsAddProductOpen(false)}
+                  onClick={handleCloseAddProduct}
                   style={{ background: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', padding: '14px 20px' }}
                 >
                   <span>Cancel</span>
@@ -4694,10 +5270,10 @@ interface SeoSettings {
             }}>
               {[
                 { id: 'overview', label: '1. Overview & Media' },
-                { id: 'highlights', label: `2. Product Highlights (${(editingProduct.highlights || []).length})` },
+                { id: 'highlights', label: '2. Product Highlights' },
                 { id: 'specifications', label: '3. Technical Specs' },
-                { id: 'features', label: `4. Key Features (${(editingProduct.keyFeatures || []).length})` },
-                { id: 'advantages', label: `5. Advantages (${(editingProduct.advantages || []).length})` },
+                { id: 'features', label: '4. Key Features' },
+                { id: 'advantages', label: '5. Advantages' },
               ].map(t => (
                 <button
                   key={t.id}
@@ -4744,7 +5320,9 @@ interface SeoSettings {
                   advantages: (editingProduct.advantages || []).filter(a => a && a.title && a.title.trim()),
                   keyFeatures: (editingProduct.keyFeatures || []).filter(Boolean),
                   specTableColumns: editingProduct.specTableColumns,
-                  specTableRows: editingProduct.specTableRows
+                  specTableRows: editingProduct.specTableRows,
+                  status: editingProduct.status || 'Active',
+                  order: editingProduct.order !== undefined ? Number(editingProduct.order) : 0
                 });
                 setProducts(getStoredProducts());
                 setEditingProduct(null);
@@ -4802,6 +5380,30 @@ interface SeoSettings {
                         placeholder="https://... or upload below"
                         value={resolveImg(editingProduct.image)}
                         onChange={(e) => setEditingProduct({ ...editingProduct, image: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
+                    <div className="form-group-item">
+                      <label className="form-field-label">Status (Visibility)</label>
+                      <select
+                        className="form-input-field"
+                        value={editingProduct.status || 'Active'}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value as any })}
+                      >
+                        <option value="Active">Active (Published on website)</option>
+                        <option value="Inactive">Inactive (Hidden from public website)</option>
+                      </select>
+                    </div>
+                    <div className="form-group-item">
+                      <label className="form-field-label">Display Order</label>
+                      <input
+                        type="number"
+                        className="form-input-field"
+                        placeholder="e.g. 1"
+                        value={editingProduct.order ?? 0}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, order: parseInt(e.target.value) || 0 })}
                       />
                     </div>
                   </div>
@@ -4952,6 +5554,41 @@ interface SeoSettings {
                           <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#FF9200' }}>
                             Card #{hIdx + 1}
                           </span>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (hIdx === 0) return;
+                                const items = [...(editingProduct.highlights || [])];
+                                const temp = items[hIdx - 1];
+                                items[hIdx - 1] = items[hIdx];
+                                items[hIdx] = temp;
+                                setEditingProduct({ ...editingProduct, highlights: items });
+                              }}
+                              disabled={hIdx === 0}
+                              className="admin-icon-btn"
+                              title="Move Card Up"
+                              style={{ opacity: hIdx === 0 ? 0.3 : 1, padding: '3px' }}
+                            >
+                              <ArrowUp size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const items = [...(editingProduct.highlights || [])];
+                                if (hIdx >= items.length - 1) return;
+                                const temp = items[hIdx + 1];
+                                items[hIdx + 1] = items[hIdx];
+                                items[hIdx] = temp;
+                                setEditingProduct({ ...editingProduct, highlights: items });
+                              }}
+                              disabled={hIdx === (editingProduct.highlights || []).length - 1}
+                              className="admin-icon-btn"
+                              title="Move Card Down"
+                              style={{ opacity: hIdx === (editingProduct.highlights || []).length - 1 ? 0.3 : 1, padding: '3px' }}
+                            >
+                              <ArrowDown size={13} />
+                            </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -4963,6 +5600,7 @@ interface SeoSettings {
                           >
                             <Trash2 size={14} />
                           </button>
+                          </div>
                         </div>
                         <input
                           type="text"
@@ -5204,7 +5842,42 @@ interface SeoSettings {
                             setEditingProduct({ ...editingProduct, keyFeatures: updatedF });
                           }}
                         />
-                        <button
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (fIdx === 0) return;
+                              const items = [...(editingProduct.keyFeatures || [])];
+                              const temp = items[fIdx - 1];
+                              items[fIdx - 1] = items[fIdx];
+                              items[fIdx] = temp;
+                              setEditingProduct({ ...editingProduct, keyFeatures: items });
+                            }}
+                            disabled={fIdx === 0}
+                            className="admin-icon-btn"
+                            title="Move Bullet Up"
+                            style={{ opacity: fIdx === 0 ? 0.3 : 1, padding: '3px' }}
+                          >
+                            <ArrowUp size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const items = [...(editingProduct.keyFeatures || [])];
+                              if (fIdx >= items.length - 1) return;
+                              const temp = items[fIdx + 1];
+                              items[fIdx + 1] = items[fIdx];
+                              items[fIdx] = temp;
+                              setEditingProduct({ ...editingProduct, keyFeatures: items });
+                            }}
+                            disabled={fIdx === (editingProduct.keyFeatures || []).length - 1}
+                            className="admin-icon-btn"
+                            title="Move Bullet Down"
+                            style={{ opacity: fIdx === (editingProduct.keyFeatures || []).length - 1 ? 0.3 : 1, padding: '3px' }}
+                          >
+                            <ArrowDown size={13} />
+                          </button>
+                          <button
                           type="button"
                           onClick={() => {
                             const updatedF = (editingProduct.keyFeatures || []).filter((_, idx) => idx !== fIdx);
@@ -5215,6 +5888,7 @@ interface SeoSettings {
                         >
                           <Trash2 size={15} />
                         </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -5257,6 +5931,41 @@ interface SeoSettings {
                           <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#FF9200' }}>
                             Advantage #{aIdx + 1}
                           </span>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (aIdx === 0) return;
+                                const items = [...(editingProduct.advantages || [])];
+                                const temp = items[aIdx - 1];
+                                items[aIdx - 1] = items[aIdx];
+                                items[aIdx] = temp;
+                                setEditingProduct({ ...editingProduct, advantages: items });
+                              }}
+                              disabled={aIdx === 0}
+                              className="admin-icon-btn"
+                              title="Move Advantage Up"
+                              style={{ opacity: aIdx === 0 ? 0.3 : 1, padding: '3px' }}
+                            >
+                              <ArrowUp size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const items = [...(editingProduct.advantages || [])];
+                                if (aIdx >= items.length - 1) return;
+                                const temp = items[aIdx + 1];
+                                items[aIdx + 1] = items[aIdx];
+                                items[aIdx] = temp;
+                                setEditingProduct({ ...editingProduct, advantages: items });
+                              }}
+                              disabled={aIdx === (editingProduct.advantages || []).length - 1}
+                              className="admin-icon-btn"
+                              title="Move Advantage Down"
+                              style={{ opacity: aIdx === (editingProduct.advantages || []).length - 1 ? 0.3 : 1, padding: '3px' }}
+                            >
+                              <ArrowDown size={13} />
+                            </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -5268,6 +5977,7 @@ interface SeoSettings {
                           >
                             <Trash2 size={14} />
                           </button>
+                          </div>
                         </div>
                         <input
                           type="text"
@@ -5864,15 +6574,14 @@ interface SeoSettings {
               </button>
             </div>
 
-            <form className="modal-body-content" onSubmit={(e) => {
+            <form className="modal-body-content" onSubmit={async (e) => {
               e.preventDefault();
-              const newFaqItem: FAQItem = {
-                id: `FAQ-0${faqs.length + 1}`,
+              await addFaq({
                 question: newFAQ.question,
                 answer: newFAQ.answer,
                 category: newFAQ.category
-              };
-              setFaqs([newFaqItem, ...faqs]);
+              });
+              setFaqs(getStoredFaqs());
               setIsAddFAQOpen(false);
               setNewFAQ({ question: '', answer: '', category: 'Technical Specifications' });
               triggerToast('FAQ created successfully!');
@@ -5940,15 +6649,13 @@ interface SeoSettings {
               </button>
             </div>
 
-            <form className="modal-body-content" onSubmit={(e) => {
+            <form className="modal-body-content" onSubmit={async (e) => {
               e.preventDefault();
               if (!newLocation.clientName.trim() || !newLocation.locationCity.trim()) {
-                alert('Please enter Client Name and Delivery City');
+                alert('Please enter at least client name and location city');
                 return;
               }
-
-              const newLocItem: MachineDeliveryLocationItem = {
-                id: `DEL-${String(locations.length + 1).padStart(2, '0')}`,
+              await addDeliveryLocation({
                 clientName: newLocation.clientName.trim(),
                 locationCity: newLocation.locationCity.trim(),
                 state: newLocation.state.trim() || 'India',
@@ -5958,10 +6665,8 @@ interface SeoSettings {
                 transportVehicle: newLocation.transportVehicle.trim() || 'Heavy Haulage Carrier',
                 contactPhone: newLocation.contactPhone.trim() || '+91 98765 43210',
                 notes: newLocation.notes.trim()
-              };
-
-              const updated = [newLocItem, ...locations];
-              saveDeliveryLocations(updated);
+              });
+              setLocations(getStoredDeliveryLocations());
               setIsAddLocationOpen(false);
               setNewLocation({
                 clientName: '',
@@ -5974,7 +6679,7 @@ interface SeoSettings {
                 contactPhone: '+91 ',
                 notes: ''
               });
-              triggerToast(`Delivery to "${newLocItem.clientName}" recorded successfully!`);
+              triggerToast(`Delivery to "${newLocation.clientName}" recorded successfully!`);
             }}>
               {/* Row 1: Client Name & Machine Model */}
               <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>

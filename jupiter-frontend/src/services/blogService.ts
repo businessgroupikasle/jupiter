@@ -19,10 +19,35 @@ export const INITIAL_BLOGS: BlogItem[] = [];
 let _cachedBlogs: BlogItem[] = [];
 
 // Fetch blogs live from backend database
+
+export const fetchBlogById = async (id: string): Promise<BlogItem | null> => {
+  try {
+    const res = await apiClient.get(`/blogs/${encodeURIComponent(id)}`);
+    const b = res.data?.data || res.data;
+    if (b) {
+      return {
+        id: b.id,
+        title: b.title,
+        category: b.category,
+        readTime: b.readTime || '5 min read',
+        author: b.author?.name || b.authorName || 'Jupiter Technical Team',
+        date: b.date || new Date(b.createdAt || Date.now()).toLocaleDateString('en-GB'),
+        views: b.views || 0,
+        image: b.image || IMAGES.heroBanner || '/images/concrete-blocks.jpg',
+        excerpt: b.excerpt || '',
+        content: b.content || '',
+      };
+    }
+  } catch (err) {
+    console.warn('Could not fetch single blog from API:', err);
+  }
+  return _cachedBlogs.find(b => b.id === id) || null;
+};
+
 export const fetchBlogsFromDb = async (): Promise<BlogItem[]> => {
   try {
     const res = await apiClient.get('/blogs');
-    if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+    if (res.data?.success && Array.isArray(res.data.data)) {
       const mapped: BlogItem[] = res.data.data.map((b: any) => ({
         id: b.id,
         title: b.title,

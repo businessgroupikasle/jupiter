@@ -222,7 +222,7 @@ let _cachedVideos: VideoItem[] = [];
 export const fetchVideosFromDb = async (): Promise<VideoItem[]> => {
   try {
     const res = await apiClient.get('/videos');
-    if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+    if (res.data?.success && Array.isArray(res.data.data)) {
       const dbVideos: VideoItem[] = res.data.data.map((item: any) => ({
         id: item.id,
         title: item.title,

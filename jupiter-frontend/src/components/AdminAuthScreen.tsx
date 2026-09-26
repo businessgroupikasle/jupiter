@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, ArrowLeft, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, AlertCircle, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { loginAdmin, AdminUser } from '../services/authService';
 import { IMAGES } from '../assets/images/images';
@@ -16,11 +16,21 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
 
   // General UI state
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('reset') === 'success') {
+        return 'Password reset successful! Please sign in with your new credentials.';
+      }
+    }
+    return '';
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setSuccessMsg('');
 
     if (!loginEmail.trim() || !loginPassword) {
       setErrorMsg('Please enter both email and password.');
@@ -205,6 +215,27 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
         </div>
 
 
+        {/* Success Alert */}
+        {successMsg && (
+          <div style={{
+            background: '#ECFDF5',
+            border: '1px solid #A7F3D0',
+            color: '#065F46',
+            padding: '12px 14px',
+            borderRadius: '12px',
+            marginBottom: '20px',
+            fontSize: '0.84rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontWeight: 500,
+            lineHeight: 1.35
+          }}>
+            <CheckCircle2 size={17} style={{ flexShrink: 0, color: '#059669' }} />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
         {/* Error / Feedback Alert */}
         {errorMsg && (
           <div style={{
@@ -270,15 +301,36 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
 
           {/* Password */}
           <div style={{ marginBottom: '22px' }}>
-            <label style={{
-              display: 'block',
-              color: '#334155',
-              fontSize: '0.86rem',
-              fontWeight: 600,
-              marginBottom: '7px'
-            }}>
-              Password
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
+              <label style={{
+                color: '#334155',
+                fontSize: '0.86rem',
+                fontWeight: 600,
+                margin: 0
+              }}>
+                Password
+              </label>
+              <Link
+                to="/admin/forgot-password"
+                style={{
+                  color: '#FF8C00',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  transition: 'color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#E67E00';
+                  e.currentTarget.style.textDecoration = 'underline';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#FF8C00';
+                  e.currentTarget.style.textDecoration = 'none';
+                }}
+              >
+                Forgot Password?
+              </Link>
+            </div>
             <div style={{ position: 'relative' }}>
               <input
                 type={showLoginPassword ? 'text' : 'password'}

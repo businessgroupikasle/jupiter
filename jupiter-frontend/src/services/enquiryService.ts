@@ -6,6 +6,7 @@ export interface EnquiryItem {
   phone: string;
   email?: string;
   product: string;
+  productId?: string;
   date: string;
   status: 'New' | 'Contacted' | 'Closed' | 'In Progress';
   message?: string;
@@ -67,8 +68,10 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
       if (json.success && Array.isArray(json.data)) {
         const readIds = getLocalReadIds();
         const mapped: EnquiryItem[] = json.data.map((item: any) => {
+          const productFromObj = (typeof item.product === 'object' && item.product !== null) ? item.product.name : (typeof item.product === 'string' ? item.product : '');
           const productMatch = item.message?.match(/(?:Quotation for|Product Interest|Machinery Requirement):\s*([^|\n]+)/i);
-          const product = productMatch ? productMatch[1].trim() : (item.message?.split('|')[0]?.trim() || 'Machinery Quotation');
+          const product = productFromObj || (productMatch ? productMatch[1].trim() : (item.message?.split('|')[0]?.trim() || 'Machinery Quotation'));
+          const productId = item.productId || (typeof item.product === 'object' && item.product !== null ? item.product.id : undefined);
           const dt = item.createdAt 
             ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) 
             : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -81,6 +84,7 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
             phone: item.phone,
             email: item.email,
             product,
+            productId,
             message: item.message,
             date: dt,
             status: normalizeEnquiryStatus(item.status),

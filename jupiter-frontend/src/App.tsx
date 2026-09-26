@@ -11,6 +11,8 @@ import { ContactPage } from './pages/ContactPage';
 import { BlogPage } from './pages/BlogPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { MachineCategoryPage } from './pages/MachineCategoryPage';
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { TermsConditionsPage } from './pages/TermsConditionsPage';
@@ -59,6 +61,8 @@ const AppContent: React.FC = () => {
     return (
       <ErrorBoundary fallbackTitle="Admin Dashboard Encountered an Error">
         <Routes>
+          <Route path="/admin/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/admin/reset-password" element={<ResetPasswordPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/*" element={<AdminDashboard />} />
         </Routes>
@@ -135,6 +139,7 @@ const AppContent: React.FC = () => {
         <Route path="/gallery" element={<ProjectsPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/blog" element={<BlogPage />} />
+        <Route path="/blog/:id" element={<BlogPage />} />
         <Route path="/blogs" element={<BlogPage />} />
         <Route path="/contact" element={<ContactPage />} />
 
