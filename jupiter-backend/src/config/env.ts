@@ -8,6 +8,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: z.string().optional().default('postgresql://postgres:postgres@localhost:5432/jupiter_db'),
   FRONTEND_URL: z.string().default('http://localhost:3026'),
+  CORS_ORIGINS: z.string().optional().default(''),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

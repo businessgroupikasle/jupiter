@@ -29,20 +29,36 @@ export const createApp = (): Application => {
     crossOriginResourcePolicy: { policy: 'cross-origin' }
   }));
 
-  // CORS Middleware - enables CORS only for the local frontend URL http://localhost:3026
-  const allowedOrigins = [
+  // CORS Middleware — configurable via CORS_ORIGINS env var
+  // Development: allows localhost and local-network origins
+  // Production: set CORS_ORIGINS="https://jupitergroups.in,https://www.jupitergroups.in"
+  const allowedOrigins: string[] = [
     env.FRONTEND_URL,
-    'http://localhost:3026',
-    'http://127.0.0.1:3026',
+    // Parse comma-separated CORS_ORIGINS from environment
+    ...(env.CORS_ORIGINS
+      ? env.CORS_ORIGINS.split(',').map((o: string) => o.trim()).filter(Boolean)
+      : []),
   ];
+
+  // Always include common local dev origins in development mode
+  if (env.NODE_ENV === 'development') {
+    const devOrigins = ['http://localhost:3026', 'http://127.0.0.1:3026'];
+    for (const o of devOrigins) {
+      if (!allowedOrigins.includes(o)) allowedOrigins.push(o);
+    }
+  }
 
   app.use(
     cors({
       origin: (origin, callback) => {
         // Allow requests with no origin (mobile apps, curl, Postman, server-side calls)
         if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        // In development, also allow local-network origins
         if (
-          allowedOrigins.indexOf(origin) !== -1 ||
+          env.NODE_ENV === 'development' &&
           /^http:\/\/(localhost|127\.0\.0\.1|172\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)
         ) {
           return callback(null, true);

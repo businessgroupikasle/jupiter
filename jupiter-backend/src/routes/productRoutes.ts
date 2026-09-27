@@ -10,21 +10,25 @@ import {
   deleteProduct,
   clearAllProducts,
 } from '../controllers/productController';
+import { requireAuth } from '../middleware/authMiddleware';
 
 const router = Router();
 
-// Product CRUD routes
+// Public read routes
 router.get('/products', getProducts);
 router.get('/products/:idOrSlug', getProductByIdOrSlug);
 router.get('/products/:id/enquiries', getProductEnquiries);
-router.post('/products', createProduct);
-router.put('/products/:id', updateProduct);
-router.patch('/products/:id/toggle-status', toggleProductStatus);
-router.post('/products/:id/toggle-status', toggleProductStatus);
-router.patch('/products/:id/status', toggleProductStatus);
-router.post('/products/:id/reorder', reorderProduct);
-router.patch('/products/:id/reorder', reorderProduct);
-router.delete('/products', clearAllProducts);
-router.delete('/products/:id', deleteProduct);
+
+// Admin-protected write routes
+router.post('/products', requireAuth, createProduct);
+router.put('/products/:id', requireAuth, updateProduct);
+router.patch('/products/:id/toggle-status', requireAuth, toggleProductStatus);
+router.post('/products/:id/toggle-status', requireAuth, toggleProductStatus);
+router.patch('/products/:id/status', requireAuth, toggleProductStatus);
+router.post('/products/:id/reorder', requireAuth, reorderProduct);
+router.patch('/products/:id/reorder', requireAuth, reorderProduct);
+router.delete('/products', requireAuth, clearAllProducts);
+router.delete('/products/:id', requireAuth, deleteProduct);
 
 export default router;
+
