@@ -6,16 +6,23 @@ import { IMAGES } from '../assets/images/images';
 
 interface AdminAuthScreenProps {
   onLoginSuccess: (user: AdminUser) => void;
+  initialError?: string | null;
 }
 
-export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess }) => {
+export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess, initialError }) => {
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // General UI state
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState(initialError || '');
+
+  React.useEffect(() => {
+    if (initialError) {
+      setErrorMsg(initialError);
+    }
+  }, [initialError]);
   const [successMsg, setSuccessMsg] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);

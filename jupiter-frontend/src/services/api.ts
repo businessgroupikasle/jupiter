@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { getAdminToken, setAdminToken, clearAdminToken } from './authStorage';
+import { getValidAdminToken, getAdminToken, setAdminToken, clearAdminToken, isValidAdminToken } from './authStorage';
 
-export { getAdminToken, setAdminToken, clearAdminToken };
+export { getValidAdminToken, getAdminToken, setAdminToken, clearAdminToken, isValidAdminToken };
 
 const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_API_URL) {
@@ -27,22 +27,56 @@ export const apiClient = axios.create({
   timeout: 15000,
 });
 
-// Request interceptor: Attach Admin Authorization header and admin flag
+// Request interceptor: Attach valid Authorization header and cookies
+// Strictly avoids sending empty, expired, or malformed Authorization headers
 apiClient.interceptors.request.use((config) => {
-  const token = getAdminToken();
+  const token = getValidAdminToken();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
     config.headers.set('x-admin-request', 'true');
+  } else {
+    // Explicitly delete to prevent sending empty/undefined/malformed values
+    config.headers.delete('Authorization');
+    config.headers.delete('x-admin-request');
   }
   return config;
 });
 
-// Helper to format backend error messages into user-friendly text
+// Response interceptor: Handle 401/403 session expiration and trigger login redirect
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    if (status === 401 || status === 403) {
+      clearAdminToken();
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem('jupiter_admin_session_v1');
+        window.dispatchEvent(
+          new CustomEvent('jupiter_session_expired', {
+            detail: {
+              status,
+              message: 'Session expired / login again',
+            },
+          })
+        );
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Helper to format backend error messages into clear, actionable user text
 export const extractApiErrorMessage = (error: any, fallbackMessage: string = 'An error occurred'): string => {
   if (!error) return fallbackMessage;
 
+  const status = error.response?.status;
+  if (status === 401 || status === 403) {
+    return 'Session expired / login again';
+  }
+
   const data = error.response?.data;
   if (data) {
+    // 1. Array of field errors: [{ field: 'name', message: 'Name must be...' }]
     if (Array.isArray(data.errors) && data.errors.length > 0) {
       const fieldMessages = data.errors
         .map((e: any) => e.message || `${e.field}: invalid value`)
@@ -51,8 +85,17 @@ export const extractApiErrorMessage = (error: any, fallbackMessage: string = 'An
         return fieldMessages.join('. ');
       }
     }
+    // 2. Direct message string
     if (data.message && typeof data.message === 'string') {
       return data.message;
+    }
+    // 3. Error string property
+    if (data.error && typeof data.error === 'string') {
+      return data.error;
+    }
+    // 4. Detail string
+    if (data.detail && typeof data.detail === 'string') {
+      return data.detail;
     }
   }
 

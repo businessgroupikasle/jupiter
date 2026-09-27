@@ -361,6 +361,17 @@ export type ServiceLocationItem = MachineDeliveryLocationItem;
 
 export const AdminDashboard: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => getCurrentUser());
+  const [sessionExpiredMsg, setSessionExpiredMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleSessionExpired = (e: any) => {
+      const msg = e.detail?.message || 'Session expired / login again';
+      setCurrentUser(null);
+      setSessionExpiredMsg(msg);
+    };
+    window.addEventListener('jupiter_session_expired', handleSessionExpired);
+    return () => window.removeEventListener('jupiter_session_expired', handleSessionExpired);
+  }, []);
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -1245,7 +1256,15 @@ interface SeoSettings {
   ];
 
   if (!currentUser) {
-    return <AdminAuthScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
+    return (
+      <AdminAuthScreen
+        onLoginSuccess={(user) => {
+          setSessionExpiredMsg(null);
+          setCurrentUser(user);
+        }}
+        initialError={sessionExpiredMsg}
+      />
+    );
   }
 
   return (

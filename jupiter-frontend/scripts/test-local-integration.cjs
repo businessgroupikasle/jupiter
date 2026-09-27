@@ -166,8 +166,8 @@ async function runLocalIntegrationTests() {
       `Backend Error: ${badEnqRes.body?.message}`
     );
 
-    // Bad upload
-    const badUploadRes = await request(`${BACKEND_API}/upload`, 'POST', {});
+    // Bad upload with auth headers
+    const badUploadRes = await request(`${BACKEND_API}/upload`, 'POST', {}, authHeaders);
     assert(
       'Image Upload Error Response (HTTP 400)',
       badUploadRes.status === 400 && !!badUploadRes.body?.message,

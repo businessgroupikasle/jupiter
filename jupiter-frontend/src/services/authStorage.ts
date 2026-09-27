@@ -4,7 +4,7 @@
  */
 
 const TOKEN_KEY = 'jupiter_admin_token';
-const DEFAULT_ADMIN_USER_ID = 'cmudubsyi0010uvm88tljjc1d'; // Backend admin user ID
+const COOKIE_NAMES = ['token', 'admin_token', 'jupiter_admin_token'];
 
 export const getCookieValue = (name: string): string | null => {
   if (typeof document === 'undefined' || !document.cookie) return null;
@@ -22,13 +22,76 @@ export const removeCookieValue = (name: string): void => {
   document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
 };
 
+/**
+ * Validates that an authentication token is non-empty, well-formed, and not expired.
+ * Prevents sending empty, expired, or malformed Authorization headers.
+ */
+export const isValidAdminToken = (token: unknown): token is string => {
+  if (!token || typeof token !== 'string') return false;
+  const trimmed = token.trim();
+  if (
+    !trimmed ||
+    trimmed === 'null' ||
+    trimmed === 'undefined' ||
+    trimmed === '[object Object]'
+  ) {
+    return false;
+  }
+
+  // 1. Check jupiter-token format: "jupiter-token-<userId>-<timestamp>"
+  const jupiterMatch = trimmed.match(/^jupiter-token-([a-zA-Z0-9_-]+)-(\d+)$/);
+  if (jupiterMatch) {
+    const timestamp = parseInt(jupiterMatch[2], 10);
+    // Token valid if within reasonable lifetime (30 days)
+    if (!isNaN(timestamp) && Date.now() - timestamp > 30 * 24 * 60 * 60 * 1000) {
+      return false; // Expired
+    }
+    return true;
+  }
+
+  // 2. Check standard JWT format: "<header>.<payload>.<signature>"
+  if (trimmed.includes('.')) {
+    const parts = trimmed.split('.');
+    if (parts.length === 3) {
+      try {
+        const payloadBase64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payloadJson = JSON.parse(
+          typeof window !== 'undefined' && window.atob
+            ? window.atob(payloadBase64)
+            : Buffer.from(payloadBase64, 'base64').toString('utf8')
+        );
+        if (payloadJson.exp && typeof payloadJson.exp === 'number') {
+          const expMs = payloadJson.exp < 1e11 ? payloadJson.exp * 1000 : payloadJson.exp;
+          if (expMs < Date.now()) {
+            return false; // Expired
+          }
+        }
+        return true;
+      } catch {
+        return false; // Malformed payload
+      }
+    }
+  }
+
+  // 3. User ID or CUID token format (alphanumeric, at least 10 chars)
+  if (/^[a-zA-Z0-9_-]{10,}$/.test(trimmed)) {
+    return true;
+  }
+
+  return false;
+};
+
 export const setAdminToken = (token: string): void => {
-  if (!token) return;
+  if (!token || !isValidAdminToken(token)) return;
+  const clean = token.trim();
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(TOKEN_KEY, token);
+      window.localStorage.setItem(TOKEN_KEY, clean);
     }
-    setCookieValue(TOKEN_KEY, token);
+    // Set all common cookie names that backend middleware checks
+    for (const name of COOKIE_NAMES) {
+      setCookieValue(name, clean);
+    }
   } catch (err) {
     console.warn('Failed to persist admin token:', err);
   }
@@ -41,40 +104,44 @@ export const clearAdminToken = (): void => {
       window.localStorage.removeItem('adminToken');
       window.localStorage.removeItem('token');
     }
-    removeCookieValue(TOKEN_KEY);
+    for (const name of COOKIE_NAMES) {
+      removeCookieValue(name);
+    }
   } catch (err) {
     console.warn('Failed to clear admin token:', err);
   }
 };
 
-export const getAdminToken = (): string => {
+/**
+ * Retrieves a verified, valid admin token from localStorage, cookies, or active session.
+ * Returns null if no valid token exists. Does not return malformed or expired tokens.
+ */
+export const getValidAdminToken = (): string | null => {
   try {
     // 1. Check localStorage
     if (typeof window !== 'undefined' && window.localStorage) {
-      const stored = window.localStorage.getItem(TOKEN_KEY) ||
+      const stored =
+        window.localStorage.getItem(TOKEN_KEY) ||
         window.localStorage.getItem('adminToken') ||
         window.localStorage.getItem('token');
-      if (stored && stored.trim()) return stored.trim();
+      if (isValidAdminToken(stored)) return stored.trim();
     }
 
-    // 2. Check document cookie
-    const cookieToken = getCookieValue(TOKEN_KEY);
-    if (cookieToken && cookieToken.trim()) return cookieToken.trim();
+    // 2. Check cookies
+    for (const name of COOKIE_NAMES) {
+      const cookieVal = getCookieValue(name);
+      if (isValidAdminToken(cookieVal)) return cookieVal.trim();
+    }
 
-    // 3. Check current user in session
+    // 3. Check current user in session storage
     if (typeof window !== 'undefined' && window.localStorage) {
       const sessionData = window.localStorage.getItem('jupiter_admin_session_v1');
       if (sessionData) {
         try {
           const parsed = JSON.parse(sessionData);
-          if (parsed?.token && typeof parsed.token === 'string') {
+          if (isValidAdminToken(parsed?.token)) {
             setAdminToken(parsed.token);
-            return parsed.token;
-          }
-          if (parsed?.id && typeof parsed.id === 'string' && parsed.id.startsWith('cmu')) {
-            const token = `jupiter-token-${parsed.id}-${Date.now()}`;
-            setAdminToken(token);
-            return token;
+            return parsed.token.trim();
           }
         } catch {
           // Ignore JSON parse errors
@@ -82,11 +149,13 @@ export const getAdminToken = (): string => {
       }
     }
 
-    // 4. Default active admin fallback token recognized by backend authMiddleware
-    const fallbackToken = `jupiter-token-${DEFAULT_ADMIN_USER_ID}-${Date.now()}`;
-    setAdminToken(fallbackToken);
-    return fallbackToken;
+    return null;
   } catch {
-    return `jupiter-token-${DEFAULT_ADMIN_USER_ID}-${Date.now()}`;
+    return null;
   }
+};
+
+// Backwards-compatible export
+export const getAdminToken = (): string => {
+  return getValidAdminToken() || '';
 };
