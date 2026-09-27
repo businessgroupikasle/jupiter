@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { apiClient, extractApiErrorMessage } from './api';
 
 export interface MachineSpecItem {
   label: string;
@@ -206,9 +206,14 @@ const mapBackendProduct = (p: any): ProductItem => {
 // Async API functions (primary data access)
 // ─────────────────────────────────────────────────────────
 
-export const fetchProducts = async (category?: string, search?: string): Promise<ProductItem[]> => {
+export const fetchProducts = async (category?: string, search?: string, isAdmin: boolean = false): Promise<ProductItem[]> => {
   try {
     const params: Record<string, string> = {};
+    if (isAdmin || (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'))) {
+      params.admin = 'true';
+      params.all = 'true';
+      params.includeInactive = 'true';
+    }
     if (category) params.category = category;
     if (search) params.search = search;
     const response = await apiClient.get('/products', { params, timeout: 10000 });
@@ -268,34 +273,41 @@ export const addProduct = async (product: Partial<ProductItem>): Promise<Product
   };
 
   // Directly save to backend database
-  const res = await apiClient.post('/products', payload, { timeout: 15000 });
-  const backendItem = res.data?.data;
-  const created: ProductItem = backendItem ? mapBackendProduct(backendItem) : {
-    id: `PROD-${Date.now()}`,
-    name: payload.name,
-    category: payload.category,
-    categorySlug: CATEGORY_NAME_TO_SLUG_MAP[categoryName] || 'fly-ash-brick-machine',
-    brandTag: product.brandTag || categoryName,
-    capacity: payload.capacity,
-    power: payload.power,
-    brickSize: product.brickSize || '',
-    image: payload.image,
-    galleryImages: product.galleryImages || [],
-    status: product.status || 'Active',
-    order: specsPayload.order,
-    description: payload.description,
-    featureBadges: specsPayload.featureBadges,
-    keyFeatures: specsPayload.keyFeatures,
-    specs: specsPayload,
-    specTableColumns: specsPayload.specTableColumns,
-    specTableRows: specsPayload.specTableRows,
-    highlights: specsPayload.highlights,
-    advantages: specsPayload.advantages
-  };
+  try {
+    const res = await apiClient.post('/products', payload, { timeout: 15000 });
+    const backendItem = res.data?.data;
+    const created: ProductItem = backendItem ? mapBackendProduct(backendItem) : {
+      id: `PROD-${Date.now()}`,
+      name: payload.name,
+      category: payload.category,
+      categorySlug: CATEGORY_NAME_TO_SLUG_MAP[categoryName] || 'fly-ash-brick-machine',
+      brandTag: product.brandTag || categoryName,
+      capacity: payload.capacity,
+      power: payload.power,
+      brickSize: product.brickSize || '',
+      image: payload.image,
+      galleryImages: product.galleryImages || [],
+      status: product.status || 'Active',
+      order: specsPayload.order,
+      description: payload.description,
+      featureBadges: specsPayload.featureBadges,
+      keyFeatures: specsPayload.keyFeatures,
+      specs: specsPayload,
+      specTableColumns: specsPayload.specTableColumns,
+      specTableRows: specsPayload.specTableRows,
+      highlights: specsPayload.highlights,
+      advantages: specsPayload.advantages
+    };
 
-  _cachedProducts = [created, ..._cachedProducts.filter(p => p.id !== created.id)];
-  window.dispatchEvent(new Event('jupiter_products_updated'));
-  return created;
+    _cachedProducts = [created, ..._cachedProducts.filter(p => p.id !== created.id)];
+    window.dispatchEvent(new Event('jupiter_products_updated'));
+    return created;
+  } catch (err: any) {
+    const message = extractApiErrorMessage(err, 'Failed to save product to backend database');
+    const enhancedErr = new Error(message);
+    (enhancedErr as any).response = err.response;
+    throw enhancedErr;
+  }
 };
 
 export const updateProduct = async (id: string, updates: Partial<ProductItem>): Promise<ProductItem | null> => {
@@ -320,17 +332,24 @@ export const updateProduct = async (id: string, updates: Partial<ProductItem>): 
   };
 
   // Directly update in backend database
-  const res = await apiClient.put(`/products/${encodeURIComponent(id)}`, payload, { timeout: 15000 });
-  const backendItem = res.data?.data;
-  const updated: ProductItem = backendItem ? mapBackendProduct(backendItem) : {
-    ...(_cachedProducts.find(p => p.id === id) || {}),
-    ...updates,
-    id
-  } as ProductItem;
+  try {
+    const res = await apiClient.put(`/products/${encodeURIComponent(id)}`, payload, { timeout: 15000 });
+    const backendItem = res.data?.data;
+    const updated: ProductItem = backendItem ? mapBackendProduct(backendItem) : {
+      ...(_cachedProducts.find(p => p.id === id) || {}),
+      ...updates,
+      id
+    } as ProductItem;
 
-  _cachedProducts = _cachedProducts.map(p => (p.id === id ? { ...p, ...updated } : p));
-  window.dispatchEvent(new Event('jupiter_products_updated'));
-  return updated;
+    _cachedProducts = _cachedProducts.map(p => (p.id === id ? { ...p, ...updated } : p));
+    window.dispatchEvent(new Event('jupiter_products_updated'));
+    return updated;
+  } catch (err: any) {
+    const message = extractApiErrorMessage(err, 'Failed to update product in backend database');
+    const enhancedErr = new Error(message);
+    (enhancedErr as any).response = err.response;
+    throw enhancedErr;
+  }
 };
 
 export const deleteProduct = async (id: string): Promise<boolean> => {

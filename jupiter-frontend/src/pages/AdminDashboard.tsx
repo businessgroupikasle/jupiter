@@ -1,4 +1,4 @@
-import { apiClient } from '../services/api';
+import { apiClient, extractApiErrorMessage } from '../services/api';
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
@@ -41,6 +41,8 @@ import {
   UserPlus,
   ShieldCheck,
   AlertCircle,
+  AlertTriangle,
+  Loader2,
   Camera,
   Wrench,
   Menu
@@ -154,14 +156,39 @@ const ImageUploadField: React.FC<{
   value: string;
   onChange: (value: string) => void;
   helperText?: string;
-}> = ({ label, value, onChange, helperText }) => {
+  onError?: (err: string) => void;
+}> = ({ label, value, onChange, helperText, onError }) => {
   const [dragActive, setDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const safeValue = resolveImg(value);
 
+  const doUpload = (dataPayload: string, fileName: string) => {
+    setIsUploading(true);
+    setUploadError(null);
+    apiClient.post('/upload', { image: dataPayload, filename: fileName })
+      .then(res => {
+        if (res.data?.url) {
+          onChange(res.data.url);
+          setUploadError(null);
+        }
+      })
+      .catch((err) => {
+        const msg = extractApiErrorMessage(err, 'Image upload failed. Server rejected the image.');
+        setUploadError(msg);
+        if (onError) onError(msg);
+      })
+      .finally(() => {
+        setIsUploading(false);
+      });
+  };
+
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert('Please upload a valid image file (PNG, JPG, WEBP, etc.)');
+      const err = 'Please upload a valid image file (PNG, JPG, WEBP, etc.)';
+      setUploadError(err);
+      if (onError) onError(err);
       return;
     }
     const reader = new FileReader();
@@ -191,22 +218,10 @@ const ImageUploadField: React.FC<{
           ctx.drawImage(img, 0, 0, width, height);
           const compressed = canvas.toDataURL('image/jpeg', 0.82);
           onChange(compressed);
-          apiClient.post('/upload', { image: compressed, filename: file.name })
-            .then(res => {
-              if (res.data?.url) {
-                onChange(res.data.url);
-              }
-            })
-            .catch(() => {});
+          doUpload(compressed, file.name);
         } else {
           onChange(rawData);
-          apiClient.post('/upload', { image: rawData, filename: file.name })
-            .then(res => {
-              if (res.data?.url) {
-                onChange(res.data.url);
-              }
-            })
-            .catch(() => {});
+          doUpload(rawData, file.name);
         }
       };
       img.onerror = () => {
@@ -294,6 +309,18 @@ const ImageUploadField: React.FC<{
           }
         }}
       />
+      {uploadError && (
+        <div style={{ marginTop: '6px', fontSize: '0.8rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <AlertCircle size={14} />
+          <span>{uploadError}</span>
+        </div>
+      )}
+      {isUploading && (
+        <div style={{ marginTop: '6px', fontSize: '0.8rem', color: '#FF9200', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <Loader2 size={14} className="spin" />
+          <span>Uploading image to server...</span>
+        </div>
+      )}
     </div>
   );
 };
@@ -531,6 +558,10 @@ interface SeoSettings {
   // Product Modals Sub-Tab States
   const [addProductTab, setAddProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
   const [editProductTab, setEditProductTab] = useState<'overview' | 'highlights' | 'specifications' | 'features' | 'advantages'>('overview');
+  const [addProductError, setAddProductError] = useState<string | null>(null);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [editProductError, setEditProductError] = useState<string | null>(null);
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
 
 
@@ -597,6 +628,8 @@ interface SeoSettings {
   const handleCloseAddProduct = () => {
     setIsAddProductOpen(false);
     setAddProductTab('overview');
+    setAddProductError(null);
+    setIsSavingProduct(false);
     const targetCat = adminProductCategory !== 'All' ? adminProductCategory : 'Fly Ash Brick Machine';
     setNewProduct(createEmptyProductForm(targetCat, products.length + 1));
   };
@@ -607,6 +640,8 @@ interface SeoSettings {
   // Safe handler to open Edit Product modal with existing product data (no hardcoded fallback samples)
   const handleOpenEditProduct = async (prod: ProductItem) => {
     setEditProductTab('overview');
+    setEditProductError(null);
+    setIsUpdatingProduct(false);
     setEditingProduct({
       ...prod,
       brickSize: prod.brickSize || '',
@@ -4282,33 +4317,60 @@ interface SeoSettings {
 
             <form className="modal-body-content" onSubmit={async (e) => {
               e.preventDefault();
+              setAddProductError(null);
               if (!newProduct.name.trim()) {
-                alert('Please enter a machine model title');
+                setAddProductError('Please enter a machine model title');
                 return;
               }
-              const newProdItem = await addProduct({
-                name: newProduct.name,
-                brandTag: newProduct.brandTag || '',
-                category: newProduct.category,
-                capacity: newProduct.capacity || '',
-                power: newProduct.power || '',
-                brickSize: newProduct.brickSize || '',
-                image: resolveImg(newProduct.image) || '',
-                galleryImages: (newProduct.galleryImages || []).filter(img => Boolean(img && img.trim())),
-                description: newProduct.description || '',
-                featureBadges: (newProduct.featureBadges || []).filter(b => Boolean(b && b.trim())),
-                highlights: (newProduct.highlights || []).filter(h => h && h.title && h.title.trim()),
-                advantages: (newProduct.advantages || []).filter(a => a && a.title && a.title.trim()),
-                keyFeatures: (newProduct.keyFeatures || []).filter(Boolean),
-                specTableColumns: newProduct.specColumns,
-                specTableRows: (newProduct.specRows || []).filter(r => Object.values(r || {}).some(v => v && v.trim())),
-                status: newProduct.status || 'Active',
-                order: newProduct.order !== undefined ? Number(newProduct.order) : products.length + 1
-              });
-              setProducts(getStoredProducts());
-              handleCloseAddProduct();
-              triggerToast(`Product "${newProdItem?.name || newProduct.name}" published successfully!`);
+              setIsSavingProduct(true);
+              try {
+                const newProdItem = await addProduct({
+                  name: newProduct.name.trim(),
+                  brandTag: newProduct.brandTag || '',
+                  category: newProduct.category,
+                  capacity: newProduct.capacity || '',
+                  power: newProduct.power || '',
+                  brickSize: newProduct.brickSize || '',
+                  image: resolveImg(newProduct.image) || '',
+                  galleryImages: (newProduct.galleryImages || []).filter(img => Boolean(img && img.trim())),
+                  description: newProduct.description || '',
+                  featureBadges: (newProduct.featureBadges || []).filter(b => Boolean(b && b.trim())),
+                  highlights: (newProduct.highlights || []).filter(h => h && h.title && h.title.trim()),
+                  advantages: (newProduct.advantages || []).filter(a => a && a.title && a.title.trim()),
+                  keyFeatures: (newProduct.keyFeatures || []).filter(Boolean),
+                  specTableColumns: newProduct.specColumns,
+                  specTableRows: (newProduct.specRows || []).filter(r => Object.values(r || {}).some(v => v && v.trim())),
+                  status: newProduct.status || 'Active',
+                  order: newProduct.order !== undefined ? Number(newProduct.order) : products.length + 1
+                });
+                await fetchProducts();
+                setProducts(getStoredProducts());
+                handleCloseAddProduct();
+                triggerToast(`Product "${newProdItem?.name || newProduct.name}" published successfully!`);
+              } catch (err: any) {
+                const errMsg = extractApiErrorMessage(err, 'Failed to save product to backend database');
+                setAddProductError(errMsg);
+              } finally {
+                setIsSavingProduct(false);
+              }
             }}>
+              {addProductError && (
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  color: '#991B1B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '0.875rem'
+                }}>
+                  <AlertTriangle size={18} style={{ flexShrink: 0, color: '#DC2626' }} />
+                  <span style={{ fontWeight: 600 }}>{addProductError}</span>
+                </div>
+              )}
 
               {/* TAB 1: OVERVIEW & MEDIA */}
               {addProductTab === 'overview' && (
@@ -5078,9 +5140,14 @@ interface SeoSettings {
               )}
 
               <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
-                <button type="submit" className="btn btn-orange" style={{ flex: 1, justifyContent: 'center', padding: '14px', fontSize: '1rem' }}>
-                  <Plus size={18} />
-                  <span>Publish Product & Technical Specifications</span>
+                <button
+                  type="submit"
+                  disabled={isSavingProduct}
+                  className="btn btn-orange"
+                  style={{ flex: 1, justifyContent: 'center', padding: '14px', fontSize: '1rem', opacity: isSavingProduct ? 0.7 : 1, cursor: isSavingProduct ? 'not-allowed' : 'pointer' }}
+                >
+                  {isSavingProduct ? <Loader2 size={18} className="spin" /> : <Plus size={18} />}
+                  <span>{isSavingProduct ? 'Publishing Product to Database...' : 'Publish Product & Technical Specifications'}</span>
                 </button>
                 <button
                   type="button"
@@ -5301,34 +5368,61 @@ interface SeoSettings {
               className="modal-body-content"
               onSubmit={async (e) => {
                 e.preventDefault();
+                setEditProductError(null);
                 if (!editingProduct.name.trim()) {
-                  alert('Please enter a machine model title');
+                  setEditProductError('Please enter a machine model title');
                   return;
                 }
-                const updated = await updateProduct(editingProduct.id, {
-                  name: editingProduct.name,
-                  brandTag: editingProduct.brandTag || 'JUPITER EQUIPMENTS',
-                  category: editingProduct.category,
-                  capacity: editingProduct.capacity,
-                  power: editingProduct.power,
-                  brickSize: editingProduct.brickSize,
-                  image: resolveImg(editingProduct.image),
-                  galleryImages: (editingProduct.galleryImages || []).filter(Boolean),
-                  description: editingProduct.description,
-                  featureBadges: (editingProduct.featureBadges || []).filter(Boolean),
-                  highlights: (editingProduct.highlights || []).filter(h => h && h.title && h.title.trim()),
-                  advantages: (editingProduct.advantages || []).filter(a => a && a.title && a.title.trim()),
-                  keyFeatures: (editingProduct.keyFeatures || []).filter(Boolean),
-                  specTableColumns: editingProduct.specTableColumns,
-                  specTableRows: editingProduct.specTableRows,
-                  status: editingProduct.status || 'Active',
-                  order: editingProduct.order !== undefined ? Number(editingProduct.order) : 0
-                });
-                setProducts(getStoredProducts());
-                setEditingProduct(null);
-                triggerToast(`Product "${updated?.name || editingProduct.name}" updated successfully!`);
+                setIsUpdatingProduct(true);
+                try {
+                  const updated = await updateProduct(editingProduct.id, {
+                    name: editingProduct.name.trim(),
+                    brandTag: editingProduct.brandTag || 'JUPITER EQUIPMENTS',
+                    category: editingProduct.category,
+                    capacity: editingProduct.capacity,
+                    power: editingProduct.power,
+                    brickSize: editingProduct.brickSize,
+                    image: resolveImg(editingProduct.image),
+                    galleryImages: (editingProduct.galleryImages || []).filter(Boolean),
+                    description: editingProduct.description,
+                    featureBadges: (editingProduct.featureBadges || []).filter(Boolean),
+                    highlights: (editingProduct.highlights || []).filter(h => h && h.title && h.title.trim()),
+                    advantages: (editingProduct.advantages || []).filter(a => a && a.title && a.title.trim()),
+                    keyFeatures: (editingProduct.keyFeatures || []).filter(Boolean),
+                    specTableColumns: editingProduct.specTableColumns,
+                    specTableRows: editingProduct.specTableRows,
+                    status: editingProduct.status || 'Active',
+                    order: editingProduct.order !== undefined ? Number(editingProduct.order) : 0
+                  });
+                  await fetchProducts();
+                  setProducts(getStoredProducts());
+                  setEditingProduct(null);
+                  triggerToast(`Product "${updated?.name || editingProduct.name}" updated successfully!`);
+                } catch (err: any) {
+                  const errMsg = extractApiErrorMessage(err, 'Failed to update product in backend database');
+                  setEditProductError(errMsg);
+                } finally {
+                  setIsUpdatingProduct(false);
+                }
               }}
             >
+              {editProductError && (
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  color: '#991B1B',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '0.875rem'
+                }}>
+                  <AlertTriangle size={18} style={{ flexShrink: 0, color: '#DC2626' }} />
+                  <span style={{ fontWeight: 600 }}>{editProductError}</span>
+                </div>
+              )}
               {/* TAB 1: OVERVIEW & MEDIA */}
               {editProductTab === 'overview' && (
                 <div>
@@ -6011,11 +6105,12 @@ interface SeoSettings {
               <div style={{ display: 'flex', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #E2E8F0' }}>
                 <button
                   type="submit"
+                  disabled={isUpdatingProduct}
                   className="btn btn-orange"
-                  style={{ flex: 1, justifyContent: 'center', padding: '12px', fontSize: '0.95rem' }}
+                  style={{ flex: 1, justifyContent: 'center', padding: '12px', fontSize: '0.95rem', opacity: isUpdatingProduct ? 0.7 : 1, cursor: isUpdatingProduct ? 'not-allowed' : 'pointer' }}
                 >
-                  <Save size={18} />
-                  <span>Save Machine Changes & Content</span>
+                  {isUpdatingProduct ? <Loader2 size={18} className="spin" /> : <Save size={18} />}
+                  <span>{isUpdatingProduct ? 'Saving Changes to Database...' : 'Save Machine Changes & Content'}</span>
                 </button>
                 <button
                   type="button"

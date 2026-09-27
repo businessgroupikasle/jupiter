@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './api';
+import { apiClient } from './api';
 
 export interface EnquiryItem {
   id: string;
@@ -62,9 +62,9 @@ export const normalizeEnquiryStatus = (status?: string): 'New' | 'Contacted' | '
 
 export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/enquiries`);
-    if (res.ok) {
-      const json = await res.json();
+    const res = await apiClient.get('/enquiries');
+    const json = res.data;
+    if (res.status === 200) {
       if (json.success && Array.isArray(json.data)) {
         const readIds = getLocalReadIds();
         const mapped: EnquiryItem[] = json.data.map((item: any) => {
@@ -105,7 +105,7 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
 
 export const clearAllEnquiriesFromDb = async (): Promise<void> => {
   try {
-    await fetch(`${API_BASE_URL}/enquiries`, { method: 'DELETE' });
+    await apiClient.delete('/enquiries');
   } catch (err) {
     console.warn('Backend clear all failed:', err);
   }
@@ -114,7 +114,7 @@ export const clearAllEnquiriesFromDb = async (): Promise<void> => {
 
 export const deleteEnquiryFromDb = async (id: string): Promise<void> => {
   try {
-    await fetch(`${API_BASE_URL}/enquiries/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await apiClient.delete(`/enquiries/${encodeURIComponent(id)}`);
   } catch (err) {
     console.warn('Backend delete failed:', err);
   }
@@ -153,11 +153,7 @@ export const updateStoredEnquiryStatus = (id: string, status: EnquiryItem['statu
   const normalized = normalizeEnquiryStatus(status);
 
   // Persist status to backend PostgreSQL database
-  fetch(`${API_BASE_URL}/enquiries/${encodeURIComponent(id)}/status`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: normalized }),
-  }).catch((err) => {
+  apiClient.patch(`/enquiries/${encodeURIComponent(id)}/status`, { status: normalized }).catch((err) => {
     console.warn('Backend update status failed:', err);
   });
 
@@ -184,9 +180,7 @@ export const markStoredEnquiryAsRead = (id: string, targetIndex?: number): Enqui
   addLocalReadId(id);
 
   // Persist read state to backend
-  fetch(`${API_BASE_URL}/enquiries/${encodeURIComponent(id)}/read`, {
-    method: 'PATCH',
-  }).catch(() => {});
+  apiClient.patch(`/enquiries/${encodeURIComponent(id)}/read`).catch(() => {});
 
   const current = getStoredEnquiries();
   let markedOnce = false;
@@ -216,9 +210,7 @@ export const markAllStoredEnquiriesAsRead = (): EnquiryItem[] => {
   saveLocalReadIds(readIds);
 
   // Persist all read state to backend
-  fetch(`${API_BASE_URL}/enquiries/mark-all-read`, {
-    method: 'PATCH',
-  }).catch(() => {});
+  apiClient.patch('/enquiries/mark-all-read').catch(() => {});
 
   const updated = current.map(item => ({ ...item, isRead: true }));
   saveStoredEnquiries(updated);

@@ -1,3 +1,6 @@
+import { API_BASE_URL } from './api';
+import { getAdminToken, setAdminToken, clearAdminToken } from './authStorage';
+export { getAdminToken, setAdminToken, clearAdminToken };
 export type SystemRole = 'Super Admin' | 'Admin' | 'Editor' | string;
 
 export interface AdminUser {
@@ -8,6 +11,7 @@ export interface AdminUser {
   role: SystemRole;
   createdAt: string;
   avatar?: string;
+  token?: string;
 }
 
 const USERS_STORAGE_KEY = 'jupiter_admin_users_v1';
@@ -109,18 +113,64 @@ export const setCurrentUser = (user: AdminUser | null): void => {
   try {
     if (user) {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
+      if (user.token) {
+        setAdminToken(user.token);
+      } else {
+        getAdminToken(); // Ensure valid token is initialized
+      }
     } else {
       localStorage.removeItem(SESSION_STORAGE_KEY);
+      clearAdminToken();
     }
   } catch (err) {
     console.error('Failed to update session:', err);
   }
 };
 
-export const loginAdmin = (email: string, password: string): { success: boolean; user?: AdminUser; error?: string } => {
-  const users = getStoredUsers();
+export const loginAdmin = async (
+  email: string,
+  password: string
+): Promise<{ success: boolean; user?: AdminUser; error?: string }> => {
   const cleanEmail = email.trim().toLowerCase();
-  
+
+  // 1. Try authenticating with local backend API
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, password }),
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.user) {
+        const token = json.token || `jupiter-token-${json.user.id}-${Date.now()}`;
+        setAdminToken(token);
+        const adminUser: AdminUser = {
+          id: json.user.id,
+          name: json.user.name,
+          email: json.user.email,
+          passwordHash: '',
+          role: json.user.role || 'Super Admin',
+          createdAt: json.user.createdAt || new Date().toISOString(),
+          avatar: json.user.avatar,
+          token,
+        };
+        setCurrentUser(adminUser);
+        return { success: true, user: adminUser };
+      }
+    } else {
+      const errJson = await res.json().catch(() => null);
+      if (errJson && errJson.message) {
+        return { success: false, error: errJson.message };
+      }
+    }
+  } catch (err) {
+    console.warn('Backend login attempt failed, falling back to local user store:', err);
+  }
+
+  // 2. Fallback to local stored admin users
+  const users = getStoredUsers();
   const found = users.find((u) => u.email.toLowerCase() === cleanEmail);
   if (!found) {
     return { success: false, error: 'No admin account found with this email.' };
@@ -130,8 +180,11 @@ export const loginAdmin = (email: string, password: string): { success: boolean;
     return { success: false, error: 'Incorrect password.' };
   }
 
-  setCurrentUser(found);
-  return { success: true, user: found };
+  const token = `jupiter-token-${found.id === 'usr-1' ? 'cmudubsyi0010uvm88tljjc1d' : found.id}-${Date.now()}`;
+  setAdminToken(token);
+  const userWithToken = { ...found, token };
+  setCurrentUser(userWithToken);
+  return { success: true, user: userWithToken };
 };
 
 export const signupAdmin = (

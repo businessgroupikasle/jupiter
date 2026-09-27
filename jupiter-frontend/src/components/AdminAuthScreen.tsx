@@ -27,7 +27,7 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -38,8 +38,8 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      const res = loginAdmin(loginEmail, loginPassword);
+    try {
+      const res = await loginAdmin(loginEmail, loginPassword);
       setIsLoading(false);
 
       if (res.success && res.user) {
@@ -47,7 +47,10 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
       } else {
         setErrorMsg(res.error || 'Invalid admin credentials.');
       }
-    }, 400);
+    } catch (err: any) {
+      setIsLoading(false);
+      setErrorMsg(err.message || 'Login failed.');
+    }
   };
 
   return (
