@@ -30,47 +30,72 @@ export const createApp = (): Application => {
   }));
 
   // CORS Middleware — configurable via CORS_ORIGINS env var
-  // Development: allows localhost and local-network origins
-  // Production: set CORS_ORIGINS="https://jupitergroups.in,https://www.jupitergroups.in"
+  // Explicitly allowed origins
+  const defaultOrigins = [
+    'http://localhost:3026',
+    'http://127.0.0.1:3026',
+    'https://jupitergroups.in',
+    'https://www.jupitergroups.in',
+    'http://jupitergroups.in',
+    'http://www.jupitergroups.in',
+  ];
+
   const allowedOrigins: string[] = [
-    env.FRONTEND_URL,
-    // Parse comma-separated CORS_ORIGINS from environment
+    ...defaultOrigins,
+    ...(env.FRONTEND_URL ? [env.FRONTEND_URL] : []),
     ...(env.CORS_ORIGINS
       ? env.CORS_ORIGINS.split(',').map((o: string) => o.trim()).filter(Boolean)
       : []),
   ];
 
-  // Always include common local dev origins in development mode
-  if (env.NODE_ENV === 'development') {
-    const devOrigins = ['http://localhost:3026', 'http://127.0.0.1:3026'];
-    for (const o of devOrigins) {
-      if (!allowedOrigins.includes(o)) allowedOrigins.push(o);
-    }
-  }
-
-  app.use(
-    cors({
-      origin: (origin, callback) => {
-        // Allow requests with no origin (mobile apps, curl, Postman, server-side calls)
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) {
-          return callback(null, true);
-        }
-        // In development, also allow local-network origins
-        if (
-          env.NODE_ENV === 'development' &&
-          /^http:\/\/(localhost|127\.0\.0\.1|172\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)
-        ) {
-          return callback(null, true);
-        }
-        console.warn(`[CORS] Blocked origin: ${origin}`);
-        return callback(new Error('Not allowed by CORS'));
-      },
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    })
+  // Normalize origins (lowercase, strip trailing slashes, deduplicate, never allow wildcard)
+  const normalizedAllowedOrigins = Array.from(
+    new Set(
+      allowedOrigins
+        .map((o) => o.toLowerCase().trim().replace(/\/+$/, ''))
+        .filter((o) => o !== '*' && o.length > 0)
+    )
   );
+
+  const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, Postman, server-to-server health checks)
+      if (!origin) return callback(null, true);
+
+      const cleanOrigin = origin.toLowerCase().trim().replace(/\/+$/, '');
+      if (normalizedAllowedOrigins.includes(cleanOrigin)) {
+        return callback(null, true);
+      }
+
+      // In development mode only, also permit local LAN IPs for device testing
+      if (
+        env.NODE_ENV === 'development' &&
+        /^http:\/\/(localhost|127\.0\.0\.1|172\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(cleanOrigin)
+      ) {
+        return callback(null, true);
+      }
+
+      console.warn(`[CORS] Blocked origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'Cookie',
+      'x-admin-request',
+      'x-admin-token',
+    ],
+    exposedHeaders: ['Set-Cookie'],
+    optionsSuccessStatus: 204,
+  };
+
+  app.use(cors(corsOptions));
+  app.options('*', cors(corsOptions));
 
   // Rate Limiting
   const limiter = rateLimit({

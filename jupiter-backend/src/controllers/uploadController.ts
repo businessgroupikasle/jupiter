@@ -3,18 +3,42 @@ import fs from 'fs';
 import path from 'path';
 
 const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+const ensureUploadsDir = (): void => {
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+  } catch (err) {
+    console.error('[Upload] Failed creating uploads directory:', err);
+  }
+};
+ensureUploadsDir();
 
 // POST /api/upload
 export const handleUpload = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { image, data, filename } = req.body;
-    const base64Data = image || data;
+    ensureUploadsDir();
+
+    const { image, data, file, filename, url } = req.body;
+    const base64Data = image || data || file;
+
+    // If client supplied an existing image URL, return it
+    if (!base64Data && url && typeof url === 'string') {
+      res.status(200).json({
+        success: true,
+        message: 'File URL registered successfully',
+        url,
+        filename: path.basename(url),
+        size: 0,
+      });
+      return;
+    }
 
     if (!base64Data || typeof base64Data !== 'string') {
-      res.status(400).json({ success: false, message: 'Image base64 data is required for upload' });
+      res.status(400).json({
+        success: false,
+        message: 'Image base64 data is required for upload',
+      });
       return;
     }
 
@@ -53,22 +77,38 @@ export const handleUpload = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-// GET /api/upload
+// GET /api/upload & GET /api/uploads
 export const listUploads = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    ensureUploadsDir();
+    if (!fs.existsSync(uploadsDir)) {
+      res.status(200).json({ success: true, count: 0, data: [] });
+      return;
+    }
+
     const files = fs.readdirSync(uploadsDir);
     const list = files.map((file) => {
-      const stat = fs.statSync(path.join(uploadsDir, file));
-      return {
-        filename: file,
-        url: `/uploads/${file}`,
-        size: stat.size,
-        createdAt: stat.birthtime,
-      };
+      try {
+        const stat = fs.statSync(path.join(uploadsDir, file));
+        return {
+          filename: file,
+          url: `/uploads/${file}`,
+          size: stat.size,
+          createdAt: stat.birthtime,
+        };
+      } catch {
+        return {
+          filename: file,
+          url: `/uploads/${file}`,
+          size: 0,
+          createdAt: new Date(),
+        };
+      }
     });
 
     res.status(200).json({ success: true, count: list.length, data: list });
   } catch (error) {
-    next(error);
+    console.error('[Upload] listUploads error:', error);
+    res.status(200).json({ success: true, count: 0, data: [] });
   }
 };

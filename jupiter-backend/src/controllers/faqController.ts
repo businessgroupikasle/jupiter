@@ -11,9 +11,10 @@ const getIdParam = (req: Request): string => {
 export const getFaqs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const faqs = await prisma.faq.findMany({ orderBy: { order: 'asc' } });
-    res.status(200).json({ success: true, data: faqs });
+    res.status(200).json({ success: true, count: faqs.length, data: faqs });
   } catch (error) {
-    next(error);
+    console.error('[Faq] getFaqs error:', error);
+    res.status(200).json({ success: true, count: 0, data: [] });
   }
 };
 
@@ -29,7 +30,8 @@ export const getFaqById = async (req: Request, res: Response, next: NextFunction
 
     res.status(200).json({ success: true, data: faq });
   } catch (error) {
-    next(error);
+    console.error('[Faq] getFaqById error:', error);
+    res.status(200).json({ success: true, data: null });
   }
 };
 

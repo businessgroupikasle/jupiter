@@ -244,10 +244,27 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       },
     });
 
+    const token = `jupiter-token-${user.id}-${Date.now()}`;
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+    res.cookie('admin_token', token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
     res.status(200).json({
       success: true,
       message: 'Admin authentication successful',
-      token: `jupiter-token-${user.id}-${Date.now()}`,
+      token,
       user: sanitizeUser(updated),
     });
   } catch (error) {
