@@ -39,24 +39,31 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!loginEmail.trim() || !loginPassword) {
+    const cleanEmail = loginEmail.trim();
+    if (!cleanEmail || !loginPassword) {
       setErrorMsg('Please enter both email and password.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMsg('Please enter a valid email address.');
       return;
     }
 
     setIsLoading(true);
     try {
-      const res = await loginAdmin(loginEmail, loginPassword);
+      const res = await loginAdmin(cleanEmail, loginPassword);
       setIsLoading(false);
 
       if (res.success && res.user) {
         onLoginSuccess(res.user);
       } else {
-        setErrorMsg(res.error || 'Invalid admin credentials.');
+        setErrorMsg(res.error || 'Authentication failed. Please check your credentials.');
       }
     } catch (err: any) {
       setIsLoading(false);
-      setErrorMsg(err.message || 'Login failed.');
+      setErrorMsg(err.message || 'Login failed. Please try again.');
     }
   };
 

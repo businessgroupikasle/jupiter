@@ -3,17 +3,40 @@ import { getValidAdminToken, getAdminToken, setAdminToken, clearAdminToken, isVa
 
 export { getValidAdminToken, getAdminToken, setAdminToken, clearAdminToken, isValidAdminToken };
 
-const getApiBaseUrl = (): string => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace(/\/+$/, '');
-  }
-  if (typeof window !== 'undefined' && window.location.hostname) {
-    const host = window.location.hostname;
-    if (host !== 'localhost' && host !== '127.0.0.1') {
-      return `${window.location.origin}/api`;
+export const getApiBaseUrl = (): string => {
+  // 1. Browser runtime check
+  if (typeof window !== 'undefined' && window.location) {
+    const { hostname, origin } = window.location;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+    // In production build OR when accessed via live domain:
+    // STRICT RULE: NEVER use localhost for backend API URL.
+    if (!isLocalhost || import.meta.env.PROD) {
+      const configured = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
+      // If configured with a live remote domain (not localhost)
+      if (
+        configured &&
+        !configured.includes('localhost') &&
+        !configured.includes('127.0.0.1')
+      ) {
+        return configured.replace(/\/+$/, '');
+      }
+      // Default for live domain: use /api on current origin (e.g. https://jupitergroups.in/api)
+      return `${origin.replace(/\/+$/, '')}/api`;
     }
   }
-  return 'http://localhost:5026/api';
+
+  // 2. Development mode only (running on localhost in development mode)
+  if (import.meta.env.DEV) {
+    const localConfigured = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
+    if (localConfigured) {
+      return localConfigured.replace(/\/+$/, '');
+    }
+    return 'http://localhost:5026/api';
+  }
+
+  // 3. Fallback for production build
+  return '/api';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
@@ -101,7 +124,10 @@ export const extractApiErrorMessage = (error: any, fallbackMessage: string = 'An
 
   if (error.message && typeof error.message === 'string') {
     if (error.message.includes('Network Error') || error.code === 'ECONNABORTED') {
-      return 'Unable to connect to local backend server. Please verify backend is running on port 5026.';
+      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      return isLocal
+        ? 'Unable to connect to local backend server. Please verify backend is running on port 5026.'
+        : 'Unable to connect to backend server. Please check your internet connection or server status.';
     }
     return error.message;
   }

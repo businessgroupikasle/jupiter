@@ -133,58 +133,94 @@ export const loginAdmin = async (
 ): Promise<{ success: boolean; user?: AdminUser; error?: string }> => {
   const cleanEmail = email.trim().toLowerCase();
 
-  // 1. Try authenticating with local backend API
   try {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      credentials: 'include',
       body: JSON.stringify({ email: cleanEmail, password }),
     });
 
-    if (res.ok) {
-      const json = await res.json();
-      if (json.success && json.user) {
-        const token = json.token || `jupiter-token-${json.user.id}-${Date.now()}`;
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data?.success && data?.user) {
+      const token = data.token || '';
+      if (token) {
         setAdminToken(token);
-        const adminUser: AdminUser = {
-          id: json.user.id,
-          name: json.user.name,
-          email: json.user.email,
-          passwordHash: '',
-          role: json.user.role || 'Super Admin',
-          createdAt: json.user.createdAt || new Date().toISOString(),
-          avatar: json.user.avatar,
-          token,
-        };
-        setCurrentUser(adminUser);
-        return { success: true, user: adminUser };
       }
-    } else {
-      const errJson = await res.json().catch(() => null);
-      if (errJson && errJson.message) {
-        return { success: false, error: errJson.message };
-      }
+      const adminUser: AdminUser = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        passwordHash: '',
+        role: data.user.role || 'Super Admin',
+        createdAt: data.user.createdAt || new Date().toISOString(),
+        avatar: data.user.avatar,
+        token: token || undefined,
+      };
+      setCurrentUser(adminUser);
+      return { success: true, user: adminUser };
     }
-  } catch (err) {
-    console.warn('Backend login attempt failed, falling back to local user store:', err);
-  }
 
-  // 2. Fallback to local stored admin users
-  const users = getStoredUsers();
-  const found = users.find((u) => u.email.toLowerCase() === cleanEmail);
-  if (!found) {
-    return { success: false, error: 'No admin account found with this email.' };
-  }
+    // Specific HTTP status handling for clear user feedback
+    if (res.status === 401) {
+      return {
+        success: false,
+        error: data?.message || 'Invalid email or password. Please verify your credentials.',
+      };
+    }
 
-  if (found.passwordHash !== password) {
-    return { success: false, error: 'Incorrect password.' };
-  }
+    if (res.status === 403) {
+      return {
+        success: false,
+        error: data?.message || 'Account is inactive. Please contact system administrator.',
+      };
+    }
 
-  const token = `jupiter-token-${found.id === 'usr-1' ? 'cmudubsyi0010uvm88tljjc1d' : found.id}-${Date.now()}`;
-  setAdminToken(token);
-  const userWithToken = { ...found, token };
-  setCurrentUser(userWithToken);
-  return { success: true, user: userWithToken };
+    if (res.status === 400) {
+      return {
+        success: false,
+        error: data?.message || 'Please provide both email and password.',
+      };
+    }
+
+    if (res.status >= 500) {
+      return {
+        success: false,
+        error: data?.message || `Server error (${res.status}). The server encountered an issue, please try again shortly.`,
+      };
+    }
+
+    if (res.status === 404) {
+      return {
+        success: false,
+        error: 'Authentication endpoint not found (404). Please verify backend deployment.',
+      };
+    }
+
+    return {
+      success: false,
+      error: data?.message || `Login failed with status ${res.status}. Please try again.`,
+    };
+  } catch (err: any) {
+    console.error('Backend login network error:', err);
+
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    if (isOffline) {
+      return {
+        success: false,
+        error: 'Network failure: You appear to be offline. Please check your internet connection.',
+      };
+    }
+
+    return {
+      success: false,
+      error: `Network failure: Unable to connect to backend server at ${API_BASE_URL}. Please check your connection or server status.`,
+    };
+  }
 };
 
 export const signupAdmin = (
