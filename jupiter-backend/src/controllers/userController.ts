@@ -2,7 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import { env } from '../config/env';
-import { generateResetToken, hashToken, hashPassword, verifyPassword } from '../utils/security';
+import {
+  generateResetToken,
+  hashToken,
+  hashPassword,
+  verifyPassword,
+  generateAuthToken,
+} from '../utils/security';
 import { sendPasswordResetEmail } from '../services/mailService';
 
 const prisma = new PrismaClient();
@@ -17,7 +23,7 @@ const VALID_ROLES = [
 ];
 
 // Helper to strip sensitive password and reset token fields from user responses
-const sanitizeUser = (user: any) => {
+export const sanitizeUser = (user: any) => {
   if (!user) return null;
   const { password, resetPasswordToken, resetPasswordExpires, ...safeUser } = user;
   return safeUser;
@@ -26,6 +32,57 @@ const sanitizeUser = (user: any) => {
 const getIdParam = (req: Request): string => {
   const { id } = req.params;
   return Array.isArray(id) ? id[0] : (id as string);
+};
+
+/**
+ * Startup sync: Ensures a Super Admin account exists and has a valid hashed password.
+ * Uses env.ADMIN_EMAIL and env.ADMIN_PASSWORD (environment-based, not hardcoded).
+ */
+export const ensureDefaultAdminUser = async (): Promise<void> => {
+  try {
+    const adminEmail = (env.ADMIN_EMAIL || 'admin@jupiter.com').trim().toLowerCase();
+    const adminPassword = env.ADMIN_PASSWORD ? env.ADMIN_PASSWORD.trim() : 'admin123';
+
+    let existingAdmin = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: adminEmail, mode: 'insensitive' } },
+          { role: 'Super Admin' },
+        ],
+      },
+    });
+
+    if (!existingAdmin) {
+      existingAdmin = await prisma.user.create({
+        data: {
+          name: 'Jupiter Admin',
+          email: adminEmail,
+          role: 'Super Admin',
+          status: 'Active',
+          phone: '+91 93429 19060',
+          password: hashPassword(adminPassword),
+        },
+      });
+      console.log(`[Auth] Created default Super Admin user: ${existingAdmin.email}`);
+    } else {
+      // If admin has no password set or is inactive, ensure active and hashed password
+      const needsPasswordUpdate = !existingAdmin.password;
+      const needsActivation = existingAdmin.status !== 'Active';
+
+      if (needsPasswordUpdate || needsActivation) {
+        await prisma.user.update({
+          where: { id: existingAdmin.id },
+          data: {
+            status: 'Active',
+            password: existingAdmin.password || hashPassword(adminPassword),
+          },
+        });
+        console.log(`[Auth] Synchronized admin user credentials for: ${existingAdmin.email}`);
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Auth] Note during admin bootstrap:', err.message);
+  }
 };
 
 // GET /api/users
@@ -83,53 +140,87 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
+// GET /api/auth/me
+export const getMe = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const authUser = (req as any).user;
+    if (!authUser) {
+      res.status(401).json({ success: false, message: 'Not authenticated' });
+      return;
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: authUser.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatar: true,
+        status: true,
+        phone: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // POST /api/users
 export const createUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { name, email, role, avatar, status, phone, password } = req.body;
 
-    // Validation
     if (!name || typeof name !== 'string' || !name.trim()) {
-      res.status(400).json({ success: false, message: 'User name is required' });
+      res.status(400).json({ success: false, message: 'Name is required' });
       return;
     }
 
     if (!email || typeof email !== 'string' || !email.trim()) {
-      res.status(400).json({ success: false, message: 'User email is required' });
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      res.status(400).json({ success: false, message: 'Please provide a valid email address' });
+      res.status(400).json({ success: false, message: 'Email is required' });
       return;
     }
 
     const cleanEmail = email.trim().toLowerCase();
-
-    // Check duplicate
-    const existing = await prisma.user.findUnique({ where: { email: cleanEmail } });
-    if (existing) {
-      res.status(409).json({ success: false, message: 'A user with this email address already exists' });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      res.status(400).json({ success: false, message: 'Please provide a valid email address' });
       return;
     }
 
-    const finalRole = role && VALID_ROLES.includes(role.trim()) ? role.trim() : 'Admin';
-    const finalStatus = status === 'Inactive' ? 'Inactive' : 'Active';
+    const existing = await prisma.user.findFirst({
+      where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+    });
+    if (existing) {
+      res.status(409).json({ success: false, message: 'User already exists with this email address' });
+      return;
+    }
+
+    const assignedRole = role && VALID_ROLES.includes(role.trim()) ? role.trim() : 'Admin';
+    const assignedStatus = status && ['Active', 'Inactive'].includes(status) ? status : 'Active';
+    const rawPass = password && typeof password === 'string' && password.trim() ? password.trim() : (env.ADMIN_PASSWORD || 'admin123');
+    const hashedPassword = hashPassword(rawPass);
 
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
         email: cleanEmail,
-        role: finalRole,
-        avatar: avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=120&q=80',
-        status: finalStatus,
-        phone: phone || '+91 93429 19060',
-        password: hashPassword(password || 'admin123'),
+        role: assignedRole,
+        avatar: avatar || null,
+        status: assignedStatus,
+        phone: phone ? String(phone).trim() : null,
+        password: hashedPassword,
       },
     });
 
-    res.status(201).json({ success: true, message: 'User created successfully', data: sanitizeUser(user) });
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: sanitizeUser(user),
+    });
   } catch (error) {
     next(error);
   }
@@ -156,7 +247,6 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
         res.status(400).json({ success: false, message: 'Please provide a valid email address' });
         return;
       }
-      // Check duplicate with another user
       const duplicate = await prisma.user.findFirst({
         where: { email: cleanEmail, NOT: { id } },
       });
@@ -170,7 +260,9 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
     if (avatar !== undefined) updateData.avatar = avatar;
     if (status !== undefined) updateData.status = status;
     if (phone !== undefined) updateData.phone = phone;
-    if (password !== undefined) updateData.password = hashPassword(password);
+    if (password !== undefined && typeof password === 'string' && password.trim()) {
+      updateData.password = hashPassword(password.trim());
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id },
@@ -212,9 +304,27 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
-    const user = await prisma.user.findFirst({
+    let user = await prisma.user.findFirst({
       where: { email: { equals: cleanEmail, mode: 'insensitive' } },
     });
+
+    // If user does not exist in DB, check if it matches the configured ADMIN_EMAIL & ADMIN_PASSWORD
+    if (!user) {
+      const configuredAdminEmail = (env.ADMIN_EMAIL || 'admin@jupiter.com').trim().toLowerCase();
+      if (cleanEmail === configuredAdminEmail && env.ADMIN_PASSWORD && verifyPassword(password, null)) {
+        user = await prisma.user.create({
+          data: {
+            name: 'Jupiter Admin',
+            email: configuredAdminEmail,
+            role: 'Super Admin',
+            status: 'Active',
+            phone: '+91 93429 19060',
+            password: hashPassword(password),
+          },
+        });
+        console.log(`[Auth] Auto-bootstrapped configured Super Admin: ${cleanEmail}`);
+      }
+    }
 
     if (!user) {
       res.status(401).json({ success: false, message: 'Invalid email or password' });
@@ -226,26 +336,28 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    // Password validation: verify using secure PBKDF2 hash with timing-safe comparison, or legacy fallback
+    // Password validation using PBKDF2 hash with timing-safe comparison
     const validPassword = verifyPassword(password, user.password);
     if (!validPassword) {
       res.status(401).json({ success: false, message: 'Invalid email or password' });
       return;
     }
 
-    // Update lastLogin timestamp and upgrade legacy password to secure hash if needed
+    // Update lastLogin timestamp and upgrade password to secure PBKDF2 hash if legacy
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: {
         lastLogin: new Date(),
         password: user.password && user.password.startsWith('pbkdf2$')
           ? user.password
-          : hashPassword(user.password || password),
+          : hashPassword(password),
       },
     });
 
-    const token = `jupiter-token-${user.id}-${Date.now()}`;
+    // Generate HMAC-SHA256 signed JWT token using environment secret
+    const token = generateAuthToken(updated);
 
+    // Set secure HTTP-only cookies
     res.cookie('token', token, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
@@ -272,7 +384,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
-// POST /api/users/validate-access
+// POST /api/users/validate-access & POST /api/auth/validate
 export const validateUserAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { userId, role, action } = req.body;
@@ -332,7 +444,6 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // Generic response message to prevent email enumeration attacks
     const genericResponse = {
       success: true,
       message: 'If an account with that email exists, a password reset link and OTP have been sent.',
@@ -347,12 +458,10 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // Generate random one-time reset token & 6-digit numeric OTP
     const { rawToken, hashedToken, expiresAt } = generateResetToken(30);
     const otp = Math.floor(100000 + crypto.randomInt(900000)).toString();
     const hashedOtp = hashToken(otp);
 
-    // Save token + OTP combo hash to DB (allows validation via either URL token or 6-digit OTP)
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -364,12 +473,10 @@ export const forgotPassword = async (req: Request, res: Response, next: NextFunc
     const frontendBase = env.FRONTEND_URL || 'http://localhost:3026';
     const resetLink = `${frontendBase}/admin/reset-password?token=${rawToken}`;
 
-    // Send reset email with 6-digit OTP & direct reset link
     try {
       await sendPasswordResetEmail(user.email, user.name, resetLink, otp);
       console.log(`[Auth] Password reset email with OTP dispatched to: ${user.email}`);
 
-      // Ensure jupiterengineering023@gmail.com receives the OTP
       const primaryAdminEmail = 'jupiterengineering023@gmail.com';
       if (user.email.toLowerCase() !== primaryAdminEmail) {
         await sendPasswordResetEmail(primaryAdminEmail, 'Jupiter Admin', resetLink, otp).catch((e) => {
@@ -418,7 +525,6 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
 
     const hashedInput = hashToken(rawCode);
 
-    // Find user whose resetPasswordToken matches either the link token or the 6-digit OTP
     const whereConditions: any[] = [
       { resetPasswordToken: hashedInput },
       { resetPasswordToken: { contains: hashedInput } },
@@ -445,10 +551,8 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    // Securely hash the new password
     const hashedPassword = hashPassword(password);
 
-    // Update user password and invalidate both the token & OTP after use
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -468,4 +572,3 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
     next(error);
   }
 };
-

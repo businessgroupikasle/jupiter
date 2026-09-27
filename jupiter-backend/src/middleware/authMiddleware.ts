@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { verifyAuthToken } from '../utils/security';
 
 const prisma = new PrismaClient();
 
@@ -15,7 +16,7 @@ const parseCookies = (cookieHeader?: string): Record<string, string> => {
   return cookies;
 };
 
-const extractToken = (req: Request): string | null => {
+export const extractToken = (req: Request): string | null => {
   // 1. Authorization Header: "Bearer <token>" or raw "<token>"
   const authHeader = req.headers.authorization;
   if (authHeader) {
@@ -48,7 +49,7 @@ const extractToken = (req: Request): string | null => {
 /**
  * Authentication middleware for admin-protected routes.
  * Accepts:
- * - Authorization: Bearer <token> (jupiter-token format or JWT token)
+ * - Authorization: Bearer <HMAC-signed-JWT-or-jupiter-token>
  * - Cookie: token=<token> or admin_token=<token>
  * Returns clear 401/403 JSON errors.
  */
@@ -70,71 +71,48 @@ export const requireAuth = async (
 
     let user: any = null;
 
-    // 1. Check jupiter-token format: "jupiter-token-<userId>-<timestamp>"
-    const jupiterMatch = token.match(/^jupiter-token-([a-zA-Z0-9_-]+)-(\d+)$/);
-    if (jupiterMatch) {
-      const userId = jupiterMatch[1];
-      user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, name: true, email: true, role: true, status: true },
-      });
-    }
+    // 1. Validate HMAC-signed JWT token
+    if (token.includes('.')) {
+      const tokenVerification = verifyAuthToken(token);
+      if (!tokenVerification.valid) {
+        res.status(401).json({
+          success: false,
+          message: tokenVerification.error || 'Invalid authentication token. Please log in again.',
+        });
+        return;
+      }
 
-    // 2. Check standard JWT format: "<header>.<payload>.<signature>"
-    if (!user && token.includes('.')) {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        try {
-          const payloadBase64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const payloadJson = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf8'));
+      const payload = tokenVerification.payload;
+      const candidateId = payload?.id || payload?.userId || payload?.sub;
+      const candidateEmail = payload?.email;
 
-          // Check token expiry if exp claim is present
-          if (payloadJson.exp && typeof payloadJson.exp === 'number') {
-            const expMs = payloadJson.exp < 1e11 ? payloadJson.exp * 1000 : payloadJson.exp;
-            if (expMs < Date.now()) {
-              res.status(401).json({
-                success: false,
-                message: 'Authentication token has expired. Please log in again.',
-              });
-              return;
-            }
-          }
-
-          const candidateId = payloadJson.id || payloadJson.userId || payloadJson.sub || payloadJson.user?.id;
-          const candidateEmail = payloadJson.email || payloadJson.user?.email;
-
-          if (candidateId) {
-            user = await prisma.user.findUnique({
-              where: { id: String(candidateId) },
-              select: { id: true, name: true, email: true, role: true, status: true },
-            });
-          }
-          if (!user && candidateEmail) {
-            user = await prisma.user.findFirst({
-              where: { email: { equals: String(candidateEmail).trim().toLowerCase(), mode: 'insensitive' } },
-              select: { id: true, name: true, email: true, role: true, status: true },
-            });
-          }
-        } catch {
-          // Non-JWT token containing period, ignore and continue to fallback
-        }
+      if (candidateId) {
+        user = await prisma.user.findUnique({
+          where: { id: String(candidateId) },
+          select: { id: true, name: true, email: true, role: true, status: true },
+        });
+      }
+      if (!user && candidateEmail) {
+        user = await prisma.user.findFirst({
+          where: { email: { equals: String(candidateEmail).trim().toLowerCase(), mode: 'insensitive' } },
+          select: { id: true, name: true, email: true, role: true, status: true },
+        });
       }
     }
 
-    // 3. Direct User ID or Email lookup fallback
+    // 2. Backward compatibility for legacy "jupiter-token-<userId>-<timestamp>" format
     if (!user) {
-      user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { id: token },
-            { email: { equals: token.trim().toLowerCase(), mode: 'insensitive' } },
-          ],
-        },
-        select: { id: true, name: true, email: true, role: true, status: true },
-      });
+      const jupiterMatch = token.match(/^jupiter-token-([a-zA-Z0-9_-]+)-(\d+)$/);
+      if (jupiterMatch) {
+        const userId = jupiterMatch[1];
+        user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, name: true, email: true, role: true, status: true },
+        });
+      }
     }
 
-    // If user not resolved by any strategy
+    // If user cannot be resolved or token invalid
     if (!user) {
       res.status(401).json({
         success: false,
@@ -152,7 +130,7 @@ export const requireAuth = async (
       return;
     }
 
-    // Check admin authorization
+    // Check administrative authorization
     const authorizedRoles = ['Super Admin', 'Admin', 'Editor'];
     if (user.role && !authorizedRoles.includes(user.role)) {
       res.status(403).json({
@@ -162,7 +140,7 @@ export const requireAuth = async (
       return;
     }
 
-    // Attach user to request
+    // Attach validated user to request
     (req as any).user = user;
     next();
   } catch (error) {

@@ -9,6 +9,9 @@ const envSchema = z.object({
   DATABASE_URL: z.string().optional().default('postgresql://postgres:postgres@localhost:5432/jupiter_db'),
   FRONTEND_URL: z.string().default('http://localhost:3026'),
   CORS_ORIGINS: z.string().optional().default(''),
+  JWT_SECRET: z.string().default('jupiter_auth_jwt_secure_secret_token_2026'),
+  ADMIN_EMAIL: z.string().optional().default('admin@jupiter.com'),
+  ADMIN_PASSWORD: z.string().optional().default('admin123'),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

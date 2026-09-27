@@ -3,6 +3,7 @@ import { env } from './config/env';
 import { PrismaClient } from '@prisma/client';
 
 import { ensureEnquiryCounterInitialized } from './controllers/enquiryController';
+import { ensureDefaultAdminUser } from './controllers/userController';
 import { normalizeProductOrders } from './controllers/productController';
 
 const prisma = new PrismaClient();
@@ -18,6 +19,7 @@ const checkDatabaseStatus = async () => {
       prisma.enquiry.count().catch(() => 0),
     ]);
 
+    await ensureDefaultAdminUser();
     await ensureEnquiryCounterInitialized();
     await normalizeProductOrders();
 
