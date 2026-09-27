@@ -348,7 +348,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
       where: { id: user.id },
       data: {
         lastLogin: new Date(),
-        password: user.password && user.password.startsWith('pbkdf2$')
+        password: user.password && /^pbkdf2\$\d+\$/.test(user.password)
           ? user.password
           : hashPassword(password),
       },

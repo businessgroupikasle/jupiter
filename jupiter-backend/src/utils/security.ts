@@ -34,7 +34,7 @@ export const hashPassword = (password: string): string => {
   const keylen = 64;
   const digest = 'sha512';
   const hash = crypto.pbkdf2Sync(password, salt, iterations, keylen, digest).toString('hex');
-  return `pbkdf2${iterations}$${salt}$${hash}`;
+  return `pbkdf2$${iterations}$${salt}$${hash}`;
 };
 
 /**
@@ -55,13 +55,23 @@ export const timingSafeCompare = (a: string, b: string): boolean => {
 export const verifyPassword = (password: string, stored: string | null | undefined): boolean => {
   if (!password) return false;
 
-  // 1. Stored PBKDF2 hash verification
-  if (stored && stored.startsWith('pbkdf2$')) {
-    const parts = stored.split('$');
-    if (parts.length === 4) {
-      const iterations = parseInt(parts[1], 10);
-      const salt = parts[2];
-      const originalHash = parts[3];
+  // 1. Stored PBKDF2 hash verification. Older versions accidentally omitted
+  // the separator after "pbkdf2", so accept that format long enough to
+  // authenticate and let the login controller upgrade it to the canonical one.
+  if (stored && stored.startsWith('pbkdf2')) {
+    const canonicalMatch = stored.match(/^pbkdf2\$(\d+)\$([0-9a-f]+)\$([0-9a-f]+)$/i);
+    const legacyMatch = stored.match(/^pbkdf2(\d+)\$([0-9a-f]+)\$([0-9a-f]+)$/i);
+    const match = canonicalMatch || legacyMatch;
+
+    if (match) {
+      const iterations = Number(match[1]);
+      const salt = match[2];
+      const originalHash = match[3];
+
+      if (!Number.isSafeInteger(iterations) || iterations < 1 || iterations > 1_000_000) {
+        return false;
+      }
+
       const computedHash = crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
 
       const originalBuffer = Buffer.from(originalHash, 'hex');
