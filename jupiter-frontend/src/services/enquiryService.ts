@@ -5,12 +5,14 @@ export interface EnquiryItem {
   name: string;
   phone: string;
   email?: string;
+  location?: string;
   product: string;
+  productInterest?: string;
   productId?: string;
   date: string;
+  createdAt?: string;
   status: 'New' | 'Contacted' | 'Closed' | 'In Progress';
   message?: string;
-  location?: string;
   isRead?: boolean;
 }
 
@@ -53,6 +55,17 @@ const addLocalReadId = (id: string): void => {
   saveLocalReadIds(ids);
 };
 
+export const formatEnquiryDate = (dateVal?: string | Date | null): string => {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const day = d.getDate();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+};
+
 export const normalizeEnquiryStatus = (status?: string): 'New' | 'Contacted' | 'Closed' => {
   const s = (status || '').toString().trim().toUpperCase();
   if (s === 'CONTACTED') return 'Contacted';
@@ -70,23 +83,25 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
         const mapped: EnquiryItem[] = json.data.map((item: any) => {
           const productFromObj = (typeof item.product === 'object' && item.product !== null) ? item.product.name : (typeof item.product === 'string' ? item.product : '');
           const productMatch = item.message?.match(/(?:Quotation for|Product Interest|Machinery Requirement):\s*([^|\n]+)/i);
-          const product = productFromObj || (productMatch ? productMatch[1].trim() : (item.message?.split('|')[0]?.trim() || 'Machinery Quotation'));
+          const productInterest = item.productInterest || productFromObj || (productMatch ? productMatch[1].trim() : (item.message?.split('|')[0]?.trim() || 'Paver Block Machines'));
           const productId = item.productId || (typeof item.product === 'object' && item.product !== null ? item.product.id : undefined);
-          const dt = item.createdAt 
-            ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) 
-            : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-          
+          const createdAt = item.createdAt || new Date().toISOString();
+          const dt = formatEnquiryDate(createdAt);
+          const location = item.location || 'Pan India';
           const isRead = item.isRead === true || readIds.has(item.id);
 
           return {
             id: item.id,
             name: item.name,
             phone: item.phone,
-            email: item.email,
-            product,
+            email: item.email || '',
+            location,
+            product: productInterest,
+            productInterest,
             productId,
             message: item.message,
             date: dt,
+            createdAt,
             status: normalizeEnquiryStatus(item.status),
             isRead
           };

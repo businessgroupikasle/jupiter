@@ -3,6 +3,8 @@ import { useSeoMeta } from '../utils/useSeoMeta';
 import { useSearchParams, Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Package } from 'lucide-react';
 import { PageBanner } from '../components/PageBanner';
+import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
+import { ProductCardImage } from '../components/ProductCardImage';
 import { 
   ProductItem, 
   getStoredProducts, 
@@ -239,7 +241,7 @@ export const ProductsPage: React.FC = () => {
 
                     {/* Machine Photo */}
                     <div className="product-card-thumb-wrap">
-                      <img src={prod.image} alt={prod.name} loading="lazy" />
+                      <ProductCardImage src={prod.imageUrl || prod.image} alt={prod.name} />
                     </div>
 
                     {/* Title */}

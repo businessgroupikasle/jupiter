@@ -53,6 +53,16 @@ export const apiClient = axios.create({
 // Request interceptor: Attach valid Authorization header and cookies
 // Strictly avoids sending empty, expired, or malformed Authorization headers
 apiClient.interceptors.request.use((config) => {
+  // If sending FormData, do not set application/json; let browser set multipart/form-data with boundary automatically
+  if (config.data instanceof FormData) {
+    if (config.headers) {
+      delete (config.headers as any)['Content-Type'];
+      if (typeof (config.headers as any).delete === 'function') {
+        (config.headers as any).delete('Content-Type');
+      }
+    }
+  }
+
   const token = getValidAdminToken();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);

@@ -22,6 +22,7 @@ import {
 import { getCategoryBySlug, SubMachineItem, fetchProducts } from '../services/productService';
 import { submitEnquiry } from '../services/api';
 import { PageBanner } from '../components/PageBanner';
+import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
 import { WhatsAppIcon } from '../components/WhatsAppButton';
 import { IMAGES } from '../assets/images/images';
 import { PhoneInputWithCountry } from '../components/PhoneInputWithCountry';
@@ -54,16 +55,15 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
 
   const images = useMemo(() => {
     const list: string[] = [];
-    if (spare.image) list.push(spare.image);
+    if (spare.image) list.push(getProductImageUrl(spare.image));
     if (spare.galleryImages && spare.galleryImages.length > 0) {
-      spare.galleryImages.forEach(img => {
-        if (img && !list.includes(img)) list.push(img);
+      spare.galleryImages.forEach(img => { if (img) { const res = getProductImageUrl(img); if (!list.includes(res)) list.push(res); }
       });
     }
     return list.filter(Boolean);
   }, [spare]);
 
-  const currentImg = images[selectedThumbIdx] || images[0] || IMAGES.performanceMachine;
+  const currentImg = getProductImageUrl(images[selectedThumbIdx] || images[0] || IMAGES.performanceMachine);
 
   const badges = spare.featureBadges && spare.featureBadges.length >= 4
     ? spare.featureBadges
@@ -115,11 +115,7 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
           <img
             src={currentImg}
             alt={spare.name}
-            className="pdp-main-image"
-            loading="lazy"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = IMAGES.performanceMachine || IMAGES.flyAshMachine;
-            }}
+            className="pdp-main-image" loading="lazy" onError={handleImageError}
           />
         </div>
 
@@ -144,10 +140,7 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
                 <img
                   src={imgUrl}
                   alt={`${spare.name} thumbnail ${tIdx + 1}`}
-                  className="pdp-thumb-img"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = IMAGES.performanceMachine || IMAGES.flyAshMachine;
-                  }}
+                  className="pdp-thumb-img" onError={handleImageError}
                 />
               </div>
             ))}
@@ -367,18 +360,15 @@ export const MachineCategoryPage: React.FC = () => {
   // Prepare images gallery - only show additional thumbnails if user actually added them
   const galleryImages: string[] = useMemo(() => {
     const list: string[] = [];
-    if (activeMachine?.image) {
-      list.push(activeMachine.image);
-    }
+    if (activeMachine?.image) { list.push(getProductImageUrl(activeMachine.image)); }
     if (activeMachine?.galleryImages && activeMachine.galleryImages.length > 0) {
-      activeMachine.galleryImages.forEach(img => {
-        if (img && img.trim().length > 0 && !list.includes(img)) list.push(img);
+      activeMachine.galleryImages.forEach(img => { if (img && img.trim().length > 0) { const res = getProductImageUrl(img); if (!list.includes(res)) list.push(res); }
       });
     }
     return list.filter(Boolean);
   }, [activeMachine]);
 
-  const currentDisplayImage = galleryImages[selectedImageIdx] || galleryImages[0] || IMAGES.performanceMachine;
+  const currentDisplayImage = getProductImageUrl(galleryImages[selectedImageIdx] || galleryImages[0] || IMAGES.performanceMachine);
 
   // Switch Model Handler
   const handleModelSelect = (idx: number) => {
@@ -667,11 +657,7 @@ export const MachineCategoryPage: React.FC = () => {
                     <img
                       src={currentDisplayImage}
                       alt={activeMachine.name}
-                      className="pdp-main-image"
-                      loading="lazy"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = IMAGES.performanceMachine || IMAGES.flyAshMachine;
-                      }}
+                      className="pdp-main-image" loading="lazy" onError={handleImageError}
                     />
                   </div>
 
@@ -696,10 +682,7 @@ export const MachineCategoryPage: React.FC = () => {
                           <img
                             src={imgUrl}
                             alt={`Thumbnail ${tIdx + 1}`}
-                            className="pdp-thumb-img"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = IMAGES.performanceMachine || IMAGES.flyAshMachine;
-                            }}
+                            className="pdp-thumb-img" onError={handleImageError}
                           />
                         </div>
                       ))}

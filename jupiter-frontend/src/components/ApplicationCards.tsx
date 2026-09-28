@@ -3,6 +3,8 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import flyashImg from '../assets/images/Machines/flyash.png';
 import { getStoredProducts, ProductItem } from '../services/productService';
+import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
+import { ProductCardImage } from './ProductCardImage';
 
 export const ApplicationCards: React.FC = () => {
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -114,9 +116,7 @@ export const ApplicationCards: React.FC = () => {
         >
           {displayList.map((prod) => {
             const targetSlug = prod.categorySlug || (prod.category.toLowerCase().includes('silo') ? 'storage-silo' : 'fly-ash-brick-machine');
-            const imgUrl = prod.image || ((prod.name.toLowerCase().includes('fly ash') || prod.category.toLowerCase().includes('fly ash'))
-              ? flyashImg 
-              : '/images/storage-silo-product.png');
+            const imgUrl = getProductImageUrl(prod.imageUrl || prod.image || ((prod.name.toLowerCase().includes('fly ash') || prod.category.toLowerCase().includes('fly ash')) ? flyashImg : '/images/storage-silo-product.png'));
 
             return (
               <Link 
@@ -138,10 +138,7 @@ export const ApplicationCards: React.FC = () => {
                     position: 'relative'
                   }}
                 >
-                  <img 
-                    src={imgUrl} 
-                    alt={prod.name} 
-                    loading="lazy" 
+                  <ProductCardImage src={imgUrl} alt={prod.name}
                     style={{ 
                       maxHeight: '100%', 
                       maxWidth: '100%', 

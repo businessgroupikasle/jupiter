@@ -50,6 +50,7 @@ export interface ProductItem {
   brickSize?: string;
   enquiriesCount?: number;
   image: string;
+  imageUrl?: string;
   galleryImages?: string[];
   status: 'Active' | 'Draft' | 'Inactive';
   order?: number;
@@ -187,7 +188,8 @@ const mapBackendProduct = (p: any): ProductItem => {
     power: p.power || specs.power || (specs['Power'] || ''),
     brickSize: p.brickSize || specs.brickSize || (specs['Brick Size'] || ''),
     enquiriesCount: Number(p.enquiryCount ?? p.enquiriesCount ?? p._count?.enquiries ?? 0),
-    image: p.image || specs.image || '',
+    image: p.imageUrl || p.image || specs.imageUrl || specs.image || '',
+    imageUrl: p.imageUrl || p.image || specs.imageUrl || specs.image || '',
     galleryImages: (Array.isArray(p.galleryImages) && p.galleryImages.length > 0) ? p.galleryImages : (Array.isArray(specs.galleryImages) ? specs.galleryImages : []),
     status: (p.status || (p.isActive === false ? 'Inactive' : (p.isActive === true ? 'Active' : undefined)) || specs.status || 'Active') as 'Active' | 'Draft' | 'Inactive',
     order: Number(p.order ?? specs.order ?? specs.displayOrder ?? 0),
@@ -240,67 +242,84 @@ export const fetchProductById = async (idOrSlug: string): Promise<ProductItem | 
   return _cachedProducts.find(p => p.id === idOrSlug || p.categorySlug === idOrSlug) || null;
 };
 
-export const addProduct = async (product: Partial<ProductItem>): Promise<ProductItem> => {
-  const categoryName = product.category || 'Fly Ash Brick Machine';
-  const slug = product.name
-    ? product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    : `product-${Date.now()}`;
+export type ProductInput = (Partial<ProductItem> & { imageFile?: File | Blob | null; [key: string]: any }) | FormData;
 
-  const specsPayload = {
-    ...(product.specs || {}),
-    brandTag: product.brandTag || categoryName,
-    brickSize: product.brickSize || '',
-    galleryImages: product.galleryImages || [],
-    featureBadges: product.featureBadges || [],
-    specTableColumns: product.specTableColumns || ['Parameter', 'Details'],
-    specTableRows: product.specTableRows || [],
-    highlights: product.highlights || [],
-    advantages: product.advantages || [],
-    keyFeatures: product.keyFeatures || [],
-    order: product.order !== undefined ? product.order : _cachedProducts.length + 1,
-    status: product.status || 'Active',
-  };
+export const addProduct = async (product: ProductInput): Promise<ProductItem> => {
+  let formData: FormData;
 
-  const payload = {
-    name: product.name || 'New Machine Model',
-    slug,
-    category: categoryName,
-    description: product.description || `${product.name || 'Machine'} engineered for high reliability and heavy-duty manufacturing.`,
-    capacity: product.capacity || '',
-    power: product.power || '',
-    image: product.image || '/images/flyash-vertical-machine.png',
-    specifications: specsPayload,
-  };
+  if (product instanceof FormData) {
+    formData = product;
+  } else {
+    formData = new FormData();
+    const categoryName = product.category || 'Fly Ash Brick Machine';
+    const slug = product.name
+      ? product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      : `product-${Date.now()}`;
 
-  // Directly save to backend database
+    const specsPayload = {
+      ...(product.specs || {}),
+      brandTag: product.brandTag || categoryName,
+      brickSize: product.brickSize || '',
+      galleryImages: product.galleryImages || [],
+      featureBadges: product.featureBadges || [],
+      specTableColumns: product.specTableColumns || ['Parameter', 'Details'],
+      specTableRows: product.specTableRows || [],
+      highlights: product.highlights || [],
+      advantages: product.advantages || [],
+      keyFeatures: product.keyFeatures || [],
+      order: product.order !== undefined ? product.order : _cachedProducts.length + 1,
+      status: product.status || 'Active',
+    };
+
+    formData.append('name', product.name || 'New Machine Model');
+    formData.append('slug', slug);
+    formData.append('category', categoryName);
+    formData.append('description', product.description || `${product.name || 'Machine'} engineered for high reliability and heavy-duty manufacturing.`);
+    formData.append('capacity', product.capacity || '');
+    formData.append('power', product.power || '');
+    formData.append('brickSize', product.brickSize || '');
+    formData.append('status', product.status || 'Active');
+    formData.append('order', String(product.order !== undefined ? product.order : _cachedProducts.length + 1));
+    formData.append('specifications', JSON.stringify(specsPayload));
+
+    // Send image in FormData using field name `image`
+    if (product.imageFile instanceof File || product.imageFile instanceof Blob) {
+      formData.append('image', product.imageFile);
+    } else if ((product.image as any) instanceof File || (product.image as any) instanceof Blob) {
+      formData.append('image', product.image as any);
+    } else if (product.imageUrl && typeof product.imageUrl === 'string' && product.imageUrl.trim()) {
+      formData.append('image', product.imageUrl.trim());
+      formData.append('imageUrl', product.imageUrl.trim());
+    } else if (product.image && typeof product.image === 'string' && product.image.trim()) {
+      formData.append('image', product.image.trim());
+      formData.append('imageUrl', product.image.trim());
+    }
+  }
+
+  // Directly save to backend database via FormData (browser sets boundary automatically)
   try {
-    const res = await apiClient.post('/products', payload, { timeout: 15000 });
+    const res = await apiClient.post('/products', formData, { timeout: 15000 });
     const backendItem = res.data?.data;
     const created: ProductItem = backendItem ? mapBackendProduct(backendItem) : {
       id: `PROD-${Date.now()}`,
-      name: payload.name,
-      category: payload.category,
-      categorySlug: CATEGORY_NAME_TO_SLUG_MAP[categoryName] || 'fly-ash-brick-machine',
-      brandTag: product.brandTag || categoryName,
-      capacity: payload.capacity,
-      power: payload.power,
-      brickSize: product.brickSize || '',
-      image: payload.image,
-      galleryImages: product.galleryImages || [],
-      status: product.status || 'Active',
-      order: specsPayload.order,
-      description: payload.description,
-      featureBadges: specsPayload.featureBadges,
-      keyFeatures: specsPayload.keyFeatures,
-      specs: specsPayload,
-      specTableColumns: specsPayload.specTableColumns,
-      specTableRows: specsPayload.specTableRows,
-      highlights: specsPayload.highlights,
-      advantages: specsPayload.advantages
+      name: 'New Machine Model',
+      category: 'Fly Ash Brick Machine',
+      categorySlug: 'fly-ash-brick-machine',
+      image: '',
+      imageUrl: '',
+      status: 'Active',
     };
 
     _cachedProducts = [created, ..._cachedProducts.filter(p => p.id !== created.id)];
     window.dispatchEvent(new Event('jupiter_products_updated'));
+
+    // Refresh full catalog from backend so product state and database are immediately synced
+    try {
+      await fetchProducts(undefined, undefined, true);
+    } catch {
+      // ignore background refresh failure
+    }
+
     return created;
   } catch (err: any) {
     const message = extractApiErrorMessage(err, 'Failed to save product to backend database');
@@ -310,39 +329,72 @@ export const addProduct = async (product: Partial<ProductItem>): Promise<Product
   }
 };
 
-export const updateProduct = async (id: string, updates: Partial<ProductItem>): Promise<ProductItem | null> => {
-  const specsPayload = {
-    ...(updates.specs || {}),
-    brandTag: updates.brandTag,
-    brickSize: updates.brickSize,
-    galleryImages: updates.galleryImages,
-    featureBadges: updates.featureBadges,
-    specTableColumns: updates.specTableColumns,
-    specTableRows: updates.specTableRows,
-    highlights: updates.highlights,
-    advantages: updates.advantages,
-    keyFeatures: updates.keyFeatures,
-    order: updates.order,
-    status: updates.status,
-  };
+export const updateProduct = async (id: string, updates: ProductInput): Promise<ProductItem | null> => {
+  let formData: FormData;
 
-  const payload: any = {
-    ...updates,
-    specifications: specsPayload
-  };
+  if (updates instanceof FormData) {
+    formData = updates;
+  } else {
+    formData = new FormData();
+    const specsPayload = {
+      ...(updates.specs || {}),
+      brandTag: updates.brandTag,
+      brickSize: updates.brickSize,
+      galleryImages: updates.galleryImages,
+      featureBadges: updates.featureBadges,
+      specTableColumns: updates.specTableColumns,
+      specTableRows: updates.specTableRows,
+      highlights: updates.highlights,
+      advantages: updates.advantages,
+      keyFeatures: updates.keyFeatures,
+      order: updates.order,
+      status: updates.status,
+    };
 
-  // Directly update in backend database
+    if (updates.name !== undefined) formData.append('name', updates.name);
+    if (updates.slug !== undefined) formData.append('slug', updates.slug);
+    if (updates.category !== undefined) formData.append('category', updates.category);
+    if (updates.description !== undefined) formData.append('description', updates.description);
+    if (updates.capacity !== undefined) formData.append('capacity', updates.capacity);
+    if (updates.power !== undefined) formData.append('power', updates.power);
+    if (updates.brickSize !== undefined) formData.append('brickSize', updates.brickSize);
+    if (updates.status !== undefined) formData.append('status', updates.status);
+    if (updates.order !== undefined) formData.append('order', String(updates.order));
+    formData.append('specifications', JSON.stringify(specsPayload));
+
+    // Send image in FormData using field name `image`
+    if (updates.imageFile instanceof File || updates.imageFile instanceof Blob) {
+      formData.append('image', updates.imageFile);
+    } else if ((updates.image as any) instanceof File || (updates.image as any) instanceof Blob) {
+      formData.append('image', updates.image as any);
+    } else if (updates.imageUrl && typeof updates.imageUrl === 'string' && updates.imageUrl.trim()) {
+      formData.append('image', updates.imageUrl.trim());
+      formData.append('imageUrl', updates.imageUrl.trim());
+    } else if (updates.image && typeof updates.image === 'string' && updates.image.trim()) {
+      formData.append('image', updates.image.trim());
+      formData.append('imageUrl', updates.image.trim());
+    }
+  }
+
+  // Directly update in backend database via FormData
   try {
-    const res = await apiClient.put(`/products/${encodeURIComponent(id)}`, payload, { timeout: 15000 });
+    const res = await apiClient.put(`/products/${encodeURIComponent(id)}`, formData, { timeout: 15000 });
     const backendItem = res.data?.data;
     const updated: ProductItem = backendItem ? mapBackendProduct(backendItem) : {
       ...(_cachedProducts.find(p => p.id === id) || {}),
-      ...updates,
       id
     } as ProductItem;
 
     _cachedProducts = _cachedProducts.map(p => (p.id === id ? { ...p, ...updated } : p));
     window.dispatchEvent(new Event('jupiter_products_updated'));
+
+    // Refresh full catalog from backend so product state and database are immediately synced
+    try {
+      await fetchProducts(undefined, undefined, true);
+    } catch {
+      // ignore background refresh failure
+    }
+
     return updated;
   } catch (err: any) {
     const message = extractApiErrorMessage(err, 'Failed to update product in backend database');
@@ -421,6 +473,253 @@ export const clearAllProducts = async (): Promise<void> => {
   }
   _cachedProducts = [];
   window.dispatchEvent(new Event('jupiter_products_updated'));
+};
+
+export interface BulkRowError {
+  row: number;
+  field?: string;
+  name?: string;
+  message: string;
+}
+
+export interface BulkSummary {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicates: number;
+  createdRows: number;
+  skippedRows: number;
+}
+
+export interface BulkValidationResult {
+  success: boolean;
+  isValid: boolean;
+  message: string;
+  summary: BulkSummary;
+  errors: BulkRowError[];
+  raw?: any;
+}
+
+export interface BulkImportResponse {
+  success: boolean;
+  message: string;
+  summary: BulkSummary;
+  errors: BulkRowError[];
+  raw?: any;
+}
+
+export interface BulkImportResult {
+  success: boolean;
+  message: string;
+  created: number;
+  failed: number;
+  errors: Array<{ row: number; name?: string; error: string }>;
+  products?: any[];
+}
+
+/**
+ * Normalizes any backend bulk response shape into standard metrics and row errors.
+ */
+export const normalizeBulkResponse = (raw: any): {
+  summary: BulkSummary;
+  errors: BulkRowError[];
+  success: boolean;
+  isValid: boolean;
+  message: string;
+} => {
+  const payload = raw?.data || raw || {};
+  const sum = payload.summary || payload.stats || payload;
+
+  const totalRows = Number(
+    sum.totalRows ?? sum.total ?? sum.rowCount ?? sum.totalCount ?? 0
+  );
+  const validRows = Number(
+    sum.validRows ?? sum.valid ?? sum.validCount ?? 0
+  );
+  const invalidRows = Number(
+    sum.invalidRows ?? sum.invalid ?? sum.invalidCount ?? sum.failedRows ?? sum.failed ?? (Array.isArray(payload.errors) ? payload.errors.length : 0)
+  );
+  const duplicates = Number(
+    sum.duplicates ?? sum.duplicateRows ?? sum.duplicateCount ?? 0
+  );
+  const createdRows = Number(
+    sum.createdRows ?? sum.created ?? sum.imported ?? sum.importedCount ?? sum.successCount ?? 0
+  );
+  const skippedRows = Number(
+    sum.skippedRows ?? sum.skipped ?? sum.skippedCount ?? 0
+  );
+
+  const rawErrors = Array.isArray(payload.errors)
+    ? payload.errors
+    : Array.isArray(raw?.errors)
+    ? raw.errors
+    : [];
+
+  const errors: BulkRowError[] = rawErrors.map((err: any, idx: number) => {
+    if (typeof err === 'string') {
+      const match = err.match(/row\s*(\d+)[:\s-]*(.*)/i);
+      return {
+        row: match ? parseInt(match[1], 10) : idx + 1,
+        message: match ? match[2].trim() : err,
+      };
+    }
+    const rowNum = Number(err.row ?? err.rowNumber ?? err.index ?? err.line ?? idx + 1);
+    const msg = err.message || err.error || err.detail || (err.field ? `Invalid field: ${err.field}` : 'Validation error');
+    return {
+      row: isNaN(rowNum) ? idx + 1 : rowNum,
+      field: err.field,
+      name: err.name,
+      message: msg,
+    };
+  });
+
+  const success = Boolean(payload.success ?? raw?.success ?? (invalidRows === 0 && errors.length === 0));
+  const isValid = Boolean(
+    payload.isValid ??
+    ((validRows > 0 && invalidRows === 0 && errors.length === 0) || (validRows > 0 && success))
+  );
+
+  const message =
+    payload.message ||
+    raw?.message ||
+    (isValid
+      ? 'CSV validation completed successfully.'
+      : errors.length > 0
+      ? 'Validation found issues in CSV.'
+      : '');
+
+  return {
+    success,
+    isValid,
+    message,
+    summary: {
+      totalRows: totalRows || (validRows + invalidRows + skippedRows),
+      validRows,
+      invalidRows: invalidRows || errors.length,
+      duplicates,
+      createdRows,
+      skippedRows,
+    },
+    errors,
+  };
+};
+
+/**
+ * Validates bulk CSV file against backend schema rules without saving.
+ * Endpoint: POST /products/bulk/validate
+ */
+export const validateBulkProductsApi = async (file: File): Promise<BulkValidationResult> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('csv', file);
+
+  try {
+    const res = await apiClient.post('/products/bulk/validate', formData, {
+      timeout: 60000,
+    });
+    const parsed = normalizeBulkResponse(res.data);
+    return {
+      ...parsed,
+      raw: res.data,
+    };
+  } catch (err: any) {
+    if (err.response?.data) {
+      const parsed = normalizeBulkResponse(err.response.data);
+      if (parsed.errors.length > 0 || parsed.summary.invalidRows > 0) {
+        return {
+          ...parsed,
+          isValid: false,
+          raw: err.response.data,
+        };
+      }
+    }
+    const message = extractApiErrorMessage(err, 'Failed to validate CSV file on backend.');
+    throw new Error(message);
+  }
+};
+
+/**
+ * Imports validated bulk CSV file into database catalog.
+ * Endpoint: POST /products/bulk/import
+ */
+export const importBulkProductsApi = async (file: File): Promise<BulkImportResponse> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('csv', file);
+
+  try {
+    const res = await apiClient.post('/products/bulk/import', formData, {
+      timeout: 60000,
+    });
+    const parsed = normalizeBulkResponse(res.data);
+    return {
+      ...parsed,
+      raw: res.data,
+    };
+  } catch (err: any) {
+    if (err.response?.data) {
+      const parsed = normalizeBulkResponse(err.response.data);
+      if (parsed.errors.length > 0 || parsed.summary.invalidRows > 0) {
+        return {
+          ...parsed,
+          success: false,
+          raw: err.response.data,
+        };
+      }
+    }
+    const message = extractApiErrorMessage(err, 'Failed to import products from CSV.');
+    throw new Error(message);
+  }
+};
+
+/**
+ * Backward compatibility alias for bulkImportProductsApi
+ */
+export const bulkImportProductsApi = async (file: File): Promise<BulkImportResult> => {
+  const res = await importBulkProductsApi(file);
+  return {
+    success: res.success,
+    message: res.message,
+    created: res.summary.createdRows,
+    failed: res.summary.invalidRows,
+    errors: res.errors.map(e => ({ row: e.row, name: e.name, error: e.message })),
+  };
+};
+
+/**
+ * Downloads official CSV template spreadsheet for bulk product imports.
+ * Endpoint: GET /products/bulk/template
+ */
+export const downloadCsvTemplate = async (): Promise<void> => {
+  try {
+    const res = await apiClient.get('/products/bulk/template', {
+      responseType: 'blob',
+      timeout: 15000,
+    });
+    const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'jupiter_products_import_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch {
+    const fallbackCsv =
+`name,category,capacity,power,brickSize,description,imageUrl,isActive,order,keyFeatures
+Fully Automatic Fly Ash Brick Machine,Fly Ash Brick Machine,10000 to 12000 Bricks/Shift,25 HP,230 x 110 x 75 mm,Heavy-duty industrial hydraulic brick making machine with automated pallet feeder.,,true,1,PLC Controlled Automation; Heavy Duty Structural Steel; High Compaction Hydraulic System
+Paver Block Vibration Table Machine,Paver Block Machine,3500 to 4500 Blocks/Shift,15 HP,80 mm / 60 mm Paver,High frequency compaction vibration table for premium designer concrete pavers.,,true,2,High Frequency Compaction; Rubber Damper Mounts; Wear-resistant Top Plate`;
+    const blob = new Blob([fallbackCsv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'jupiter_products_import_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
 };
 
 // ─────────────────────────────────────────────────────────

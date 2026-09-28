@@ -114,6 +114,8 @@ import {
   toggleProductStatus,
   CATEGORY_NAME_TO_SLUG_MAP
 } from '../services/productService';
+import { BulkUploadModal } from '../components/BulkUploadModal';
+import { ProductCardImage } from '../components/ProductCardImage';
 
 import {
   ProjectItem,
@@ -139,15 +141,18 @@ import {
   markStoredEnquiryAsRead,
   markAllStoredEnquiriesAsRead,
   fetchEnquiriesFromDb,
-  normalizeEnquiryStatus
+  normalizeEnquiryStatus,
+  formatEnquiryDate
 } from '../services/enquiryService';
+import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
 
 // Helper to reliably extract an image string regardless of Vite/ES module wrapping
 export const resolveImg = (img: any): string => {
-  if (typeof img === 'string') return img;
-  if (img && typeof img.default === 'string') return img.default;
-  if (img && typeof img.src === 'string') return img.src;
-  return '';
+  let val = '';
+  if (typeof img === 'string') val = img;
+  else if (img && typeof img.default === 'string') val = img.default;
+  else if (img && typeof img.src === 'string') val = img.src;
+  return getProductImageUrl(val);
 };
 
 // Reusable Image Upload Field with Drag & Drop and Preview
@@ -164,13 +169,17 @@ const ImageUploadField: React.FC<{
   const inputRef = React.useRef<HTMLInputElement>(null);
   const safeValue = resolveImg(value);
 
-  const doUpload = (dataPayload: string, fileName: string) => {
+  const doUpload = (fileToUpload: File) => {
     setIsUploading(true);
     setUploadError(null);
-    apiClient.post('/upload', { image: dataPayload, filename: fileName })
+    const fd = new FormData();
+    // API Contract: send image in FormData using field name `image`
+    fd.append('image', fileToUpload);
+    apiClient.post('/upload', fd)
       .then(res => {
-        if (res.data?.url) {
-          onChange(res.data.url);
+        const returnedUrl = res.data?.imageUrl || res.data?.url || res.data?.data?.imageUrl;
+        if (returnedUrl) {
+          onChange(returnedUrl);
           setUploadError(null);
         }
       })
@@ -191,45 +200,10 @@ const ImageUploadField: React.FC<{
       if (onError) onError(err);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const rawData = e.target?.result as string;
-      if (!rawData) return;
-
-      // Automatically compress and resize to prevent localStorage quota overflow
-      const img = new Image();
-      img.onload = () => {
-        const MAX_DIM = 900;
-        let { width, height } = img;
-        if (width > MAX_DIM || height > MAX_DIM) {
-          if (width > height) {
-            height = Math.round((height * MAX_DIM) / width);
-            width = MAX_DIM;
-          } else {
-            width = Math.round((width * MAX_DIM) / height);
-            height = MAX_DIM;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.82);
-          onChange(compressed);
-          doUpload(compressed, file.name);
-        } else {
-          onChange(rawData);
-          doUpload(rawData, file.name);
-        }
-      };
-      img.onerror = () => {
-        onChange(rawData);
-      };
-      img.src = rawData;
-    };
-    reader.readAsDataURL(file);
+    // Instant local preview while upload proceeds
+    const previewUrl = URL.createObjectURL(file);
+    onChange(previewUrl);
+    doUpload(file);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -257,7 +231,7 @@ const ImageUploadField: React.FC<{
 
       {safeValue ? (
         <div className="admin-upload-preview-box">
-          <img src={safeValue} alt="Preview" className="admin-upload-preview-img" />
+          <img src={safeValue} alt="Preview" className="admin-upload-preview-img" onError={handleImageError} />
           <div className="admin-upload-preview-overlay">
             <button
               type="button"
@@ -332,12 +306,14 @@ export interface EnquiryItem {
   name: string;
   phone: string;
   email?: string;
+  location?: string;
   product: string;
+  productInterest?: string;
   productId?: string;
   date: string;
+  createdAt?: string;
   status: 'New' | 'Contacted' | 'Closed' | 'In Progress';
   message?: string;
-  location?: string;
   isRead?: boolean;
 }
 
@@ -647,6 +623,13 @@ interface SeoSettings {
 
   // Action in progress state (for disabling buttons and preventing double clicks)
   const [actionInProgressId, setActionInProgressId] = useState<string | null>(null);
+
+  // Bulk Product Upload Modal State (hidden)
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+
+  const handleCloseBulkUpload = () => {
+    setIsBulkUploadOpen(false);
+  };
 
   // Safe handler to open Edit Product modal with existing product data (no hardcoded fallback samples)
   const handleOpenEditProduct = async (prod: ProductItem) => {
@@ -2153,7 +2136,7 @@ interface SeoSettings {
                             const initials = (row.name || 'CU').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                             return (
                               <tr key={row.id || i}>
-                                <td style={{ color: '#64748B', fontWeight: 600, fontSize: '0.8rem' }}>{row.id}</td>
+                                <td style={{ color: '#64748B', fontWeight: 600, fontSize: '0.8rem' }}>#{String(i + 1).padStart(3, '0')}</td>
                                 <td>
                                   <div className="admin-customer-initials-cell">
                                     <span className="admin-avatar-badge" style={{ backgroundColor: '#001827' }}>{initials}</span>
@@ -2219,7 +2202,7 @@ interface SeoSettings {
                         title={`Click to open ${mach.name} specifications`}
                       >
                         <div className="admin-pop-machine-thumb">
-                          <img src={resolveImg(mach.image)} alt={mach.name} />
+                          <ProductCardImage src={mach.imageUrl || mach.image} alt={mach.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         </div>
                         <div className="admin-pop-machine-info">
                           <strong className="admin-pop-machine-title">{mach.name}</strong>
@@ -2335,6 +2318,7 @@ interface SeoSettings {
                       <tr>
                         <th>ID</th>
                         <th>Customer Name</th>
+                        <th>Email</th>
                         <th>Phone</th>
                         <th>Location</th>
                         <th>Product Interest</th>
@@ -2346,48 +2330,62 @@ interface SeoSettings {
                     <tbody>
                       {filteredEnquiries.length === 0 ? (
                         <tr>
-                          <td colSpan={8} style={{ textAlign: 'center', padding: '30px', color: '#64748B' }}>
+                          <td colSpan={9} style={{ textAlign: 'center', padding: '30px', color: '#64748B' }}>
                             No enquiries found matching your search.
                           </td>
                         </tr>
                       ) : (
-                        filteredEnquiries.map((enq, idx) => (
-                          <tr key={`${enq.id}-${idx}`}>
-                            <td><strong style={{ color: '#001827', fontSize: '0.8rem' }}>{enq.id}</strong></td>
+                        filteredEnquiries.map((enquiry, idx) => (
+                          <tr key={enquiry.id}>
                             <td>
-                              <strong>{enq.name}</strong>
-                              {enq.email && <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{enq.email}</div>}
+                              <strong style={{ color: '#001827', fontSize: '0.8rem' }}>
+                                #{String(idx + 1).padStart(3, '0')}
+                              </strong>
                             </td>
-                            <td><span className="admin-table-phone">{enq.phone}</span></td>
-                            <td><span style={{ fontSize: '0.82rem', color: '#475569' }}>{enq.location || 'Pan India'}</span></td>
-                            <td><strong style={{ color: '#001827' }}>{enq.product}</strong></td>
-                            <td><span className="admin-table-date">{enq.date}</span></td>
+                            <td>
+                              <strong>{enquiry.name}</strong>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.82rem', color: '#475569' }}>{enquiry.email}</span>
+                            </td>
+                            <td>
+                              <span className="admin-table-phone">{enquiry.phone}</span>
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.82rem', color: '#475569' }}>{enquiry.location}</span>
+                            </td>
+                            <td>
+                              <strong style={{ color: '#001827' }}>{enquiry.productInterest}</strong>
+                            </td>
+                            <td>
+                              <span className="admin-table-date">{formatEnquiryDate(enquiry.createdAt || enquiry.date)}</span>
+                            </td>
                             <td>
                               <span
-                                onClick={() => handleToggleStatus(enq.id, enq)}
-                                className={`admin-status-pill ${normalizeEnquiryStatus(enq.status) === 'New' ? 'status-new' : (normalizeEnquiryStatus(enq.status) === 'Contacted' ? 'status-contacted' : 'status-closed')}`}
+                                onClick={() => handleToggleStatus(enquiry.id, enquiry)}
+                                className={`admin-status-pill ${normalizeEnquiryStatus(enquiry.status) === 'New' ? 'status-new' : (normalizeEnquiryStatus(enquiry.status) === 'Contacted' ? 'status-contacted' : 'status-closed')}`}
                                 style={{ cursor: 'pointer' }}
                                 title="Click to toggle status"
                               >
-                                {enq.status}
+                                {enquiry.status}
                               </span>
                             </td>
                             <td>
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
                                   onClick={() => {
-                                    if (!enq.isRead) {
-                                      const updated = markStoredEnquiryAsRead(enq.id);
+                                    if (!enquiry.isRead) {
+                                      const updated = markStoredEnquiryAsRead(enquiry.id);
                                       setEnquiries(updated);
                                     }
-                                    setSelectedEnquiry({ ...enq, isRead: true });
+                                    setSelectedEnquiry({ ...enquiry, isRead: true });
                                   }}
                                   className="admin-table-view-btn"
                                 >
                                   Details
                                 </button>
                                 <a
-                                  href={`https://wa.me/${enq.phone.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(enq.name)},%20thank%20you%20for%20contacting%20Jupiter%20Industries%20regarding%20${encodeURIComponent(enq.product)}.`}
+                                  href={`https://wa.me/${(enquiry.phone || '').replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(enquiry.name || '')},%20thank%20you%20for%20contacting%20Jupiter%20Industries%20regarding%20${encodeURIComponent(enquiry.productInterest || enquiry.product || '')}.`}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="admin-table-view-btn"
@@ -2396,7 +2394,7 @@ interface SeoSettings {
                                   WhatsApp
                                 </a>
                                 <button
-                                  onClick={() => handleDeleteEnquiry(enq.id, enq)}
+                                  onClick={() => handleDeleteEnquiry(enquiry.id, enquiry)}
                                   className="admin-icon-btn text-danger"
                                   title="Delete Enquiry"
                                 >
@@ -2468,7 +2466,7 @@ interface SeoSettings {
                     className="btn btn-orange"
                   >
                     <Plus size={18} />
-                    <span>Add New Product</span>
+                    <span>Add Product</span>
                   </button>
                 </div>
               </div>
@@ -2628,7 +2626,7 @@ interface SeoSettings {
                         title="Click to open product specifications & details"
                       >
                         <div className="admin-prod-card-thumb" style={{ position: 'relative' }}>
-                          <img src={resolveImg(prod.image)} alt={prod.name} />
+                          <ProductCardImage src={prod.imageUrl || prod.image} alt={prod.name} />
                           <span className="admin-prod-category-badge">{prod.category}</span>
                           <span style={{
                             position: 'absolute',
@@ -4280,6 +4278,21 @@ interface SeoSettings {
       )}
 
       {/* ---------------------------------------------------------------------
+          MODAL: BULK PRODUCT IMPORT MODAL (CSV)
+          --------------------------------------------------------------------- */}
+      <BulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={handleCloseBulkUpload}
+        onSuccessRefresh={async () => {
+          const refreshed = await fetchProducts(undefined, undefined, true);
+          if (Array.isArray(refreshed)) {
+            setProducts(refreshed);
+          }
+        }}
+        triggerToast={triggerToast}
+      />
+
+      {/* ---------------------------------------------------------------------
           MODAL 2: ADD NEW PRODUCT MODAL WITH TECHNICAL SPECIFICATIONS BUILDER
           --------------------------------------------------------------------- */}
       {isAddProductOpen && (
@@ -4350,7 +4363,8 @@ interface SeoSettings {
                   capacity: newProduct.capacity || '',
                   power: newProduct.power || '',
                   brickSize: newProduct.brickSize || '',
-                  image: resolveImg(newProduct.image) || '',
+                  image: newProduct.image || '',
+                  imageUrl: newProduct.image || '',
                   galleryImages: (newProduct.galleryImages || []).filter(img => Boolean(img && img.trim())),
                   description: newProduct.description || '',
                   featureBadges: (newProduct.featureBadges || []).filter(b => Boolean(b && b.trim())),
@@ -4362,8 +4376,8 @@ interface SeoSettings {
                   status: newProduct.status || 'Active',
                   order: newProduct.order !== undefined ? Number(newProduct.order) : products.length + 1
                 });
-                await fetchProducts();
-                setProducts(getStoredProducts());
+                const freshList = await fetchProducts(undefined, undefined, true);
+                setProducts([...freshList]);
                 handleCloseAddProduct();
                 triggerToast(`Product "${newProdItem?.name || newProduct.name}" published successfully!`);
               } catch (err: any) {
@@ -4763,6 +4777,7 @@ interface SeoSettings {
                       <img
                         src={resolveImg(newProduct.image)}
                         alt="Preview"
+                        onError={handleImageError}
                         style={{ maxHeight: '190px', width: 'auto', objectFit: 'contain' }}
                       />
                     ) : (
@@ -5206,8 +5221,8 @@ interface SeoSettings {
               <div className="admin-spec-modal-grid">
                 {/* Yellow framed machine image */}
                 <div style={{ border: '4px solid #FF9200', borderRadius: '10px', padding: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', minHeight: '200px' }}>
-                  <img
-                    src={resolveImg(selectedProductForSpec.image)}
+                  <ProductCardImage
+                    src={selectedProductForSpec.imageUrl || selectedProductForSpec.image}
                     alt={selectedProductForSpec.name}
                     style={{ maxHeight: '230px', maxWidth: '100%', width: 'auto', objectFit: 'contain' }}
                   />
@@ -5401,7 +5416,8 @@ interface SeoSettings {
                     capacity: editingProduct.capacity,
                     power: editingProduct.power,
                     brickSize: editingProduct.brickSize,
-                    image: resolveImg(editingProduct.image),
+                    image: editingProduct.image,
+                    imageUrl: editingProduct.image,
                     galleryImages: (editingProduct.galleryImages || []).filter(Boolean),
                     description: editingProduct.description,
                     featureBadges: (editingProduct.featureBadges || []).filter(Boolean),
@@ -5413,8 +5429,8 @@ interface SeoSettings {
                     status: editingProduct.status || 'Active',
                     order: editingProduct.order !== undefined ? Number(editingProduct.order) : 0
                   });
-                  await fetchProducts();
-                  setProducts(getStoredProducts());
+                  const freshList = await fetchProducts(undefined, undefined, true);
+                  setProducts([...freshList]);
                   setEditingProduct(null);
                   triggerToast(`Product "${updated?.name || editingProduct.name}" updated successfully!`);
                 } catch (err: any) {
