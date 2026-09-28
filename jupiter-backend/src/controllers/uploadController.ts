@@ -19,7 +19,22 @@ export const handleUpload = async (req: Request, res: Response, next: NextFuncti
   try {
     ensureUploadsDir();
 
-    const { image, data, file, filename, url } = req.body;
+    // 1. If multipart file was uploaded via multer (field 'image')
+    if (req.file) {
+      const relativePath = `/uploads/products/${req.file.filename}`;
+      res.status(201).json({
+        success: true,
+        message: 'File uploaded successfully',
+        imageUrl: relativePath,
+        url: relativePath,
+        image: relativePath,
+        filename: req.file.filename,
+        size: req.file.size,
+      });
+      return;
+    }
+
+    const { image, data, file, filename, url } = req.body || {};
     const base64Data = image || data || file;
 
     // If client supplied an existing image URL, return it
@@ -27,7 +42,9 @@ export const handleUpload = async (req: Request, res: Response, next: NextFuncti
       res.status(200).json({
         success: true,
         message: 'File URL registered successfully',
+        imageUrl: url,
         url,
+        image: url,
         filename: path.basename(url),
         size: 0,
       });
@@ -37,7 +54,7 @@ export const handleUpload = async (req: Request, res: Response, next: NextFuncti
     if (!base64Data || typeof base64Data !== 'string') {
       res.status(400).json({
         success: false,
-        message: 'Image base64 data is required for upload',
+        message: "Image file (field 'image') or image base64 data is required for upload",
       });
       return;
     }
@@ -68,7 +85,9 @@ export const handleUpload = async (req: Request, res: Response, next: NextFuncti
     res.status(201).json({
       success: true,
       message: 'File uploaded successfully',
+      imageUrl: publicUrl,
       url: publicUrl,
+      image: publicUrl,
       filename: targetName,
       size: buffer.length,
     });

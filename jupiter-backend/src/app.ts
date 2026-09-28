@@ -116,8 +116,12 @@ export const createApp = (): Application => {
 
   // Static uploads directory
   const uploadsDir = path.join(process.cwd(), 'uploads');
+  const productsUploadsDir = path.join(uploadsDir, 'products');
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  if (!fs.existsSync(productsUploadsDir)) {
+    fs.mkdirSync(productsUploadsDir, { recursive: true });
   }
   app.use('/uploads', express.static(uploadsDir));
 
@@ -153,10 +157,29 @@ export const createApp = (): Application => {
     res.json({ success: true, status: 'OK', timestamp: new Date().toISOString() });
   });
 
+  // Bulk test runner endpoint
+  app.get('/api/test-bulk-runner', async (req: Request, res: Response) => {
+    const fs = require('fs');
+    const path = require('path');
+    const logPath = path.resolve(__dirname, '../test_debug.log');
+    try {
+      fs.appendFileSync(logPath, `[HANDLER ENTERED] ${new Date().toISOString()}\n`);
+      const { runBulkTests } = require('./scripts/testBulkUpload');
+      fs.appendFileSync(logPath, `[MODULE LOADED]\n`);
+      const result = await runBulkTests();
+      fs.appendFileSync(logPath, `[TEST FINISHED: ${result.passedTests}/${result.totalTests}]\n`);
+      res.json(result);
+    } catch (err: any) {
+      fs.appendFileSync(logPath, `[HANDLER ERROR] ${err.message}\n${err.stack}\n`);
+      res.json({ error: err.message, stack: err.stack });
+    }
+  });
+
   // Core content routes
   app.use('/api', authRoutes);
   app.use('/api', enquiryRoutes);
   app.use('/api', productRoutes);
+  app.use(productRoutes);
   app.use('/api', projectRoutes);
   app.use('/api', galleryRoutes);
   app.use('/api', videoRoutes);
