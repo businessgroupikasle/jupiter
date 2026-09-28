@@ -3,7 +3,6 @@ import { useSeoMeta } from '../utils/useSeoMeta';
 import { useSearchParams, Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Package } from 'lucide-react';
 import { PageBanner } from '../components/PageBanner';
-import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
 import { ProductCardImage } from '../components/ProductCardImage';
 import { 
   ProductItem, 

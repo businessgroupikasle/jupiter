@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import flyashImg from '../assets/images/Machines/flyash.png';
 import { getStoredProducts, ProductItem } from '../services/productService';
-import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
+import { getProductImageUrl } from '../utils/imageUrl';
 import { ProductCardImage } from './ProductCardImage';
 
 export const ApplicationCards: React.FC = () => {
