@@ -45,7 +45,7 @@
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
-  --container-width: 1240px;
+  --container-width: 1280px;
 }
 
 /* --------------------------------------------------------------------------
@@ -73,11 +73,12 @@
   animation: spin 0.85s linear infinite;
 }
 
-
 html {
   scroll-behavior: smooth;
   font-size: 16px;
   font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
@@ -88,9 +89,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  max-width: 100%;
+  width: 100%;
 }
 
-img {
+img,
+video,
+iframe {
   max-width: 100%;
   height: auto;
   display: block;
@@ -143,8 +148,8 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   max-width: var(--container-width);
   margin-left: auto;
   margin-right: auto;
-  padding-left: 24px;
-  padding-right: 24px;
+  padding-left: clamp(16px, 2.5vw, 24px);
+  padding-right: clamp(16px, 2.5vw, 24px);
 }
 
 .section-padding {
@@ -194,6 +199,8 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   font-weight: 600;
   font-size: 0.95rem;
   padding: 12px 24px;
+  min-height: 44px;
+  max-width: 100%;
   border-radius: var(--radius-sm);
   transition: var(--transition-normal);
   white-space: nowrap;
@@ -344,6 +351,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   height: 80px;
   max-width: 1440px;
   width: 100%;
+  margin: 0 auto;
   padding: 0 clamp(16px, 3.5vw, 40px);
   gap: clamp(12px, 2vw, 32px);
 }
@@ -518,8 +526,8 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   overflow: hidden;
   padding-top: 130px;
   padding-bottom: 70px;
-  height: 800px;
-  min-height: 800px;
+  min-height: 680px;
+  height: auto;
   display: flex;
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -821,7 +829,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
 
 .app-card-img-wrap {
   position: relative;
-  height: 200px;
+  height: 220px;
   overflow: hidden;
   background-color: #F8FAFC;
 }
@@ -829,13 +837,14 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
 .app-card-img-wrap img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  transition: none;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  transition: transform 0.4s ease;
 }
 
-/* Remove separate image zoom hover effect - entire card acts as single unit */
 .app-card-item:hover .app-card-img-wrap img {
-  transform: none !important;
+  transform: scale(1.05);
 }
 
 .app-card-body {
@@ -1749,7 +1758,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
 }
 
 .footer-contact-item a {
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .footer-bottom-bar {
@@ -2400,25 +2411,28 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
 }
 
 .product-card-thumb-wrap {
-  height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px;
-  margin-bottom: 14px;
-  background: #FFFFFF;
-  border-radius: 8px;
+  width: 100%;
+  height: 220px;
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  margin-bottom: 16px;
+  background: #F1F5F9;
+  border-radius: 12px;
+  position: relative;
 }
 
 .product-card-thumb-wrap img {
-  max-height: 100%;
-  max-width: 100%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
   transition: transform 0.4s ease;
 }
 
 .product-card-modern:hover .product-card-thumb-wrap img {
-  transform: none !important;
+  transform: scale(1.05);
 }
 
 .product-card-title-modern {
@@ -4809,6 +4823,16 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   }
 }
 
+@media (max-width: 400px) {
+  .notfound-flyash-404-row {
+    font-size: clamp(3.5rem, 18vw, 4.5rem);
+  }
+
+  .notfound-flyash-features-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ==========================================================================
    MACHINE CATEGORY / PRODUCT DETAILS PAGE - RESPONSIVE OPEN LAYOUT
    ========================================================================== */
@@ -4891,12 +4915,13 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 12px;
-  padding: 24px;
+  padding: 0;
   height: 420px;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 20px rgba(0, 35, 61, 0.03);
+  overflow: hidden;
 }
 
 .pdp-zoom-btn {
@@ -4926,9 +4951,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
 .pdp-main-image {
   max-height: 100%;
   max-width: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   transition: opacity 0.2s ease;
 }
 
@@ -5547,7 +5572,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   display: grid;
   grid-template-columns: 1.15fr 1fr;
   gap: 56px;
-  align-items: center;
+  align-items: stretch;
 }
 
 .about-intro-grid.image-on-left {
@@ -5655,6 +5680,9 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   padding: 15px 15px 25px 15px;
   max-width: 530px;
   margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .about-img-backdrop-aura {
@@ -5689,6 +5717,8 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   z-index: 1;
   border: 4px solid #FFFFFF;
   transition: transform 0.35s ease, box-shadow 0.35s ease;
+  flex: 1;
+  display: flex;
 }
 
 .about-main-img-card:hover {
@@ -5698,9 +5728,10 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
 
 .about-main-img-card .about-hero-img {
   width: 100%;
-  height: 430px;
+  height: 100%;
   object-fit: cover;
   display: block;
+  flex: 1;
 }
 
 .img-overlay-gradient {
@@ -6575,7 +6606,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   .about-inset-machine-card {
     width: 140px;
     bottom: 20px;
-    right: -10px;
+    right: 0;
     padding: 6px;
   }
 
@@ -6586,8 +6617,8 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   .about-floating-top-chip {
     font-size: 0.7rem;
     padding: 6px 12px;
-    top: -5px;
-    left: -5px;
+    top: 0;
+    left: 0;
   }
 
   .about-floating-badge.creative-left-badge {
@@ -6962,5 +6993,259 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
     padding: 14px 16px;
     border-radius: 14px;
     font-size: 0.95rem;
+  }
+}
+
+/* ==========================================================================
+   GLOBAL RESPONSIVE OPTIMIZATIONS (320px, 375px, 390px, 425px -> 1920px)
+   ========================================================================== */
+
+/* Products filter pills horizontal scroll bar */
+.products-filter-pills-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 4px 12px 4px;
+  scrollbar-width: none;
+  width: 100%;
+  max-width: 100%;
+}
+
+.products-filter-pills-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Policy cards responsive padding */
+.policy-card-wrap {
+  padding: clamp(20px, 4vw, 48px) clamp(16px, 3.5vw, 40px);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* PDP specs table scroll container */
+.pdp-specs-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 16px;
+}
+
+.pdp-specs-table {
+  width: 100%;
+  min-width: 280px;
+}
+
+/* Laptop and Ultra-Wide Desktop Enhancements (1024px - 1920px) */
+@media (min-width: 1024px) {
+  .hero-section {
+    min-height: 720px;
+  }
+
+  .container {
+    max-width: var(--container-width, 1280px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .navbar-container {
+    max-width: 1440px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --container-width: 1360px;
+  }
+
+  .hero-container-custom {
+    max-width: 1360px;
+  }
+}
+
+/* Tablet & Smaller Laptops (<= 1024px) */
+@media (max-width: 1024px) {
+  .pdp-showcase-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .pdp-main-image-card {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .footer-columns-grid {
+    gap: 32px 24px;
+  }
+}
+
+/* Mobile & Small Tablet Views (<= 768px) */
+@media (max-width: 768px) {
+  .hero-section {
+    min-height: auto;
+  }
+
+  .about-img-card {
+    min-height: 240px !important;
+  }
+
+  .about-stat-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .pdp-actions-row1,
+  .pdp-actions-row2 {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .pdp-actions-row1 .btn,
+  .pdp-actions-row2 .btn,
+  .pdp-quote-btn,
+  .pdp-catalog-btn,
+  .pdp-wa-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Mobile Screens (<= 480px, including 425px, 390px, 375px, 320px) */
+@media (max-width: 480px) {
+  .container {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .hero-main-heading {
+    font-size: clamp(1.6rem, 6.8vw, 2.1rem);
+    line-height: 1.22;
+  }
+
+  .hero-description-text {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .hero-section {
+    padding-top: 85px;
+    padding-bottom: 35px;
+  }
+
+  .btn {
+    min-height: 44px;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+  }
+
+  .pdp-spec-line {
+    grid-template-columns: minmax(95px, 125px) 10px 1fr;
+    font-size: 0.82rem;
+    gap: 4px;
+  }
+
+  .pdp-tab-item {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+
+  .footer-columns-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .footer-col-quicklinks,
+  .footer-col-products {
+    grid-column: 1;
+  }
+
+  .footer-bottom-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .page-banner-title {
+    font-size: clamp(1.5rem, 6vw, 2.2rem) !important;
+  }
+
+  .contact-hero-main-title {
+    font-size: clamp(1.6rem, 6.5vw, 2.2rem);
+  }
+
+  .about-creative-image-composition {
+    padding: 5px 0 15px 0;
+  }
+
+  .about-stat-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Ultra Compact Mobile (<= 375px & 320px) */
+@media (max-width: 375px) {
+  .container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .navbar-container {
+    padding-left: 12px;
+    padding-right: 12px;
+    height: 60px;
+  }
+
+  .brand-logo-img {
+    height: 30px;
+  }
+
+  .brand-title {
+    font-size: 1rem;
+  }
+
+  .hero-stats-inline {
+    gap: 8px;
+  }
+
+  .stat-pill-num {
+    font-size: 1.15rem;
+  }
+
+  .pdp-spec-line {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    border-bottom: 1px solid #F1F5F9;
+  }
+
+  .pdp-spec-line .pdp-spec-colon {
+    display: none;
+  }
+
+  .pdp-spec-line .pdp-spec-label {
+    font-size: 0.78rem;
+    color: #64748B;
+  }
+
+  .pdp-spec-line .pdp-spec-val {
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .pdp-specs-table td,
+  .pdp-specs-table th {
+    padding: 8px 10px;
+    font-size: 0.8rem;
+  }
+
+  .footer-contact-item {
+    font-size: 0.84rem;
   }
 }

@@ -284,6 +284,14 @@ export const deleteVideo = async (id: string): Promise<boolean> => {
   return true;
 };
 
+export const updateVideo = async (id: string, updates: Partial<VideoItem>): Promise<VideoItem> => {
+  const res = await apiClient.put(`/videos/${encodeURIComponent(id)}`, updates);
+  const updatedVideo = res.data?.data || { ..._cachedVideos.find(v => v.id === id), ...updates };
+  _cachedVideos = _cachedVideos.map(v => v.id === id ? updatedVideo : v);
+  window.dispatchEvent(new Event('jupiter_videos_updated'));
+  return updatedVideo;
+};
+
 export const resetToInitialVideos = async (): Promise<VideoItem[]> => {
   _cachedVideos = [...INITIAL_VIDEOS];
   window.dispatchEvent(new Event('jupiter_videos_updated'));

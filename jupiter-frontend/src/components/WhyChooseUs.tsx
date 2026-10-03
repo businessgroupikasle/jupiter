@@ -5,33 +5,33 @@ export const WhyChooseUs: React.FC = () => {
   const features = [
     {
       icon: Wrench,
-      title: 'Heavy-Duty Steel',
-      desc: 'IS 2062 Structural Steel & CNC Hardened Dies'
+      title: 'Heavy-Duty Construction',
+      desc: 'Quality Steel. Built to Last.'
     },
     {
       icon: Gauge,
       title: 'High-Tonnage Hydraulics',
-      desc: 'Up to 200 Bar Pressure & High Compaction'
+      desc: 'Powerful Compaction. Consistent Output.'
     },
     {
       icon: Cpu,
       title: 'Smart PLC Automation',
-      desc: 'PLC Touchscreen Controls & Auto Stacker'
+      desc: 'Easy Control. Efficient Production.'
     },
     {
       icon: Award,
-      title: '35+ Years Legacy',
-      desc: '1,000+ Operational Plants Since 1991'
+      title: 'Precision Engineering',
+      desc: 'Accurate Dies. Consistent Bricks.'
     },
     {
       icon: Headset,
       title: 'Pan-India Support',
-      desc: 'On-Site Commissioning & Expert Service'
+      desc: 'Installation. Commissioning. Service.'
     },
     {
       icon: Truck,
-      title: 'Ready OEM Spares',
-      desc: 'Same-Day Dispatch for Valves & Dies'
+      title: 'Genuine OEM Spares',
+      desc: 'Quality Parts. Quick Availability.'
     }
   ];
 
@@ -56,15 +56,15 @@ export const WhyChooseUs: React.FC = () => {
             fontWeight: 900,
             color: '#00233D'
           }}>
-            Built on Quality. Driven by Reliability.
+            Built for Performance. Trusted for Reliability.
           </h2>
         </div>
 
         {/* 6 Features Strip */}
-        <div style={{
+        <div className="why-choose-features-grid" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+          gap: '16px',
           alignItems: 'stretch'
         }}>
           {features.map((item, idx) => {

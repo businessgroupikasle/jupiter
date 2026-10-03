@@ -107,6 +107,12 @@ export const createApp = (): Application => {
       success: false,
       message: 'Too many requests from this IP, please try again after 15 minutes',
     },
+    skip: (req) =>
+      process.env.NODE_ENV === 'development' ||
+      env.NODE_ENV === 'development' ||
+      req.ip === '127.0.0.1' ||
+      req.ip === '::1' ||
+      req.ip === '::ffff:127.0.0.1',
   });
   app.use('/api', limiter);
 

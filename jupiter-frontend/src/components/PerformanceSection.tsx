@@ -7,19 +7,19 @@ export const PerformanceSection: React.FC = () => {
     {
       num: '35+',
       title: 'Years of Experience',
-      desc: 'A legacy of trust and innovation in heavy engineering since 1991.',
+      desc: 'Manufacturing expertise built since 1991.',
       icon: Trophy,
     },
     {
       num: '500+',
       title: 'Installations',
-      desc: 'Machines working across India and beyond.',
+      desc: 'Machines installed across India and beyond.',
       icon: BarChart2,
     },
     {
       num: '24/7',
       title: 'Support',
-      desc: 'Our team is always here to keep you running.',
+      desc: 'Technical support to keep your production running.',
       icon: Headphones,
     },
   ];
@@ -43,6 +43,15 @@ export const PerformanceSection: React.FC = () => {
             margin: 0 auto;
             width: 100%;
             min-height: 340px !important;
+          }
+        }
+        @media (max-width: 600px) {
+          .perf-col-machine {
+            min-height: 220px !important;
+          }
+          .perf-stat-item-card {
+            padding: 16px 14px !important;
+            gap: 12px !important;
           }
         }
         .perf-stat-item-card {
@@ -90,9 +99,9 @@ export const PerformanceSection: React.FC = () => {
                 lineHeight: 1.35,
                 margin: '16px 0 12px'
               }}>
-                Proven technology.<br />
-                Robust design.<br />
-                Real results.
+                Proven Engineering.<br />
+                Robust Design.<br />
+                Consistent Results.
               </h3>
 
               <p style={{
@@ -101,18 +110,18 @@ export const PerformanceSection: React.FC = () => {
                 lineHeight: 1.6,
                 margin: '0 0 20px 0'
               }}>
-                Engineered to deliver higher productivity, lower operating costs, and superior quality blocks and bricks under non-stop heavy industrial shifts.
+                Engineered for high productivity, reliable performance and consistent brick and block production in demanding industrial environments.
               </p>
 
               {/* Feature Highlights to fill and balance the column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {[
-                  'Heavy-Duty Structural Steel Rigidity',
-                  'Precision High Compaction Pressure',
-                  'Continuous 24/7 Shift-Ready Engineering',
-                  'Energy Efficient & Low Maintenance'
+                  { title: 'Heavy-Duty Structural Steel', desc: 'Built for strength and long-term durability.' },
+                  { title: 'High-Pressure Compaction', desc: 'Precision pressure for stronger, consistent output.' },
+                  { title: 'Continuous Production Ready', desc: 'Engineered for demanding, extended production cycles.' },
+                  { title: 'Energy Efficient & Low Maintenance', desc: 'Designed for efficient operation and easier maintenance.' }
                 ].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                     <div style={{ 
                       width: '20px', 
                       height: '20px', 
@@ -122,13 +131,19 @@ export const PerformanceSection: React.FC = () => {
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center',
-                      flexShrink: 0
+                      flexShrink: 0,
+                      marginTop: '3px'
                     }}>
                       <CheckCircle2 size={13} />
                     </div>
-                    <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#1E293B' }}>
-                      {item}
-                    </span>
+                    <div>
+                      <div style={{ fontSize: '0.90rem', fontWeight: 700, color: '#1E293B', marginBottom: '2px' }}>
+                        {item.title}
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#64748B', lineHeight: 1.4 }}>
+                        {item.desc}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

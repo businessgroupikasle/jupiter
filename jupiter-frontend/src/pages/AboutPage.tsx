@@ -22,10 +22,10 @@ import about1FacilityImg from '../assets/images/about/about1.jpeg';
 
 export const AboutPage: React.FC = () => {
   useSeoMeta({
-    title: 'About Jupiter Industries | 35+ Years of Machinery Manufacturing Excellence',
-    description: 'Learn about Jupiter Industries – a 35+ year legacy of engineering fly ash brick machines, block making plants, and concrete batching equipment. ISO certified, 500+ installations across India.',
+    title: 'About Jupiter Industries | Brick Making Machine Manufacturer',
+    description: 'Learn about Jupiter Industries, a Coimbatore-based brick making machine manufacturer specialising in 5G, fly ash, interlock and paver block machines.',
     keywords: 'About Jupiter Industries, Machinery Manufacturer Coimbatore, ISO Certified Brick Machine, 35 Years Machinery Experience, Industrial Equipment Manufacturer India',
-    ogUrl: 'https://jupitergroups.in/about',
+    ogUrl: 'https://jupitergroups.in/about-us/',
   });
 
   const [showCertModal, setShowCertModal] = useState(false);
@@ -36,7 +36,7 @@ export const AboutPage: React.FC = () => {
           1. CONSISTENT HERO BANNER WITH BREADCRUMB
           ===================================================================== */}
       <PageBanner
-        title="About Jupiter Industries"
+        title="About Jupiter Industries – Brick Making Machine Manufacturer in Coimbatore"
         breadcrumbs={[{ label: 'About Us' }]}
       />
 
@@ -64,19 +64,7 @@ export const AboutPage: React.FC = () => {
                   <div className="img-overlay-gradient"></div>
                 </div>
 
-                {/* Overlapping Inset Live Machine Card */}
-                <div className="about-inset-machine-card">
-                  <img
-                    src="https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=500&q=80"
-                    alt="Automated Brick Manufacturing Machine"
-                    className="inset-machine-img"
-                    loading="lazy"
-                  />
-                  <div className="inset-machine-tag">
-                    <Zap size={12} className="text-orange" />
-                    <span>Heavy-Duty PLC Press</span>
-                  </div>
-                </div>
+
 
                 {/* Top-Left Trust Badge */}
                 <div className="about-floating-top-chip">
@@ -102,15 +90,19 @@ export const AboutPage: React.FC = () => {
               </div>
 
               <h2 className="about-main-title">
-                Reliable Construction Machinery & Equipment
+                Fly Ash Brick Making Machines
               </h2>
 
               <p className="about-intro-desc">
-                Founded in Coimbatore—the engineering capital of South India—Jupiter Industries is a premier manufacturer and exporter of heavy-duty fly ash brick making machines, hollow & solid block machines, interlocking paver machines, and automatic concrete batching plants.
+                Established in Coimbatore, Tamil Nadu, Jupiter Industries is a leading manufacturer and supplier of brick making machines and concrete block machinery. We manufacture 5G Brick Making Machines, Fly Ash Brick Making Machines, Interlock Brick Machines, Paver Block Machines, Hollow & Solid Block Machines and Concrete Block Making Machines for manufacturers across India.
               </p>
 
               <p className="about-intro-desc-secondary">
-                Our heavy-duty machinery is built with structural rigidity, high-grade forged alloys, and world-class European hydraulic & PLC automation, delivering maximum throughput with minimal maintenance.
+                Our machines are engineered for high production, consistent compaction, durability and reliable long-term operation. We also manufacture and supply genuine Brick Machine Spare Parts, dies, valves and critical machine components.
+              </p>
+
+              <p className="about-intro-desc-secondary">
+                From machine selection and manufacturing to installation, commissioning and after-sales support, Jupiter Industries provides complete brick and block manufacturing solutions.
               </p>
 
               {/* 2-Column Checklist */}
@@ -119,42 +111,56 @@ export const AboutPage: React.FC = () => {
                   <div className="check-icon-box">
                     <Check size={15} />
                   </div>
-                  <span>Fly Ash Brick Machines</span>
+                  <span>5G Brick Making Machines</span>
                 </div>
 
                 <div className="about-check-item">
                   <div className="check-icon-box">
                     <Check size={15} />
                   </div>
-                  <span>Solid & Hollow Block Machines</span>
+                  <span>Fly Ash Brick Making Machines</span>
                 </div>
 
                 <div className="about-check-item">
                   <div className="check-icon-box">
                     <Check size={15} />
                   </div>
-                  <span>Interlocking Paver Machines</span>
+                  <span>Interlock Brick Machines</span>
                 </div>
 
                 <div className="about-check-item">
                   <div className="check-icon-box">
                     <Check size={15} />
                   </div>
-                  <span>Automatic Batching Plants</span>
+                  <span>Paver Block Machines</span>
                 </div>
 
                 <div className="about-check-item">
                   <div className="check-icon-box">
                     <Check size={15} />
                   </div>
-                  <span>100% Quality Tested</span>
+                  <span>Hollow & Solid Block Machines</span>
                 </div>
 
                 <div className="about-check-item">
                   <div className="check-icon-box">
                     <Check size={15} />
                   </div>
-                  <span>Pan-India Onsite Setup</span>
+                  <span>Brick Machine Spares</span>
+                </div>
+
+                <div className="about-check-item">
+                  <div className="check-icon-box">
+                    <Check size={15} />
+                  </div>
+                  <span>Quality Tested Machines</span>
+                </div>
+
+                <div className="about-check-item">
+                  <div className="check-icon-box">
+                    <Check size={15} />
+                  </div>
+                  <span>Pan-India Installation & Support</span>
                 </div>
               </div>
 
@@ -196,7 +202,7 @@ export const AboutPage: React.FC = () => {
                 <div className="mission-card-content">
                   <h3 className="mission-card-title">Our Mission</h3>
                   <p className="mission-card-desc">
-                    To engineer reliable, high-performance brick and block manufacturing machinery that helps plant owners and construction businesses achieve efficient production, consistent product quality, optimized power consumption and long-term machine performance.
+                    To manufacture reliable, high-performance brick making machines, concrete block machines and paver block machines that deliver consistent production, efficient operation and long-term value for manufacturers across India.
                   </p>
                 </div>
               </div>
@@ -208,7 +214,7 @@ export const AboutPage: React.FC = () => {
                 <div className="mission-card-content">
                   <h3 className="mission-card-title">Our Vision</h3>
                   <p className="mission-card-desc">
-                    To become a trusted Indian construction machinery manufacturer and global engineering partner, driving the adoption of automated manufacturing solutions and sustainable building materials such as fly ash products across India and international markets.
+                    To become a trusted Indian brick making machine manufacturer and construction machinery company, delivering advanced manufacturing solutions for fly ash bricks, interlocking bricks, paver blocks and concrete blocks across India and global markets.
                   </p>
                 </div>
               </div>
@@ -240,10 +246,10 @@ export const AboutPage: React.FC = () => {
               <span>QUALITY & STANDARDS</span>
             </div>
             <h2 className="about-process-title">
-              ISO 9001:2015 Certified Excellence
+              ISO 9001:2015 Certified Quality Management
             </h2>
             <p className="about-process-subtitle">
-              Jupiter Industries is fully certified for quality management systems in manufacturing heavy-duty construction machinery.
+              Jupiter Industries follows ISO 9001:2015 certified quality management practices for the manufacturing of brick making machines, concrete block machines, paver block machines and related machinery.
             </p>
           </div>
 
@@ -321,7 +327,7 @@ export const AboutPage: React.FC = () => {
               Why Choose <span className="text-orange">Jupiter Industries</span>?
             </h2>
             <p className="about-process-subtitle">
-              Over 500+ successful plant installations across India backed by decades of heavy engineering expertise.
+              Jupiter Industries manufactures and supplies 5G Brick Making Machines, Fly Ash Brick Making Machines, Interlock Brick Machines, Paver Block Machines and Concrete Block Machines, backed by precision engineering, installation and genuine machine spares.
             </p>
           </div>
 
@@ -330,25 +336,25 @@ export const AboutPage: React.FC = () => {
             {[
               {
                 num: '01',
-                title: 'Heavy-Duty Steel Body',
+                title: 'Heavy-Duty Brick Making Machines',
                 tag: 'Zero Distortion Frame',
-                desc: 'High-tensile fabricated chassis built with stress-relieved steel plates to absorb millions of continuous vibration cycles.',
+                desc: 'Robust structural steel construction for reliable brick manufacturing machine performance.',
                 icon: ShieldCheck,
                 color: '#00233D'
               },
               {
                 num: '02',
-                title: 'Precision CNC Moulds',
+                title: 'Precision CNC Brick Dies',
                 tag: '±0.05mm Micro-Tolerance',
-                desc: 'CNC-machined alloy steel dies heat-treated for over 250,000 flawless production cycles with razor-sharp brick edges.',
+                desc: 'Precision-machined dies for accurate and consistent Fly Ash Brick Machine production.',
                 icon: Wrench,
                 color: '#EA580C'
               },
               {
                 num: '03',
-                title: 'High Hydraulic Press Force',
+                title: 'High-Pressure Hydraulic System',
                 tag: '30 - 100 Tons Force',
-                desc: 'Synchronized high-tonnage hydraulic cylinders ensuring maximum brick density, high load resistance, and zero porosity.',
+                desc: 'High-tonnage hydraulics for strong, dense output from brick and block making machines.',
                 icon: Gauge,
                 color: '#0284C7'
               },
@@ -356,39 +362,39 @@ export const AboutPage: React.FC = () => {
                 num: '04',
                 title: 'Smart PLC Automation',
                 tag: 'Touchscreen HMI',
-                desc: 'Intuitive touchscreen interface with programmable recipe memory, automated cycle diagnostics, and safety lockouts.',
+                desc: 'PLC automation for efficient operation of 5G Brick Making Machines and Paver Block Machines.',
                 icon: Cpu,
                 color: '#7C3AED'
               },
               {
                 num: '05',
-                title: '25% Energy Savings',
+                title: 'Efficient Machine Engineering',
                 tag: 'Eco Power Pack',
-                desc: 'Eco-friendly power packs with synchronized high-G vibration motors delivering 25% daily electricity savings.',
+                desc: 'Engineered for reliable production with optimised power consumption and low maintenance.',
                 icon: Zap,
                 color: '#16A34A'
               },
               {
                 num: '06',
-                title: 'Pan-India On-Site Setup',
+                title: 'Pan-India Machine Installation',
                 tag: 'Turnkey Commissioning',
-                desc: 'Senior factory engineers deployed directly to your site for complete erection, calibration, and operator certification.',
+                desc: 'Complete installation and commissioning for brick making machines, block machines and paver block machines across India.',
                 icon: Factory,
                 color: '#D97706'
               },
               {
                 num: '07',
-                title: '1-Year Warranty & Support',
+                title: 'After-Sales Service & Support',
                 tag: '100% Comprehensive',
-                desc: 'Official 1-Year Comprehensive Onsite Warranty backed by rapid field engineer support and dedicated helplines.',
+                desc: 'Technical support for brick manufacturing machines and concrete block machines to minimise downtime.',
                 icon: Award,
                 color: '#DC2626'
               },
               {
                 num: '08',
-                title: 'Ready OEM Spare Parts',
+                title: 'Brick Machine Spares Manufacturer',
                 tag: 'Same-Day Dispatch',
-                desc: 'Immediate dispatch of genuine replacement moulds, hydraulic cylinders, directional valves, and wear liners.',
+                desc: 'Manufacturer and supplier of brick machine spare parts, dies, valves, hydraulic cylinders and machine components.',
                 icon: Layers,
                 color: '#0D9488'
               }

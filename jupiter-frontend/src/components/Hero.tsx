@@ -25,9 +25,6 @@ export const Hero: React.FC<HeroProps> = ({ onOpenVideoModal }) => {
     <section 
       className="hero-section"
       style={{
-        height: '800px',
-        minHeight: '800px',
-        backgroundPosition: 'right top',
         backgroundImage: `linear-gradient(90deg, rgba(0, 24, 39, 0.95) 0%, rgba(0, 24, 39, 0.85) 38%, rgba(0, 24, 39, 0.4) 62%, rgba(0, 24, 39, 0.1) 82%, transparent 100%), url(${imgSrc})`
       }}
     >
@@ -40,8 +37,8 @@ export const Hero: React.FC<HeroProps> = ({ onOpenVideoModal }) => {
             </div>
             
             <h1 className="hero-main-heading">
-              Machines that move <br />
-              your <span className="text-orange">business forward.</span>
+              5G, Fly Ash Brick & Paver Block <br />
+              <span className="text-orange">Machine Manufacturer</span>
             </h1>
             
             <p className="hero-description-text">

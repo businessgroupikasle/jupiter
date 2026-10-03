@@ -13,8 +13,8 @@ import {
 
 export const ProductsPage: React.FC = () => {
   useSeoMeta({
-    title: 'Our Machines | Fly Ash Brick, Block & Paver Machines – Jupiter Industries',
-    description: 'Explore Jupiter Industries’ full range of industrial machinery – fly ash brick machines, hollow block machines, interlocking brick machines, paver block plants, batching plants and storage silos.',
+    title: 'Brick Making Machines & Block Machines | Jupiter Industries',
+    description: 'Explore Jupiter Industries’ 5G, Fly Ash, Interlock Brick, Paver Block, Concrete Block and Hollow & Solid Block Making Machines for reliable brick production.',
     keywords: 'Buy Fly Ash Brick Machine, Block Making Machine Price India, Paver Block Plant, Batching Plant Manufacturer, Machine Spares, Jupiter Industries Products',
     ogUrl: 'https://jupitergroups.in/machines',
   });
@@ -108,7 +108,7 @@ export const ProductsPage: React.FC = () => {
     <div className="products-page-view">
       {/* Page Banner with Breadcrumb */}
       <PageBanner
-        title="Industrial Machinery & Solutions"
+        title="Brick Making Machines & Block Making Machines"
         breadcrumbs={[{ label: 'Products' }]}
       />
 
@@ -135,7 +135,7 @@ export const ProductsPage: React.FC = () => {
               marginBottom: '12px',
               letterSpacing: '-0.02em'
             }}>
-              Explore Our Product Range
+              Brick Making Machines & Block Making Machinery
             </h2>
             <p style={{
               color: '#5A6E85',
@@ -143,22 +143,12 @@ export const ProductsPage: React.FC = () => {
               lineHeight: 1.6,
               margin: '0 auto'
             }}>
-              High-performance machinery for a stronger, more sustainable tomorrow.
+              Explore Jupiter Industries’ range of brick making machines and block making machines designed for reliable and consistent production. We manufacture and supply 5G Brick Making Machines, Fly Ash Brick Making Machines, Interlock Brick Machines, Paver Block Machines, Concrete Block Machines and Hollow & Solid Block Machines for brick and block manufacturers across India.
             </p>
           </div>
 
-          {/* Filter Pills in Single Row */}
-          <div style={{
-            display: 'flex',
-            flexWrap: 'nowrap',
-            gap: '8px',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: '40px',
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-            paddingBottom: '0'
-          }}>
+          {/* Filter Pills in Responsive Row / Scroll */}
+          <div className="products-filter-pills-bar">
             {categories.map(cat => {
               const isActive = activeFilter === cat.id;
               return (

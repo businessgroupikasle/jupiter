@@ -13,8 +13,8 @@ import { X } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   useSeoMeta({
-    title: 'Jupiter Industries | Fly Ash Brick & Concrete Block Machine Manufacturer',
-    description: 'Jupiter Industries – Leading manufacturer of fly ash brick machines, hollow block machines, paver block plants, batching plants and storage silos. Pan-India installation & service support.',
+    title: '5G, Fly Ash & Paver Block Machine Manufacturer | Jupiter Industries',
+    description: 'Jupiter Industries is a Coimbatore-based manufacturer of 5G brick, fly ash brick, interlock brick and paver block machines, with genuine machine spares and pan-India support.',
     keywords: 'Fly Ash Brick Machine, Concrete Block Machine, Paver Block Machine, Interlocking Brick Machine, Batching Plant, Storage Silo, Coimbatore Machinery Manufacturer, Jupiter Industries',
     ogUrl: 'https://jupitergroups.in/',
   });

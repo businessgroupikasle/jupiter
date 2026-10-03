@@ -54,7 +54,7 @@ const BlogComingSoon: React.FC = () => (
     <div className="cs-card" style={{
       maxWidth: '740px',
       margin: '0 auto',
-      padding: '64px 32px 56px',
+      padding: 'clamp(36px, 6vw, 64px) clamp(16px, 4vw, 32px)',
       textAlign: 'center',
     }}>
 
@@ -385,7 +385,7 @@ export const BlogPage: React.FC = () => {
             {/* Bottom CTA Card */}
             <div style={{
               marginTop: '56px',
-              padding: '36px',
+              padding: 'clamp(24px, 5vw, 36px) clamp(16px, 4vw, 32px)',
               background: '#00233D',
               borderRadius: '16px',
               color: '#FFFFFF',

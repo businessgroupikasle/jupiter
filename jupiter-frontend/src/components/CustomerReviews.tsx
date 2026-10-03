@@ -235,7 +235,7 @@ export const CustomerReviews: React.FC = () => {
                     background: '#FFFFFF',
                     border: '1px solid #E2E8F0',
                     borderRadius: '16px',
-                    padding: '32px 28px',
+                    padding: 'clamp(20px, 3.5vw, 32px) clamp(16px, 3vw, 28px)',
                     boxShadow: '0 4px 16px rgba(0, 35, 61, 0.05)',
                     display: 'flex',
                     flexDirection: 'column',

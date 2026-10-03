@@ -619,22 +619,6 @@ export const MachineCategoryPage: React.FC = () => {
           ) : (
             /* STANDARD MACHINERY VIEW (WITH TABS) */
             <>
-              {/* Optional Multi-Model Selector Bar (if category has multiple models) */}
-              {categoryData.subMachines.length > 1 && (
-                <div className="pdp-model-switcher">
-                  <span className="pdp-model-label">Select Model:</span>
-                  {categoryData.subMachines.map((subM, idx) => (
-                    <button
-                      key={subM.id}
-                      type="button"
-                      onClick={() => handleModelSelect(idx)}
-                      className={`pdp-model-pill ${selectedModelIdx === idx ? 'active' : ''}`}
-                    >
-                      {subM.name}
-                    </button>
-                  ))}
-                </div>
-              )}
 
               {/* TOP SHOWCASE: 2-COLUMN GRID (Gallery on Left, Details on Right) */}
               <div className="pdp-showcase-grid">

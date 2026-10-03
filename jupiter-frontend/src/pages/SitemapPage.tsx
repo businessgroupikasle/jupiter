@@ -75,7 +75,7 @@ export const SitemapPage: React.FC = () => {
           </div>
 
           {/* Grid of Sitemap Sections */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '28px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '28px' }}>
             {siteSections.map((section, idx) => {
               const SectionIcon = section.icon;
               return (

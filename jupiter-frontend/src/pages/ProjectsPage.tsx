@@ -9,8 +9,8 @@ import { PageBanner } from '../components/PageBanner';
 
 export const ProjectsPage: React.FC = () => {
   useSeoMeta({
-    title: 'Projects & Gallery | Jupiter Industries Machinery Installations',
-    description: 'View Jupiter Industries’ project gallery – 500+ successful brick & block machine installations across India. Watch our machines in action through videos and customer site photos.',
+    title: 'Brick Making Machine Videos & Gallery | Jupiter Industries',
+    description: 'Watch Jupiter Industries’ brick making machine videos, including 5G, fly ash brick, interlock brick, paver block and concrete block machine demonstrations.',
     keywords: 'Jupiter Industries Projects, Brick Machine Installation Gallery, Block Machine Videos India, Industrial Machinery Site Work, Fly Ash Machine Customer Projects',
     ogUrl: 'https://jupitergroups.in/projects',
   });
@@ -145,7 +145,7 @@ export const ProjectsPage: React.FC = () => {
               </div>
 
               {/* Videos Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '24px' }}>
                 {filteredVideos.map((vid) => (
                   <div
                     key={vid.id}
@@ -188,20 +188,7 @@ export const ProjectsPage: React.FC = () => {
                         {vid.category || 'Machinery'}
                       </span>
 
-                      {/* Duration Tag */}
-                      <span style={{
-                        position: 'absolute',
-                        bottom: '10px',
-                        right: '10px',
-                        background: 'rgba(0, 0, 0, 0.85)',
-                        color: '#FFFFFF',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '4px'
-                      }}>
-                        {vid.duration}
-                      </span>
+
 
                       {/* Play Button Overlay */}
                       <div style={{
@@ -239,7 +226,7 @@ export const ProjectsPage: React.FC = () => {
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid #F1F5F9' }}>
                         <span style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 500 }}>
-                          {vid.views}
+                          
                         </span>
                         <span style={{ color: '#FF9200', fontSize: '0.84rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                           <span>Watch Video</span>
@@ -302,7 +289,7 @@ export const ProjectsPage: React.FC = () => {
                   <p style={{ color: '#64748B', fontSize: '1rem', margin: 0 }}>No gallery photos currently uploaded for this category.</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '24px' }}>
                   {filteredPhotos.map((photo) => (
                     <div
                       key={photo.id}
@@ -445,7 +432,7 @@ export const ProjectsPage: React.FC = () => {
             {/* Modal Footer */}
             <div style={{ padding: '14px 22px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#001827', flexWrap: 'wrap', gap: '10px' }}>
               <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.84rem' }}>
-                Duration: {selectedVideo.duration} • {selectedVideo.views}
+                
               </span>
               {selectedVideo.videoUrl && (
                 <a

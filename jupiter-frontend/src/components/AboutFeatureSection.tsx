@@ -51,6 +51,19 @@ export const AboutFeatureSection: React.FC = () => {
               gap: 36px;
             }
           }
+          @media (max-width: 640px) {
+            .about-img-card {
+              min-height: 240px !important;
+            }
+          }
+          @media (max-width: 480px) {
+            .about-stat-cards-grid {
+              gap: 10px !important;
+            }
+            .about-stat-card {
+              padding: 14px 10px !important;
+            }
+          }
           .about-img-card:hover img {
             transform: scale(1.08) !important;
           }
@@ -72,10 +85,10 @@ export const AboutFeatureSection: React.FC = () => {
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               boxShadow: '0 15px 35px rgba(0, 35, 61, 0.08)',
-              padding: '12px',
+              padding: '0',
               minHeight: '380px',
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'stretch',
               justifyContent: 'center'
             }}
           >
@@ -83,11 +96,12 @@ export const AboutFeatureSection: React.FC = () => {
               src={flyashImg} 
               alt="Jupiter Industries Heavy Duty Block & Brick Machine" 
               style={{ 
+                position: 'absolute',
+                top: 0,
+                left: 0,
                 width: '100%', 
-                height: 'auto', 
-                maxHeight: '410px', 
-                objectFit: 'contain',
-                transform: 'scale(1.05)',
+                height: '100%', 
+                objectFit: 'cover',
                 transition: 'transform 0.4s ease'
               }}
             />
@@ -113,8 +127,7 @@ export const AboutFeatureSection: React.FC = () => {
               lineHeight: 1.28,
               marginBottom: '18px'
             }}>
-              Quality Brick & Block Machinery,<br />
-              Built on 35+ Years of Experience
+              Brick Making Machines & Concrete Block Machinery for Reliable Production
             </h2>
 
             <p style={{
@@ -123,7 +136,7 @@ export const AboutFeatureSection: React.FC = () => {
               lineHeight: 1.65,
               marginBottom: '28px'
             }}>
-              Established in 1991, Jupiter Industries is a leading manufacturer and supplier of heavy-duty concrete block machines, fly ash brick plants, and paver block equipment in Coimbatore, serving residential, commercial, and industrial infrastructure projects across India.
+              Established in 1991, Jupiter Industries is a leading manufacturer of brick making machines and concrete block machinery based in Coimbatore, Tamil Nadu. We manufacture and supply 5G brick making machines, fly ash brick making machines, interlock brick machines, paver block machines, hollow and solid block machines, batching plants, storage silos and brick machine spares.
             </p>
 
             <Link 
@@ -144,7 +157,7 @@ export const AboutFeatureSection: React.FC = () => {
           </div>
 
           {/* Right Column: 2x2 Stat Cards Grid */}
-          <div style={{
+          <div className="about-stat-cards-grid" style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: '14px'

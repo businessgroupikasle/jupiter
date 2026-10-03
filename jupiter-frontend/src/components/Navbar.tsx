@@ -24,6 +24,23 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const productSubLinks = [
     { name: 'Fly Ash Brick Machine', path: '/products/fly-ash-brick-machine' },
     { name: 'Hollow and Solid Block Machine', path: '/products/hollow-and-solid-block-machine' },
@@ -282,18 +299,22 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
             </div>
 
             {mobileProductsOpen && (
-              <div style={{ paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+              <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
                 {productSubLinks.map(sub => (
                   <Link
                     key={sub.path}
                     to={sub.path}
                     onClick={() => setMobileMenuOpen(false)}
                     style={{
-                      fontSize: '0.86rem',
-                      color: location.pathname === sub.path ? '#FF9200' : 'rgba(255, 255, 255, 0.8)',
-                      padding: '6px 0',
+                      fontSize: '0.88rem',
+                      color: location.pathname === sub.path ? '#FF9200' : 'rgba(255, 255, 255, 0.85)',
+                      padding: '10px 12px',
                       textDecoration: 'none',
-                      display: 'block'
+                      display: 'flex',
+                      alignItems: 'center',
+                      minHeight: '44px',
+                      borderRadius: '6px',
+                      background: location.pathname === sub.path ? 'rgba(255, 146, 0, 0.1)' : 'transparent'
                     }}
                   >
                     • {sub.name}

@@ -55,7 +55,7 @@ export const MachineryVideoSection: React.FC<MachineryVideoSectionProps> = () =>
         {/* Video Layout: Showcase on left + 4 Playlist Cards on right */}
         <div className="machinery-video-grid">
           {/* Main Video Box (Plays directly in-place) */}
-          <div className="video-main-showcase" style={{ minHeight: '430px' }}>
+          <div className="video-main-showcase">
             {isPlaying && currentVideo ? (
               <iframe
                 key={currentVideo.id || currentVideo.videoUrl}
@@ -66,7 +66,7 @@ export const MachineryVideoSection: React.FC<MachineryVideoSectionProps> = () =>
                 style={{
                   width: '100%',
                   height: '100%',
-                  minHeight: '430px',
+                  minHeight: '220px',
                   border: 'none',
                   borderRadius: 'inherit'
                 }}
@@ -78,7 +78,7 @@ export const MachineryVideoSection: React.FC<MachineryVideoSectionProps> = () =>
                   position: 'relative', 
                   width: '100%', 
                   height: '100%', 
-                  minHeight: '430px', 
+                  minHeight: '220px', 
                   cursor: 'pointer', 
                   display: 'flex', 
                   flexDirection: 'column', 
@@ -96,7 +96,7 @@ export const MachineryVideoSection: React.FC<MachineryVideoSectionProps> = () =>
                     {currentVideo?.title}
                   </h3>
                   <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.92rem' }}>
-                    Watch our machines in action • {currentVideo?.duration}
+                    Watch our machines in action
                   </p>
                 </div>
               </div>
@@ -137,7 +137,7 @@ export const MachineryVideoSection: React.FC<MachineryVideoSectionProps> = () =>
                       {vid.title}
                     </div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#EA580C' }}>
-                      ⏱️ {vid.duration}
+                      ▶ Watch Now
                     </div>
                   </div>
                 </div>

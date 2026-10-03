@@ -96,8 +96,8 @@ export const ForgotPasswordPage: React.FC = () => {
         to="/admin"
         style={{
           position: 'absolute',
-          top: '28px',
-          left: '32px',
+          top: 'clamp(14px, 3vw, 28px)',
+          left: 'clamp(12px, 3vw, 32px)',
           display: 'inline-flex',
           alignItems: 'center',
           gap: '12px',
@@ -160,7 +160,7 @@ export const ForgotPasswordPage: React.FC = () => {
           background: 'rgba(255, 255, 255, 0.98)',
           borderRadius: '24px',
           boxShadow: '0 25px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.15)',
-          padding: '40px 36px 36px',
+          padding: 'clamp(28px, 6vw, 40px) clamp(16px, 5vw, 36px)',
           position: 'relative',
           zIndex: 10,
           boxSizing: 'border-box',

@@ -21,10 +21,9 @@ export const TermsConditionsPage: React.FC = () => {
 
       <section style={{ padding: '70px 0', background: '#F8FAFC' }}>
         <div className="container" style={{ maxWidth: '960px' }}>
-          <div style={{
+          <div className="policy-card-wrap" style={{
             background: '#ffffff',
             borderRadius: '16px',
-            padding: '40px 48px',
             boxShadow: '0 15px 40px rgba(0, 35, 61, 0.06)',
             border: '1px solid #E2E8F0'
           }}>
