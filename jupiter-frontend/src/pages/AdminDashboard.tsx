@@ -88,7 +88,7 @@ import {
   getYouTubeEmbedUrl,
   getYouTubeThumbnail,
   getStoredVideos,
-  saveStoredVideos,
+  updateVideo,
   addVideo,
   deleteVideo,
   fetchVideosFromDb
@@ -769,8 +769,8 @@ interface SeoSettings {
     image: ''
   });
   const [newVideo, setNewVideo] = useState({
+    id: undefined as string | undefined,
     title: '',
-    duration: '3:30',
     image: '',
     videoUrl: '',
     category: 'Block Machines' as VideoItem['category']
@@ -3188,7 +3188,7 @@ interface SeoSettings {
                     >
                       <img src={resolveImg(vid.image)} alt={vid.title} />
                       <div className="admin-video-play-badge"><PlayCircle size={32} /></div>
-                      <span className="admin-video-duration">{vid.duration}</span>
+
                       {vid.category && (
                         <span style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(0, 24, 39, 0.85)', color: '#FF9200', fontSize: '0.72rem', fontWeight: 700, padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(255, 146, 0, 0.4)' }}>
                           {vid.category}
@@ -3200,7 +3200,7 @@ interface SeoSettings {
                         {vid.title}
                       </h3>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                        <span style={{ fontSize: '0.78rem', color: '#64748B' }}>{vid.views}</span>
+                        <span style={{ fontSize: '0.78rem', color: '#64748B' }}></span>
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button
                             onClick={() => setSelectedVideoForPlay(vid)}
@@ -3223,16 +3223,17 @@ interface SeoSettings {
                           )}
                           <button
                             onClick={() => {
-                              const newTitle = prompt('Edit Video Title:', vid.title);
-                              if (newTitle) {
-                                const updated = videos.map(v => v.id === vid.id ? { ...v, title: newTitle } : v);
-                                setVideos(updated);
-                                saveStoredVideos(updated);
-                                triggerToast('Video title updated');
-                              }
+                              setNewVideo({
+                                id: vid.id,
+                                title: vid.title,
+                                image: vid.image,
+                                videoUrl: vid.videoUrl,
+                                category: vid.category
+                              });
+                              setIsAddVideoOpen(true);
                             }}
                             className="admin-icon-btn"
-                            title="Edit Title"
+                            title="Edit Video"
                           >
                             <Edit size={15} />
                           </button>
@@ -6508,7 +6509,7 @@ interface SeoSettings {
           <div className="modal-content-card" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-bar">
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#001827' }}>Add Machinery Video</h3>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#001827' }}>{newVideo.id ? 'Edit Machinery Video' : 'Add Machinery Video'}</h3>
                 <span style={{ fontSize: '0.78rem', color: '#64748B' }}>Add YouTube link with auto-thumbnail generation</span>
               </div>
               <button className="modal-close-btn" onClick={() => setIsAddVideoOpen(false)}>
@@ -6523,20 +6524,30 @@ interface SeoSettings {
                 const embedUrl = getYouTubeEmbedUrl(newVideo.videoUrl);
                 const thumb = newVideo.image || (ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=400&q=80');
 
-                await addVideo({
-                  title: newVideo.title || 'Jupiter Machinery Live Demonstration',
-                  videoUrl: newVideo.videoUrl,
-                  embedUrl: embedUrl,
-                  views: '1.2K views',
-                  duration: newVideo.duration || '3:30',
-                  image: thumb,
-                  category: (newVideo.category || 'Block Machines') as any,
-                  description: 'Machinery in action live demonstration by Jupiter Industries.'
-                });
+                if (newVideo.id) {
+                  await updateVideo(newVideo.id, {
+                    title: newVideo.title,
+                    videoUrl: newVideo.videoUrl,
+                    embedUrl: embedUrl,
+                    image: thumb,
+                    category: newVideo.category as any
+                  });
+                  triggerToast('Video updated successfully!');
+                } else {
+                  await addVideo({
+                    title: newVideo.title || 'Jupiter Machinery Live Demonstration',
+                    videoUrl: newVideo.videoUrl,
+                    embedUrl: embedUrl,
+                    views: '1.2K views',
+                    image: thumb,
+                    category: (newVideo.category || 'Block Machines') as any,
+                    description: 'Machinery in action live demonstration by Jupiter Industries.'
+                  });
+                  triggerToast('YouTube video added successfully and saved to DB!');
+                }
                 setVideos(getStoredVideos());
                 setIsAddVideoOpen(false);
-                setNewVideo({ title: '', duration: '3:30', image: '', videoUrl: '', category: 'Block Machines' });
-                triggerToast('YouTube video added successfully and saved to DB!');
+                setNewVideo({ id: undefined, title: '', image: '', videoUrl: '', category: 'Block Machines' });
               } catch (err: any) {
                 alert('Failed to save video to backend: ' + (err.message || 'Error'));
               }
@@ -6582,33 +6593,20 @@ interface SeoSettings {
                 />
               </div>
 
-              {/* Category & Duration Row */}
-              <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
-                <div className="form-group-item">
-                  <label className="form-field-label">Machinery Category</label>
-                  <select
-                    className="form-input-field"
-                    value={newVideo.category}
-                    onChange={(e) => setNewVideo({ ...newVideo, category: e.target.value as any })}
-                  >
-                    <option value="Block Machines">Block Machines</option>
-                    <option value="Brick Machines">Brick Machines</option>
-                    <option value="Paver Machines">Paver Machines</option>
-                    <option value="Batching & Mixers">Batching & Mixers</option>
-                    <option value="Factory Tour">Factory Tour</option>
-                  </select>
-                </div>
-
-                <div className="form-group-item">
-                  <label className="form-field-label">Duration</label>
-                  <input
-                    type="text"
-                    className="form-input-field"
-                    placeholder="e.g. 3:45"
-                    value={newVideo.duration}
-                    onChange={(e) => setNewVideo({ ...newVideo, duration: e.target.value })}
-                  />
-                </div>
+              {/* Category */}
+              <div className="form-group-item" style={{ marginBottom: '14px' }}>
+                <label className="form-field-label">Machinery Category</label>
+                <select
+                  className="form-input-field"
+                  value={newVideo.category}
+                  onChange={(e) => setNewVideo({ ...newVideo, category: e.target.value as any })}
+                >
+                  <option value="Block Machines">Block Machines</option>
+                  <option value="Brick Machines">Brick Machines</option>
+                  <option value="Paver Machines">Paver Machines</option>
+                  <option value="Batching & Mixers">Batching & Mixers</option>
+                  <option value="Factory Tour">Factory Tour</option>
+                </select>
               </div>
 
               {/* Thumbnail Preview */}

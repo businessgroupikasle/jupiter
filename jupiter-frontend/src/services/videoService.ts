@@ -4,7 +4,7 @@ export interface VideoItem {
   videoUrl: string;
   embedUrl: string;
   views: string;
-  duration: string;
+  duration?: string;
   image: string;
   category: 'All' | 'Block Machines' | 'Brick Machines' | 'Paver Machines' | 'Batching & Mixers' | 'Factory Tour';
   description?: string;
