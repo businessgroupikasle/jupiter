@@ -130,6 +130,7 @@ export const createApp = (): Application => {
     fs.mkdirSync(productsUploadsDir, { recursive: true });
   }
   app.use('/uploads', express.static(uploadsDir));
+  app.use('/api/uploads', express.static(uploadsDir));
 
   // Root route — API directory
   app.get('/', (req: Request, res: Response) => {

@@ -101,8 +101,8 @@ export const getProductImageUrl = (
   // Uploaded files: /uploads/... or uploads/... → prepend backend API origin
   if (trimmed.startsWith('/uploads/') || trimmed.startsWith('uploads/')) {
     const origin = getBackendApiOrigin().replace(/\/+$/, '');
-    const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-    return `${origin}${cleanPath}`;
+    const cleanPath = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+    return `${origin}/api/${cleanPath}`;
   }
 
   return trimmed;
