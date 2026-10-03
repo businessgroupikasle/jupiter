@@ -161,6 +161,13 @@ export const uploadProductImagesOptional = (req: Request, res: Response, next: N
         res.status(400).json({ success: false, message: err.message || 'Image upload failed' });
         return;
       }
+      
+      if (!req.file && req.files && typeof req.files === 'object') {
+        const filesMap = req.files as Record<string, Express.Multer.File[]>;
+        if (filesMap.image && filesMap.image[0]) req.file = filesMap.image[0];
+        else if (filesMap.images && filesMap.images[0]) req.file = filesMap.images[0];
+      }
+
       next();
     });
   } else {
