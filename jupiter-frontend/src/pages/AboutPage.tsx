@@ -18,6 +18,7 @@ import {
 import { Link } from 'react-router-dom';
 import { PageBanner } from '../components/PageBanner';
 import isoCertificationImg from '../assets/images/about/iso certification.jpg';
+import missionImg from '../assets/images/about/mission.png';
 import about1FacilityImg from '../assets/images/about/about1.jpeg';
 
 export const AboutPage: React.FC = () => {
@@ -224,7 +225,7 @@ export const AboutPage: React.FC = () => {
             <div className="about-mission-image-col">
               <div className="mission-image-frame">
                 <img
-                  src="src/assets/images/about/mission.png "
+                  src={missionImg}
                   alt="Modern Construction Machinery Facility"
                   className="mission-hero-img"
                   loading="lazy"
