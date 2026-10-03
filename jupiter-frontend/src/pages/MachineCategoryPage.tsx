@@ -229,7 +229,7 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
 
 export const MachineCategoryPage: React.FC = () => {
   const { categorySlug } = useParams<{ categorySlug: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const location = useLocation();
   const [updateTrigger, setUpdateTrigger] = useState(0);
 
@@ -369,16 +369,6 @@ export const MachineCategoryPage: React.FC = () => {
   }, [activeMachine]);
 
   const currentDisplayImage = getProductImageUrl(galleryImages[selectedImageIdx] || galleryImages[0] || IMAGES.performanceMachine);
-
-  // Switch Model Handler
-  const handleModelSelect = (idx: number) => {
-    setSelectedModelIdx(idx);
-    setSelectedImageIdx(0);
-    const selected = categoryData.subMachines[idx];
-    if (selected) {
-      setSearchParams({ model: selected.id }, { replace: true });
-    }
-  };
 
   // Thumbnail Navigation Handlers
   const handlePrevThumb = () => {
