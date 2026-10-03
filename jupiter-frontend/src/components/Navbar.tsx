@@ -226,9 +226,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
 
         {/* Right CTA / Contact Group */}
         <div className="nav-actions-group">
-          <a href="tel:+919342919060" className="nav-phone-contact">
+          <a href="tel:+919159999060" className="nav-phone-contact">
             <Phone size={16} className="text-orange" />
-            <span>+91 93429 19060</span>
+            <span>+91 91599 99060</span>
           </a>
 
           <button onClick={handleScrollToQuote} className="btn btn-orange">
@@ -348,9 +348,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
             Contact
           </Link>
 
-          <a href="tel:+919342919060" className="nav-phone-contact" style={{ paddingTop: '10px' }}>
+          <a href="tel:+919159999060" className="nav-phone-contact" style={{ paddingTop: '10px' }}>
             <Phone size={16} className="text-orange" />
-            <span>+91 93429 19060</span>
+            <span>+91 91599 99060</span>
           </a>
 
           <button 

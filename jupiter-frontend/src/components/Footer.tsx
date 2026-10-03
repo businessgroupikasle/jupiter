@@ -124,8 +124,8 @@ export const Footer: React.FC = () => {
             <div className="footer-contact-item">
               <Phone size={18} className="text-orange" style={{ flexShrink: 0 }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <a href="tel:+919342919060" style={{ color: 'inherit', textDecoration: 'none' }}>+91 93429 19060</a>
                 <a href="tel:+919159999060" style={{ color: 'inherit', textDecoration: 'none' }}>+91 91599 99060</a>
+                <a href="tel:+919342919060" style={{ color: 'inherit', textDecoration: 'none' }}>+91 93429 19060</a>
               </div>
             </div>
 

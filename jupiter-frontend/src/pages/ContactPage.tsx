@@ -374,11 +374,11 @@ export const ContactPage: React.FC = () => {
                   <div className="contact-quad-content">
                     <h3 className="contact-quad-title">Quick Contact</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '4px' }}>
-                      <a href="tel:+919342919060" className="contact-quad-highlight" style={{ textDecoration: 'none', color: '#081322', margin: 0 }}>
-                        +91 93429 19060
-                      </a>
                       <a href="tel:+919159999060" className="contact-quad-highlight" style={{ textDecoration: 'none', color: '#081322', margin: 0 }}>
                         +91 91599 99060
+                      </a>
+                      <a href="tel:+919342919060" className="contact-quad-highlight" style={{ textDecoration: 'none', color: '#081322', margin: 0 }}>
+                        +91 93429 19060
                       </a>
                     </div>
                     <span className="contact-quad-subtext">Mon - Sat, 9:00 AM - 6:00 PM (IST)</span>

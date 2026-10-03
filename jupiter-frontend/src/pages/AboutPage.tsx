@@ -75,7 +75,7 @@ export const AboutPage: React.FC = () => {
 
                 {/* Bottom Experience Badge */}
                 <div className="about-floating-badge creative-left-badge">
-                  <div className="badge-exp-number">25+</div>
+                  <div className="badge-exp-number">35+</div>
                   <div className="badge-exp-text">
                     <strong>Years Experience</strong>
                     <span>In Heavy Engineering</span>
