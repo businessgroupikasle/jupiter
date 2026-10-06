@@ -15,8 +15,11 @@ export interface SubMachineItem {
   galleryImages?: string[];
   description: string;
   capacity?: string;
+  capacityLabel?: string;
   power?: string;
+  powerLabel?: string;
   brickSize?: string;
+  brickSizeLabel?: string;
   featureBadges?: string[];
   specs: MachineSpecItem[];
   keyFeatures?: string[];
@@ -46,8 +49,11 @@ export interface ProductItem {
   category: string;
   categorySlug?: string;
   capacity?: string;
+  capacityLabel?: string;
   power?: string;
+  powerLabel?: string;
   brickSize?: string;
+  brickSizeLabel?: string;
   enquiriesCount?: number;
   image: string;
   imageUrl?: string;
@@ -186,8 +192,11 @@ const mapBackendProduct = (p: any): ProductItem => {
     category: p.category,
     categorySlug,
     capacity: p.capacity || specs.capacity || (specs['Capacity'] || ''),
+    capacityLabel: p.capacityLabel || specs.capacityLabel || 'Production Capacity',
     power: p.power || specs.power || (specs['Power'] || ''),
+    powerLabel: p.powerLabel || specs.powerLabel || 'Total Connected Power',
     brickSize: p.brickSize || specs.brickSize || (specs['Brick Size'] || ''),
+    brickSizeLabel: p.brickSizeLabel || specs.brickSizeLabel || 'Brick / Mold Size',
     enquiriesCount: Number(p.enquiryCount ?? p.enquiriesCount ?? p._count?.enquiries ?? 0),
     image: p.imageUrl || p.image || specs.imageUrl || specs.image || '',
     imageUrl: p.imageUrl || p.image || specs.imageUrl || specs.image || '',
@@ -260,6 +269,9 @@ export const addProduct = async (product: ProductInput): Promise<ProductItem> =>
     const specsPayload = {
       ...(product.specs || {}),
       brandTag: product.brandTag || categoryName,
+      capacityLabel: product.capacityLabel || 'Production Capacity',
+      powerLabel: product.powerLabel || 'Total Connected Power',
+      brickSizeLabel: product.brickSizeLabel || 'Brick / Mold Size',
       brickSize: product.brickSize || '',
       galleryImages: product.galleryImages || [],
       featureBadges: product.featureBadges || [],
@@ -277,8 +289,11 @@ export const addProduct = async (product: ProductInput): Promise<ProductItem> =>
     formData.append('category', categoryName);
     formData.append('description', product.description || `${product.name || 'Machine'} engineered for high reliability and heavy-duty manufacturing.`);
     formData.append('capacity', product.capacity || '');
+    formData.append('capacityLabel', product.capacityLabel || 'Production Capacity');
     formData.append('power', product.power || '');
+    formData.append('powerLabel', product.powerLabel || 'Total Connected Power');
     formData.append('brickSize', product.brickSize || '');
+    formData.append('brickSizeLabel', product.brickSizeLabel || 'Brick / Mold Size');
     formData.append('status', product.status || 'Active');
     formData.append('order', String(product.order !== undefined ? product.order : _cachedProducts.length + 1));
     formData.append('specifications', JSON.stringify(specsPayload));
@@ -340,6 +355,9 @@ export const updateProduct = async (id: string, updates: ProductInput): Promise<
     const specsPayload = {
       ...(updates.specs || {}),
       brandTag: updates.brandTag,
+      capacityLabel: updates.capacityLabel,
+      powerLabel: updates.powerLabel,
+      brickSizeLabel: updates.brickSizeLabel,
       brickSize: updates.brickSize,
       galleryImages: updates.galleryImages,
       featureBadges: updates.featureBadges,
@@ -357,8 +375,11 @@ export const updateProduct = async (id: string, updates: ProductInput): Promise<
     if (updates.category !== undefined) formData.append('category', updates.category);
     if (updates.description !== undefined) formData.append('description', updates.description);
     if (updates.capacity !== undefined) formData.append('capacity', updates.capacity);
+    if (updates.capacityLabel !== undefined) formData.append('capacityLabel', updates.capacityLabel);
     if (updates.power !== undefined) formData.append('power', updates.power);
+    if (updates.powerLabel !== undefined) formData.append('powerLabel', updates.powerLabel);
     if (updates.brickSize !== undefined) formData.append('brickSize', updates.brickSize);
+    if (updates.brickSizeLabel !== undefined) formData.append('brickSizeLabel', updates.brickSizeLabel);
     if (updates.status !== undefined) formData.append('status', updates.status);
     if (updates.order !== undefined) formData.append('order', String(updates.order));
     formData.append('specifications', JSON.stringify(specsPayload));
@@ -848,8 +869,11 @@ export const getDynamicCategories = (): MachineCategoryData[] => {
         galleryImages: p.galleryImages || [],
         description: p.description || `${p.name} built with heavy-duty components for long-term production.`,
         capacity: p.capacity,
+        capacityLabel: p.capacityLabel,
         power: p.power,
+        powerLabel: p.powerLabel,
         brickSize: p.brickSize,
+        brickSizeLabel: p.brickSizeLabel,
         featureBadges: p.featureBadges || ['Durable Construction', 'Consistent Dimensions', 'Lower Water Absorption', 'Cost-Effective Solution'],
         specs: specItems,
         keyFeatures: p.keyFeatures || ['Industrial Grade Heavy-Duty Construction', 'High Efficiency Low Power Consumption', 'Precision Engineered Output'],

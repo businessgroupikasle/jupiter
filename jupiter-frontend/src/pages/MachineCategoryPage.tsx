@@ -416,8 +416,11 @@ export const MachineCategoryPage: React.FC = () => {
 
     // Default masonry parameters if standard list
     if (rows.length === 0) {
+      if (activeMachine?.brickSize && activeMachine.brickSize.trim()) {
+        const param = activeMachine.brickSizeLabel || 'Brick / Mold Size';
+        rows.push({ param, detail: activeMachine.brickSize.trim() });
+      }
       rows.push(
-        { param: 'Size (L x B x H)', detail: '230 mm x 230 mm x 70 mm (or 75 mm / Custom Mold Sizes)' },
         { param: 'Compressive Strength', detail: '3.5 - 7.0 N/mm² (High-Tonnage Hydraulic Compaction)' },
         { param: 'Indian Standard', detail: 'IS 2185 (PART 1) : 2005 / IS 12894' },
         { param: 'Dry Density', detail: 'Approx. 1,600 - 1,850 kg/m³' },
@@ -425,11 +428,13 @@ export const MachineCategoryPage: React.FC = () => {
         { param: 'Efflorescence', detail: 'Nil' }
       );
 
-      if (activeMachine.capacity) {
-        rows.push({ param: 'Production Capacity', detail: activeMachine.capacity });
+      if (activeMachine?.capacity && activeMachine.capacity.trim()) {
+        const param = activeMachine.capacityLabel || 'Production Capacity';
+        rows.push({ param, detail: activeMachine.capacity.trim() });
       }
-      if (activeMachine.power) {
-        rows.push({ param: 'Total Connected Power', detail: activeMachine.power });
+      if (activeMachine?.power && activeMachine.power.trim()) {
+        const param = activeMachine.powerLabel || 'Total Connected Power';
+        rows.push({ param, detail: activeMachine.power.trim() });
       }
       rows.push(
         { param: 'Hydraulic Working Pressure', detail: '160 – 200 Bar Maximum System Pressure' },
@@ -443,20 +448,20 @@ export const MachineCategoryPage: React.FC = () => {
 
   // Quick Top Specs (Key : Value alignment matching screenshot)
   const quickSpecs = useMemo(() => {
-    return [
-      {
-        label: 'Capacity',
-        value: activeMachine?.capacity || '8,000 – 12,000 Bricks/hr'
-      },
-      {
-        label: 'Power',
-        value: activeMachine?.power || '15 H.P Electric Motor'
-      },
-      {
-        label: 'Brick Size',
-        value: activeMachine?.brickSize || activeMachine?.specs.find(s => s.label.toLowerCase().includes('size') || s.label.toLowerCase().includes('brick'))?.value || '230 x 110 x 75 to 230 x 200 x 100'
-      }
-    ];
+    const list: { label: string; value: string }[] = [];
+    if (activeMachine?.capacity && activeMachine.capacity.trim()) {
+      const label = activeMachine.capacityLabel || 'Capacity';
+      list.push({ label, value: activeMachine.capacity.trim() });
+    }
+    if (activeMachine?.power && activeMachine.power.trim()) {
+      const label = activeMachine.powerLabel || 'Power';
+      list.push({ label, value: activeMachine.power.trim() });
+    }
+    if (activeMachine?.brickSize && activeMachine.brickSize.trim()) {
+      const label = activeMachine.brickSizeLabel || 'Brick / Mold Size';
+      list.push({ label, value: activeMachine.brickSize.trim() });
+    }
+    return list;
   }, [activeMachine]);
 
   const machineImgUrl = (() => {
@@ -663,15 +668,17 @@ export const MachineCategoryPage: React.FC = () => {
                   </div>
 
                   {/* Quick Key Specifications List (Key : Value) */}
-                  <div className="pdp-quick-specs">
-                    {quickSpecs.map((spec, sIdx) => (
-                      <div key={sIdx} className="pdp-spec-line">
-                        <span className="pdp-spec-name">{spec.label}</span>
-                        <span className="pdp-spec-colon">:</span>
-                        <span className="pdp-spec-value">{spec.value}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {quickSpecs.length > 0 && (
+                    <div className="pdp-quick-specs">
+                      {quickSpecs.map((spec, sIdx) => (
+                        <div key={sIdx} className="pdp-spec-line">
+                          <span className="pdp-spec-name">{spec.label}</span>
+                          <span className="pdp-spec-colon">:</span>
+                          <span className="pdp-spec-value">{spec.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Action Buttons Group */}
                   <div className="pdp-actions-group">

@@ -558,8 +558,11 @@ interface SeoSettings {
     brandTag: '',
     category,
     capacity: '',
+    capacityLabel: 'Production Capacity',
     power: '',
+    powerLabel: 'Total Connected Power',
     brickSize: '',
+    brickSizeLabel: 'Brick / Mold Size',
     image: '',
     galleryImages: [] as string[],
     description: '',
@@ -579,8 +582,11 @@ interface SeoSettings {
     brandTag: string;
     category: string;
     capacity: string;
+    capacityLabel: string;
     power: string;
+    powerLabel: string;
     brickSize: string;
+    brickSizeLabel: string;
     image: string;
     galleryImages: string[];
     description: string;
@@ -638,7 +644,10 @@ interface SeoSettings {
     setIsUpdatingProduct(false);
     setEditingProduct({
       ...prod,
+      capacityLabel: prod.capacityLabel || 'Production Capacity',
+      powerLabel: prod.powerLabel || 'Total Connected Power',
       brickSize: prod.brickSize || '',
+      brickSizeLabel: prod.brickSizeLabel || 'Brick / Mold Size',
       status: prod.status || 'Active',
       order: prod.order !== undefined ? prod.order : 0,
       featureBadges: prod.featureBadges ? [...prod.featureBadges] : [],
@@ -655,7 +664,10 @@ interface SeoSettings {
       if (full) {
         setEditingProduct({
           ...full,
+          capacityLabel: full.capacityLabel || 'Production Capacity',
+          powerLabel: full.powerLabel || 'Total Connected Power',
           brickSize: full.brickSize || '',
+          brickSizeLabel: full.brickSizeLabel || 'Brick / Mold Size',
           status: full.status || 'Active',
           order: full.order !== undefined ? full.order : 0,
           featureBadges: full.featureBadges ? [...full.featureBadges] : [],
@@ -4362,8 +4374,11 @@ interface SeoSettings {
                   brandTag: newProduct.brandTag || '',
                   category: newProduct.category,
                   capacity: newProduct.capacity || '',
+                  capacityLabel: newProduct.capacityLabel || 'Production Capacity',
                   power: newProduct.power || '',
+                  powerLabel: newProduct.powerLabel || 'Total Connected Power',
                   brickSize: newProduct.brickSize || '',
+                  brickSizeLabel: newProduct.brickSizeLabel || 'Brick / Mold Size',
                   image: newProduct.image || '',
                   imageUrl: newProduct.image || '',
                   galleryImages: (newProduct.galleryImages || []).filter(img => Boolean(img && img.trim())),
@@ -4487,34 +4502,64 @@ interface SeoSettings {
                 </div>
               </div>
 
-              {/* 3 Quick Specs: Capacity, Power, Brick/Mold Size */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
-                <div className="form-group-item">
-                  <label className="form-field-label">Production Capacity</label>
+              {/* 3 Customizable Quick Specs: Title & Value */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+                <div className="form-group-item" style={{ background: '#F8FAFC', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  <label className="form-field-label" style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginBottom: '6px' }}>
+                    Quick Spec 1 Title & Value
+                  </label>
                   <input
                     type="text"
                     className="form-input-field"
-                    placeholder="e.g. 15,000 – 20,000 Bricks/day"
+                    placeholder="Title (e.g. Production Capacity)"
+                    value={newProduct.capacityLabel || ''}
+                    onChange={(e) => setNewProduct({ ...newProduct, capacityLabel: e.target.value })}
+                    style={{ marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}
+                  />
+                  <input
+                    type="text"
+                    className="form-input-field"
+                    placeholder="Value (e.g. 15,000 – 20,000 Bricks/day)"
                     value={newProduct.capacity || ''}
                     onChange={(e) => setNewProduct({ ...newProduct, capacity: e.target.value })}
                   />
                 </div>
-                <div className="form-group-item">
-                  <label className="form-field-label">Total Connected Power</label>
+                <div className="form-group-item" style={{ background: '#F8FAFC', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  <label className="form-field-label" style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginBottom: '6px' }}>
+                    Quick Spec 2 Title & Value
+                  </label>
                   <input
                     type="text"
                     className="form-input-field"
-                    placeholder="e.g. 15 H.P Electric Motor"
+                    placeholder="Title (e.g. Total Connected Power)"
+                    value={newProduct.powerLabel || ''}
+                    onChange={(e) => setNewProduct({ ...newProduct, powerLabel: e.target.value })}
+                    style={{ marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}
+                  />
+                  <input
+                    type="text"
+                    className="form-input-field"
+                    placeholder="Value (e.g. 15 H.P Electric Motor)"
                     value={newProduct.power || ''}
                     onChange={(e) => setNewProduct({ ...newProduct, power: e.target.value })}
                   />
                 </div>
-                <div className="form-group-item">
-                  <label className="form-field-label">Brick / Mold Size</label>
+                <div className="form-group-item" style={{ background: '#F8FAFC', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  <label className="form-field-label" style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginBottom: '6px' }}>
+                    Quick Spec 3 Title & Value
+                  </label>
                   <input
                     type="text"
                     className="form-input-field"
-                    placeholder="e.g. 230 x 110 x 75 to 230 x 200 x 100"
+                    placeholder="Title (e.g. Brick / Mold Size)"
+                    value={newProduct.brickSizeLabel || ''}
+                    onChange={(e) => setNewProduct({ ...newProduct, brickSizeLabel: e.target.value })}
+                    style={{ marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}
+                  />
+                  <input
+                    type="text"
+                    className="form-input-field"
+                    placeholder="Value (e.g. 230 x 110 x 75 to 230 x 200 x 100)"
                     value={newProduct.brickSize || ''}
                     onChange={(e) => setNewProduct({ ...newProduct, brickSize: e.target.value })}
                   />
@@ -5415,8 +5460,11 @@ interface SeoSettings {
                     brandTag: editingProduct.brandTag || 'JUPITER EQUIPMENTS',
                     category: editingProduct.category,
                     capacity: editingProduct.capacity,
+                    capacityLabel: editingProduct.capacityLabel || 'Production Capacity',
                     power: editingProduct.power,
+                    powerLabel: editingProduct.powerLabel || 'Total Connected Power',
                     brickSize: editingProduct.brickSize,
+                    brickSizeLabel: editingProduct.brickSizeLabel || 'Brick / Mold Size',
                     image: editingProduct.image,
                     imageUrl: editingProduct.image,
                     galleryImages: (editingProduct.galleryImages || []).filter(Boolean),
@@ -5538,34 +5586,64 @@ interface SeoSettings {
                     </div>
                   </div>
 
-                  {/* 3 Quick Specs: Capacity, Power, Brick/Mold Size */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
-                    <div className="form-group-item">
-                      <label className="form-field-label">Production Capacity</label>
+                  {/* 3 Customizable Quick Specs: Title & Value */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+                    <div className="form-group-item" style={{ background: '#F8FAFC', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                      <label className="form-field-label" style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginBottom: '6px' }}>
+                        Quick Spec 1 Title & Value
+                      </label>
                       <input
                         type="text"
                         className="form-input-field"
-                        placeholder="e.g. 10,000 – 20,000 Bricks / Day"
+                        placeholder="Title (e.g. Production Capacity)"
+                        value={editingProduct.capacityLabel || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, capacityLabel: e.target.value })}
+                        style={{ marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}
+                      />
+                      <input
+                        type="text"
+                        className="form-input-field"
+                        placeholder="Value (e.g. 10,000 – 20,000 Bricks / Day)"
                         value={editingProduct.capacity || ''}
                         onChange={(e) => setEditingProduct({ ...editingProduct, capacity: e.target.value })}
                       />
                     </div>
-                    <div className="form-group-item">
-                      <label className="form-field-label">Total Connected Power</label>
+                    <div className="form-group-item" style={{ background: '#F8FAFC', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                      <label className="form-field-label" style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginBottom: '6px' }}>
+                        Quick Spec 2 Title & Value
+                      </label>
                       <input
                         type="text"
                         className="form-input-field"
-                        placeholder="e.g. 15 H.P + 2 H.P / 7.5 H.P + 2 H.P"
+                        placeholder="Title (e.g. Total Connected Power)"
+                        value={editingProduct.powerLabel || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, powerLabel: e.target.value })}
+                        style={{ marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}
+                      />
+                      <input
+                        type="text"
+                        className="form-input-field"
+                        placeholder="Value (e.g. 15 H.P + 2 H.P / 7.5 H.P + 2 H.P)"
                         value={editingProduct.power || ''}
                         onChange={(e) => setEditingProduct({ ...editingProduct, power: e.target.value })}
                       />
                     </div>
-                    <div className="form-group-item">
-                      <label className="form-field-label">Brick / Mold Size</label>
+                    <div className="form-group-item" style={{ background: '#F8FAFC', padding: '10px 12px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                      <label className="form-field-label" style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginBottom: '6px' }}>
+                        Quick Spec 3 Title & Value
+                      </label>
                       <input
                         type="text"
                         className="form-input-field"
-                        placeholder="e.g. 230 x 110 x 75 mm (Standard)"
+                        placeholder="Title (e.g. Brick / Mold Size)"
+                        value={editingProduct.brickSizeLabel || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, brickSizeLabel: e.target.value })}
+                        style={{ marginBottom: '6px', fontWeight: 600, fontSize: '0.85rem' }}
+                      />
+                      <input
+                        type="text"
+                        className="form-input-field"
+                        placeholder="Value (e.g. 230 x 110 x 75 mm (Standard))"
                         value={editingProduct.brickSize || ''}
                         onChange={(e) => setEditingProduct({ ...editingProduct, brickSize: e.target.value })}
                       />

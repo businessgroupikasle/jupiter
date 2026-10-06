@@ -224,7 +224,7 @@ export const ProductsPage: React.FC = () => {
             ) : (
               filteredProducts.map((prod) => {
                 const targetSlug = prod.categorySlug || CATEGORY_NAME_TO_SLUG_MAP[prod.category] || 'fly-ash-brick-machine';
-                const capacityVal = prod.capacity || (prod.specs && prod.specs['Capacity']) || '1,500 – 2,000 Blocks/hr';
+                const capacityVal = (prod.capacity && prod.capacity.trim()) || (prod.specs && prod.specs['Capacity'] && String(prod.specs['Capacity']).trim()) || '';
                 const operationVal = (prod.specs && (prod.specs['Operation'] || prod.specs['Operation Mode'])) || 'Automatic';
                 const features = (prod.keyFeatures && prod.keyFeatures.length >= 2)
                   ? prod.keyFeatures.slice(0, 2)
@@ -249,10 +249,12 @@ export const ProductsPage: React.FC = () => {
 
                     {/* Specs Box */}
                     <div className="product-specs-box-modern">
-                      <div className="product-specs-row-item">
-                        <span className="spec-lbl">Capacity:</span>
-                        <span className="spec-val">{capacityVal}</span>
-                      </div>
+                      {capacityVal && (
+                        <div className="product-specs-row-item">
+                          <span className="spec-lbl">Capacity:</span>
+                          <span className="spec-val">{capacityVal}</span>
+                        </div>
+                      )}
                       <div className="product-specs-row-item">
                         <span className="spec-lbl">Operation:</span>
                         <span className="spec-val">{operationVal}</span>
