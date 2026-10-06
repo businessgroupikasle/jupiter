@@ -501,8 +501,8 @@ export const ContactPage: React.FC = () => {
               title="Jupiter Industries Google Map Location"
               src="https://maps.google.com/maps?cid=8000996565713436119&output=embed"
               width="100%"
-              height="480"
-              style={{ border: 0, display: 'block', width: '100%' }}
+              height="400"
+              style={{ border: 0, display: 'block', width: '100%', height: '400px' }}
               allowFullScreen={false}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"

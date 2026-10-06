@@ -97,6 +97,7 @@ export const SLUG_TO_CATEGORY_NAME_MAP: Record<string, string> = {
   'patching-plant': 'Batching Plant',
   'storage-silo': 'Storage Silo',
   'machine-spares': 'Machine Spares',
+  'spares': 'Machine Spares',
 };
 
 // ─────────────────────────────────────────────────────────

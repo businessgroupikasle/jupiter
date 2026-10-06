@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSeoMeta } from '../utils/useSeoMeta';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Package } from 'lucide-react';
 import { PageBanner } from '../components/PageBanner';
 import { ProductCardImage } from '../components/ProductCardImage';
@@ -12,6 +12,7 @@ import {
 } from '../services/productService';
 
 export const ProductsPage: React.FC = () => {
+  const navigate = useNavigate();
   useSeoMeta({
     title: 'Brick Making Machines & Block Machines | Jupiter Industries',
     description: 'Explore Jupiter Industries’ 5G, Fly Ash, Interlock Brick, Paver Block, Concrete Block and Hollow & Solid Block Making Machines for reliable brick production.',
@@ -26,10 +27,12 @@ export const ProductsPage: React.FC = () => {
 
   useEffect(() => {
     const category = searchParams.get('category');
-    if (category) {
+    if (category === 'machine-spares' || category === 'spares') {
+      navigate('/products/machine-spares', { replace: true });
+    } else if (category) {
       setActiveFilter(category);
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   // Sync live whenever products are added, edited, or deleted
   useEffect(() => {
@@ -154,7 +157,13 @@ export const ProductsPage: React.FC = () => {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setActiveFilter(cat.id)}
+                  onClick={() => {
+                    if (cat.id === 'machine-spares' || cat.slug === 'machine-spares') {
+                      navigate('/products/machine-spares');
+                    } else {
+                      setActiveFilter(cat.id);
+                    }
+                  }}
                   style={{
                     background: isActive ? '#FF6B00' : '#F8FAFC',
                     color: isActive ? '#FFFFFF' : '#1E293B',

@@ -294,7 +294,7 @@ export const MachineCategoryPage: React.FC = () => {
     return getCategoryBySlug(currentSlug);
   }, [currentSlug, updateTrigger]);
 
-  const isSparesCategory = currentSlug === 'machine-spares' || (categoryData && categoryData.slug === 'machine-spares');
+  const isSparesCategory = currentSlug === 'machine-spares' || currentSlug === 'spares' || (categoryData && categoryData.slug === 'machine-spares');
 
   // Dynamic SEO meta tags per machine category
   useSeoMeta({
