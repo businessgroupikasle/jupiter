@@ -97,6 +97,20 @@ export const createApp = (): Application => {
   app.use(cors(corsOptions));
   app.options('*', cors(corsOptions));
 
+  // Static uploads directory — MUST be registered BEFORE API routes so image files
+  // are served directly without being caught by the /api router or upload route handlers.
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  const productsUploadsDir = path.join(uploadsDir, 'products');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  if (!fs.existsSync(productsUploadsDir)) {
+    fs.mkdirSync(productsUploadsDir, { recursive: true });
+  }
+  // Serve uploads at both /uploads/... and /api/uploads/... so the frontend resolveImg helper works
+  app.use('/uploads', express.static(uploadsDir, { maxAge: '1d' }));
+  app.use('/api/uploads', express.static(uploadsDir, { maxAge: '1d' }));
+
   // Rate Limiting
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -120,17 +134,7 @@ export const createApp = (): Application => {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-  // Static uploads directory
-  const uploadsDir = path.join(process.cwd(), 'uploads');
-  const productsUploadsDir = path.join(uploadsDir, 'products');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-  if (!fs.existsSync(productsUploadsDir)) {
-    fs.mkdirSync(productsUploadsDir, { recursive: true });
-  }
-  app.use('/uploads', express.static(uploadsDir));
-  app.use('/api/uploads', express.static(uploadsDir));
+  // (Static uploads registered above, before rate limiter)
 
   // Root route — API directory
   app.get('/', (req: Request, res: Response) => {

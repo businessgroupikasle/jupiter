@@ -8,8 +8,7 @@ const router = Router();
 // Protected upload endpoint (supports both multipart 'image' and base64)
 router.post('/upload', requireAuth, uploadProductImageOptional, handleUpload);
 
-// Public read endpoints
+// Public read endpoints (list all uploaded files)
 router.get('/upload', listUploads);
-router.get('/uploads', listUploads);
 
 export default router;
