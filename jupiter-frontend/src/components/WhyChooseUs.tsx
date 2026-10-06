@@ -126,7 +126,8 @@ export const WhyChooseUs: React.FC = () => {
                   color: '#64748B',
                   fontWeight: 600,
                   lineHeight: 1.45,
-                  margin: 0
+                  margin: 0,
+                  textAlign: 'center'
                 }}>
                   {item.desc}
                 </p>

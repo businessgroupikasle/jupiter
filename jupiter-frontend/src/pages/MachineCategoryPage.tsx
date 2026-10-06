@@ -65,16 +65,6 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
 
   const currentImg = getProductImageUrl(images[selectedThumbIdx] || images[0] || IMAGES.performanceMachine);
 
-  const badges = spare.featureBadges && spare.featureBadges.length >= 4
-    ? spare.featureBadges
-    : ['Durable Construction', 'Consistent Dimensions', 'Lower Water Absorption', 'Cost-Effective Solution'];
-
-  const quickSpecs = [
-    { label: 'Capacity', value: spare.capacity || '2 Bricks / Cycle' },
-    { label: 'Power', value: spare.power || 'Mechanical / Hydraulic Fit' },
-    { label: 'Brick Size', value: spare.brickSize || '230 x 110 x 75 mm' },
-  ];
-
   const getFullImgUrl = (img?: string) => {
     if (!img || img.startsWith('data:')) return '';
     if (img.startsWith('http://') || img.startsWith('https://')) return img;
@@ -157,7 +147,7 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
         )}
       </div>
 
-      {/* Right Column: Title, Subtitle, Description, Quick Features & CTAs */}
+      {/* Right Column: Title, Subtitle, Description & CTAs */}
       <div className="pdp-info-col">
         <h2 className="pdp-title">{spare.name}</h2>
 
@@ -168,37 +158,6 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
         <p className="pdp-desc">
           {spare.description || `${spare.name} precision manufactured by Jupiter Industries for maximum service life and heavy-duty reliability.`}
         </p>
-
-        {/* 4 Feature Badges in 2x2 Grid */}
-        <div className="pdp-features-grid">
-          <div className="pdp-feature-item">
-            <Hexagon size={20} className="pdp-feature-icon" />
-            <span>{badges[0] || 'Durable Construction'}</span>
-          </div>
-          <div className="pdp-feature-item">
-            <Scan size={20} className="pdp-feature-icon" />
-            <span>{badges[1] || 'Consistent Dimensions'}</span>
-          </div>
-          <div className="pdp-feature-item">
-            <Droplets size={20} className="pdp-feature-icon" />
-            <span>{badges[2] || 'Lower Water Absorption'}</span>
-          </div>
-          <div className="pdp-feature-item">
-            <Coins size={20} className="pdp-feature-icon" />
-            <span>{badges[3] || 'Cost-Effective Solution'}</span>
-          </div>
-        </div>
-
-        {/* Quick Key Specifications List (Key : Value) */}
-        <div className="pdp-quick-specs">
-          {quickSpecs.map((spec, sIdx) => (
-            <div key={sIdx} className="pdp-spec-line">
-              <span className="pdp-spec-name">{spec.label}</span>
-              <span className="pdp-spec-colon">:</span>
-              <span className="pdp-spec-value">{spec.value}</span>
-            </div>
-          ))}
-        </div>
 
         {/* Action Buttons Group */}
         <div className="pdp-actions-group">

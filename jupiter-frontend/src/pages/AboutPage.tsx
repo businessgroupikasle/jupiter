@@ -98,11 +98,11 @@ export const AboutPage: React.FC = () => {
                 Established in Coimbatore, Tamil Nadu, Jupiter Industries is a leading manufacturer and supplier of brick making machines and concrete block machinery. We manufacture 5G Brick Making Machines, Fly Ash Brick Making Machines, Interlock Brick Machines, Paver Block Machines, Hollow & Solid Block Machines and Concrete Block Making Machines for manufacturers across India.
               </p>
 
-              <p className="about-intro-desc-secondary">
+              <p className="about-intro-desc">
                 Our machines are engineered for high production, consistent compaction, durability and reliable long-term operation. We also manufacture and supply genuine Brick Machine Spare Parts, dies, valves and critical machine components.
               </p>
 
-              <p className="about-intro-desc-secondary">
+              <p className="about-intro-desc">
                 From machine selection and manufacturing to installation, commissioning and after-sales support, Jupiter Industries provides complete brick and block manufacturing solutions.
               </p>
 

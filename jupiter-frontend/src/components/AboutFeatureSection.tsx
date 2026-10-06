@@ -134,7 +134,8 @@ export const AboutFeatureSection: React.FC = () => {
               color: '#475569',
               fontSize: '1rem',
               lineHeight: 1.65,
-              marginBottom: '28px'
+              marginBottom: '28px',
+              textAlign: 'justify'
             }}>
               Established in 1991, Jupiter Industries is a leading manufacturer of brick making machines and concrete block machinery based in Coimbatore, Tamil Nadu. We manufacture and supply 5G brick making machines, fly ash brick making machines, interlock brick machines, paver block machines, hollow and solid block machines, batching plants, storage silos and brick machine spares.
             </p>

@@ -5047,6 +5047,7 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   line-height: 1.65;
   color: #5A6E85;
   margin-bottom: 24px;
+  text-align: justify;
 }
 
 /* 4 Feature Badges in 2x2 Grid */
@@ -5608,14 +5609,16 @@ h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea, select, label, li, 
   font-size: 1rem;
   color: #475569;
   line-height: 1.7;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  text-align: justify;
 }
 
 .about-intro-desc-secondary {
-  font-size: 0.96rem;
-  color: #64748B;
-  line-height: 1.65;
-  margin-bottom: 28px;
+  font-size: 1rem;
+  color: #475569;
+  line-height: 1.7;
+  margin-bottom: 20px;
+  text-align: justify;
 }
 
 /* Checklist Grid */
