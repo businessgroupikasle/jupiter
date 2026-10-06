@@ -267,12 +267,16 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
       return val;
     };
 
+    const resolvedCapacity = (capacity && String(capacity).trim()) || (parsedSpecs.capacity && String(parsedSpecs.capacity).trim()) || '';
+    const resolvedPower = (power && String(power).trim()) || (parsedSpecs.power && String(parsedSpecs.power).trim()) || '';
+    const resolvedBrickSize = (brickSize && String(brickSize).trim()) || (parsedSpecs.brickSize && String(parsedSpecs.brickSize).trim()) || null;
+
     const specsPayload: Record<string, any> = {
       ...parsedSpecs,
       brandTag: brandTag || parsedSpecs.brandTag || 'JUPITER',
-      brickSize: brickSize || parsedSpecs.brickSize || null,
-      capacity: capacity || parsedSpecs.capacity || 'Standard Production Output',
-      power: power || parsedSpecs.power || 'Standard Connected Load',
+      brickSize: resolvedBrickSize,
+      capacity: resolvedCapacity,
+      power: resolvedPower,
       ...(galleryImages ? { galleryImages: parseJsonField(galleryImages) } : {}),
       ...(featureBadges ? { featureBadges: parseJsonField(featureBadges) } : {}),
       ...(specTableColumns ? { specTableColumns: parseJsonField(specTableColumns) } : {}),
@@ -299,16 +303,14 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
       order = (maxOrderProd?.order ?? 0) + 1;
     }
 
-    const resolvedBrickSize = brickSize || (specsPayload.brickSize ?? null);
-
     const product = await prisma.product.create({
       data: {
         name: baseName,
         slug: finalSlug,
         category: category || 'Fly Ash Brick Machine',
         description: description || '',
-        capacity: capacity || 'Standard Production Output',
-        power: power || 'Standard Connected Load',
+        capacity: resolvedCapacity,
+        power: resolvedPower,
         brickSize: resolvedBrickSize,
         image: coverImage,
         specifications: specsPayload,
@@ -379,9 +381,9 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
     if (req.body.slug !== undefined) allowedData.slug = req.body.slug;
     if (req.body.category !== undefined) allowedData.category = req.body.category;
     if (req.body.description !== undefined) allowedData.description = req.body.description;
-    if (req.body.capacity !== undefined) allowedData.capacity = req.body.capacity;
-    if (req.body.power !== undefined) allowedData.power = req.body.power;
-    if (req.body.brickSize !== undefined) allowedData.brickSize = req.body.brickSize;
+    if (req.body.capacity !== undefined) allowedData.capacity = req.body.capacity && String(req.body.capacity).trim() ? String(req.body.capacity).trim() : '';
+    if (req.body.power !== undefined) allowedData.power = req.body.power && String(req.body.power).trim() ? String(req.body.power).trim() : '';
+    if (req.body.brickSize !== undefined) allowedData.brickSize = req.body.brickSize && String(req.body.brickSize).trim() ? String(req.body.brickSize).trim() : null;
 
     // Image handling:
     // "Product update without new images must preserve existing images."
@@ -467,6 +469,9 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
     const extraFields = [
       'brandTag',
       'brickSize',
+      'capacityLabel',
+      'powerLabel',
+      'brickSizeLabel',
       'galleryImages',
       'featureBadges',
       'specTableColumns',
@@ -524,9 +529,9 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
           slug: finalSlug,
           category: req.body.category || 'Fly Ash Brick Machine',
           description: req.body.description || '',
-          capacity: req.body.capacity || 'Standard Production Output',
-          power: req.body.power || 'Standard Connected Load',
-          brickSize: req.body.brickSize || (allowedData.specifications?.brickSize ?? null),
+          capacity: req.body.capacity && String(req.body.capacity).trim() ? String(req.body.capacity).trim() : '',
+          power: req.body.power && String(req.body.power).trim() ? String(req.body.power).trim() : '',
+          brickSize: req.body.brickSize && String(req.body.brickSize).trim() ? String(req.body.brickSize).trim() : (allowedData.specifications?.brickSize ?? null),
           image: allowedData.image || initialImages[0],
           specifications: allowedData.specifications,
           isActive: allowedData.isActive !== undefined ? allowedData.isActive : true,

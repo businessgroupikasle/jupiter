@@ -711,9 +711,9 @@ export async function validateBulkProductRecords(
 
       const specsPayload: Record<string, any> = {
         category: canonicalCategory,
-        capacity: productionCapacity || 'Standard Production Output',
-        power: totalConnectedPower || 'Standard Connected Load',
-        brickSize: brickMoldSize,
+        capacity: productionCapacity || null,
+        power: totalConnectedPower || null,
+        brickSize: brickMoldSize || null,
         brandTag: headerSubtitle || 'JUPITER',
         ...(featureBadges.length > 0 ? { featureBadges } : {}),
         ...(galleryImages.length > 0 ? { galleryImages } : {}),
@@ -743,8 +743,8 @@ export async function validateBulkProductRecords(
         status: rawStatus as 'Active' | 'Inactive',
         isActive: rawStatus === 'Active',
         displayOrder,
-        productionCapacity: productionCapacity || 'Standard Production Output',
-        totalConnectedPower: totalConnectedPower || 'Standard Connected Load',
+        productionCapacity: productionCapacity || '',
+        totalConnectedPower: totalConnectedPower || '',
         brickMoldSize,
         overviewDescription,
         coverImage,
