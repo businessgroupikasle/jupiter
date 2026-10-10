@@ -31,7 +31,7 @@ export const getGalleryPhotoById = async (req: Request, res: Response, next: Nex
     res.status(200).json({ success: true, data: photo });
   } catch (error) {
     console.error('[Gallery] getGalleryPhotoById error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'Gallery photo not found or invalid lookup parameter' });
   }
 };
 

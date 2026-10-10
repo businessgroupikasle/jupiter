@@ -141,10 +141,17 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
 // GET /api/products/:idOrSlug
 export const getProductByIdOrSlug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const idOrSlug = req.params.idOrSlug as string;
+    const rawParam = (req.params.idOrSlug as string) || '';
+    const cleanParam = rawParam.trim().replace(/\/+$/, '').replace(/\.html$/i, '');
 
     const product = await prisma.product.findFirst({
-      where: { OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+      where: {
+        OR: [
+          { id: cleanParam },
+          { slug: cleanParam },
+          { slug: { equals: cleanParam, mode: 'insensitive' } },
+        ],
+      },
       include: {
         images: { orderBy: { order: 'asc' } },
         details: { orderBy: { order: 'asc' } },
@@ -155,14 +162,18 @@ export const getProductByIdOrSlug = async (req: Request, res: Response, next: Ne
     });
 
     if (!product) {
-      res.status(404).json({ success: false, message: 'Product not found' });
+      res.status(404).json({ success: false, message: `Product '${cleanParam}' not found` });
       return;
+    }
+
+    if (rawParam.toLowerCase().endsWith('.html')) {
+      res.setHeader('Link', `<https://jupitergroups.in/products/${product.slug}>; rel="canonical"`);
     }
 
     res.status(200).json({ success: true, data: mapProductResponse(product) });
   } catch (error) {
     console.error('[Product] getProductByIdOrSlug error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'Product not found or invalid query parameter' });
   }
 };
 

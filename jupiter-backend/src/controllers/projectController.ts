@@ -20,17 +20,25 @@ export const getProjects = async (req: Request, res: Response, next: NextFunctio
 
 export const getProjectById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const id = getIdParam(req);
-    const project = await prisma.project.findUnique({ where: { id } });
+    const rawId = getIdParam(req) || '';
+    const cleanId = rawId.trim().replace(/\/+$/, '').replace(/\.html$/i, '');
+    const project = await prisma.project.findFirst({
+      where: {
+        OR: [
+          { id: cleanId },
+          { title: { equals: cleanId, mode: 'insensitive' } },
+        ],
+      },
+    });
 
     if (!project) {
-      res.status(404).json({ success: false, message: 'Project not found' });
+      res.status(404).json({ success: false, message: `Project '${cleanId}' not found` });
       return;
     }
     res.status(200).json({ success: true, data: project });
   } catch (error) {
     console.error('[Project] getProjectById error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'Project not found or invalid lookup parameter' });
   }
 };
 

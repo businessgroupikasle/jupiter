@@ -31,7 +31,7 @@ export const getDeliveryLocationById = async (req: Request, res: Response, next:
     res.status(200).json({ success: true, data: location });
   } catch (error) {
     console.error('[DeliveryLocation] getDeliveryLocationById error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'Delivery location not found or invalid lookup parameter' });
   }
 };
 

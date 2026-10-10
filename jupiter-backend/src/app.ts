@@ -19,6 +19,7 @@ import reviewRoutes from './routes/reviewRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import authRoutes from './routes/authRoutes';
 import uploadRoutes from './routes/uploadRoutes';
+import seoRoutes from './routes/seoRoutes';
 import { errorHandler } from './middleware/errorHandler';
 
 export const createApp = (): Application => {
@@ -204,6 +205,9 @@ export const createApp = (): Application => {
   app.use('/api', reviewRoutes);
   app.use('/api', dashboardRoutes);
   app.use('/api', uploadRoutes);
+
+  // Technical SEO routes (/sitemap.xml, /robots.txt, /api/sitemap.xml, /api/robots.txt)
+  app.use(seoRoutes);
 
   // 404 Handler
   app.use((req: Request, res: Response) => {

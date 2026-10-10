@@ -31,7 +31,7 @@ export const getFaqById = async (req: Request, res: Response, next: NextFunction
     res.status(200).json({ success: true, data: faq });
   } catch (error) {
     console.error('[Faq] getFaqById error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'FAQ item not found or invalid lookup parameter' });
   }
 };
 

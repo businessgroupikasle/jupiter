@@ -200,7 +200,7 @@ export const getEnquiryById = async (req: Request, res: Response, next: NextFunc
     res.status(200).json({ success: true, data: enquiry });
   } catch (error) {
     console.error('[Enquiry] getEnquiryById error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'Enquiry not found or invalid lookup parameter' });
   }
 };
 

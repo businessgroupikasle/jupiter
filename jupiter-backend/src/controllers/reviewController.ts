@@ -38,7 +38,7 @@ export const getReviewById = async (req: Request, res: Response, next: NextFunct
     res.status(200).json({ success: true, data: review });
   } catch (error) {
     console.error('[Review] getReviewById error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'Review not found or invalid lookup parameter' });
   }
 };
 

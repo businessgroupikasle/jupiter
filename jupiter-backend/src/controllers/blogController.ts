@@ -60,15 +60,26 @@ export const getBlogs = async (req: Request, res: Response, next: NextFunction):
 // GET /api/blogs/:slug
 export const getBlogBySlug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const slug = req.params.slug as string;
+    const rawSlug = (req.params.slug as string) || '';
+    const cleanSlug = rawSlug.trim().replace(/\/+$/, '').replace(/\.html$/i, '');
 
     const blog = await prisma.blog.findFirst({
-      where: { OR: [{ slug }, { id: slug }] },
+      where: {
+        OR: [
+          { slug: cleanSlug },
+          { id: cleanSlug },
+          { slug: { equals: cleanSlug, mode: 'insensitive' } },
+        ],
+      },
     });
 
     if (!blog) {
-      res.status(404).json({ success: false, message: `Blog article '${slug}' not found` });
+      res.status(404).json({ success: false, message: `Blog article '${cleanSlug}' not found` });
       return;
+    }
+
+    if (rawSlug.toLowerCase().endsWith('.html')) {
+      res.setHeader('Link', `<https://jupitergroups.in/blogs/${blog.slug}>; rel="canonical"`);
     }
 
     // Increment views
@@ -77,7 +88,7 @@ export const getBlogBySlug = async (req: Request, res: Response, next: NextFunct
     res.status(200).json({ success: true, data: formatBlog(blog) });
   } catch (error) {
     console.error('[Blog] getBlogBySlug error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'Blog article not found or invalid lookup parameter' });
   }
 };
 

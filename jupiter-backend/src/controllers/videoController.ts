@@ -31,7 +31,7 @@ export const getVideoById = async (req: Request, res: Response, next: NextFuncti
     res.status(200).json({ success: true, data: video });
   } catch (error) {
     console.error('[Video] getVideoById error:', error);
-    res.status(200).json({ success: true, data: null });
+    res.status(404).json({ success: false, message: 'Video not found or invalid lookup parameter' });
   }
 };
 
