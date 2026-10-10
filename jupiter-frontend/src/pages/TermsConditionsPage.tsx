@@ -9,6 +9,7 @@ export const TermsConditionsPage: React.FC = () => {
     title: 'Terms & Conditions | Jupiter Industries',
     description: 'Review the Terms & Conditions governing use of Jupiter Industries’ website, machinery purchases, warranty policies, and service agreements.',
     keywords: 'Jupiter Industries Terms, Machinery Purchase Terms, Warranty Policy, Industrial Equipment Terms and Conditions',
+    canonical: 'https://jupitergroups.in/terms-and-conditions',
     ogUrl: 'https://jupitergroups.in/terms-and-conditions',
   });
 

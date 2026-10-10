@@ -354,7 +354,7 @@ export const CustomerReviews: React.FC = () => {
             </button>
 
             {/* Dots / Indicator Pills */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               {Array.from({ length: maxIndex + 1 }).map((_, dotIdx) => {
                 const isActive = currentIndex === dotIdx;
                 return (
@@ -363,16 +363,28 @@ export const CustomerReviews: React.FC = () => {
                     onClick={() => setCurrentIndex(dotIdx)}
                     aria-label={`Go to slide ${dotIdx + 1}`}
                     style={{
-                      width: isActive ? '26px' : '9px',
-                      height: '9px',
-                      borderRadius: '5px',
-                      backgroundColor: isActive ? '#EA580C' : '#CBD5E1',
+                      width: isActive ? '34px' : '20px',
+                      height: '24px',
+                      padding: 0,
+                      background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      padding: 0
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
-                  />
+                  >
+                    <span
+                      style={{
+                        width: isActive ? '26px' : '9px',
+                        height: '9px',
+                        borderRadius: '5px',
+                        backgroundColor: isActive ? '#EA580C' : '#CBD5E1',
+                        display: 'block',
+                        transition: 'all 0.3s ease'
+                      }}
+                    />
+                  </button>
                 );
               })}
             </div>

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { WhatsAppButton } from './components/WhatsAppButton';
@@ -10,10 +10,10 @@ import { ProjectsPage } from './pages/ProjectsPage';
 import { ContactPage } from './pages/ContactPage';
 import { BlogPage } from './pages/BlogPage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { AdminDashboard } from './pages/AdminDashboard';
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { MachineCategoryPage } from './pages/MachineCategoryPage';
+const MachineCategoryPage = lazy(() => import('./pages/MachineCategoryPage').then(m => ({ default: m.MachineCategoryPage })));
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { TermsConditionsPage } from './pages/TermsConditionsPage';
 import { SitemapPage } from './pages/SitemapPage';
@@ -114,45 +114,51 @@ const AppContent: React.FC = () => {
       <Navbar onOpenQuoteModal={() => setIsQuoteModalOpen(true)} />
 
       {/* Dynamic Page Router */}
-      <Routes>
+      <Suspense fallback={<div style={{ padding: '80px 24px', textAlign: 'center', color: '#00233D', fontWeight: 600 }}>Loading...</div>}>
+        <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/home" element={<Navigate to="/" replace />} />
+        <Route path="/index.html" element={<Navigate to="/" replace />} />
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/machines" element={<ProductsPage />} />
+        <Route path="/about.html" element={<Navigate to="/about" replace />} />
+        <Route path="/about-us" element={<Navigate to="/about" replace />} />
+        <Route path="/machines" element={<Navigate to="/products" replace />} />
         <Route path="/products" element={<ProductsPage />} />
 
         {/* Dynamic & Sub-Product Machine Pages */}
         <Route path="/products/:categorySlug" element={<MachineCategoryPage />} />
-        <Route path="/machines/:categorySlug" element={<MachineCategoryPage />} />
-        <Route path="/fly-ash-brick-machine" element={<MachineCategoryPage />} />
-        <Route path="/fly-ash-making-machine" element={<MachineCategoryPage />} />
-        <Route path="/hollow-and-solid-block-machine" element={<MachineCategoryPage />} />
-        <Route path="/hollow-and-solid-block-making-machine" element={<MachineCategoryPage />} />
-        <Route path="/inter-block-making-machine" element={<MachineCategoryPage />} />
-        <Route path="/inter-locking-brick-making-machine" element={<MachineCategoryPage />} />
-        <Route path="/paver-block-machine" element={<MachineCategoryPage />} />
-        <Route path="/batching-plant" element={<MachineCategoryPage />} />
-        <Route path="/patching-plant" element={<MachineCategoryPage />} />
-        <Route path="/storage-silo" element={<MachineCategoryPage />} />
-        <Route path="/machine-spares" element={<MachineCategoryPage />} />
-        <Route path="/spares" element={<MachineCategoryPage />} />
+        <Route path="/machines/:categorySlug" element={<Navigate to="/products/:categorySlug" replace />} />
+        <Route path="/fly-ash-brick-machine" element={<Navigate to="/products/fly-ash-brick-machine" replace />} />
+        <Route path="/fly-ash-making-machine" element={<Navigate to="/products/fly-ash-brick-machine" replace />} />
+        <Route path="/hollow-and-solid-block-machine" element={<Navigate to="/products/hollow-and-solid-block-machine" replace />} />
+        <Route path="/hollow-and-solid-block-making-machine" element={<Navigate to="/products/hollow-and-solid-block-machine" replace />} />
+        <Route path="/inter-block-making-machine" element={<Navigate to="/products/inter-block-making-machine" replace />} />
+        <Route path="/inter-locking-brick-making-machine" element={<Navigate to="/products/inter-block-making-machine" replace />} />
+        <Route path="/paver-block-machine" element={<Navigate to="/products/paver-block-machine" replace />} />
+        <Route path="/batching-plant" element={<Navigate to="/products/batching-plant" replace />} />
+        <Route path="/patching-plant" element={<Navigate to="/products/batching-plant" replace />} />
+        <Route path="/storage-silo" element={<Navigate to="/products/storage-silo" replace />} />
+        <Route path="/machine-spares" element={<Navigate to="/products/machine-spares" replace />} />
+        <Route path="/spares" element={<Navigate to="/products/machine-spares" replace />} />
 
-        <Route path="/gallery" element={<ProjectsPage />} />
+        <Route path="/gallery" element={<Navigate to="/projects" replace />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:id" element={<BlogPage />} />
-        <Route path="/blogs" element={<BlogPage />} />
+        <Route path="/blogs" element={<Navigate to="/blog" replace />} />
         <Route path="/contact" element={<ContactPage />} />
 
         {/* Legal & Utility Pages */}
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/privacy" element={<Navigate to="/privacy-policy" replace />} />
         <Route path="/terms-and-conditions" element={<TermsConditionsPage />} />
-        <Route path="/terms" element={<TermsConditionsPage />} />
+        <Route path="/terms" element={<Navigate to="/terms-and-conditions" replace />} />
         <Route path="/sitemap" element={<SitemapPage />} />
 
         <Route path="/404" element={<NotFoundPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </Suspense>
 
       {/* Master Footer */}
       <Footer />

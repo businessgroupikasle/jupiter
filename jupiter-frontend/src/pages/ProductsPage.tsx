@@ -17,7 +17,20 @@ export const ProductsPage: React.FC = () => {
     title: 'Brick Making Machines & Block Machines | Jupiter Industries',
     description: 'Explore Jupiter Industries’ 5G, Fly Ash, Interlock Brick, Paver Block, Concrete Block and Hollow & Solid Block Making Machines for reliable brick production.',
     keywords: 'Buy Fly Ash Brick Machine, Block Making Machine Price India, Paver Block Plant, Batching Plant Manufacturer, Machine Spares, Jupiter Industries Products',
-    ogUrl: 'https://jupitergroups.in/machines',
+    canonical: 'https://jupitergroups.in/products',
+    ogUrl: 'https://jupitergroups.in/products',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      'name': 'Brick Making Machines & Block Machines',
+      'url': 'https://jupitergroups.in/products',
+      'description': 'Full product line of industrial brick making machines, concrete block machines, paver block machines, batching plants, silos, and machine spares.',
+      'publisher': {
+        '@type': 'Organization',
+        'name': 'Jupiter Industries',
+        'url': 'https://jupitergroups.in'
+      }
+    }
   });
 
   const [searchParams] = useSearchParams();

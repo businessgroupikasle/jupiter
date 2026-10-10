@@ -16,7 +16,56 @@ export const HomePage: React.FC = () => {
     title: '5G, Fly Ash & Paver Block Machine Manufacturer | Jupiter Industries',
     description: 'Jupiter Industries is a Coimbatore-based manufacturer of 5G brick, fly ash brick, interlock brick and paver block machines, with genuine machine spares and pan-India support.',
     keywords: 'Fly Ash Brick Machine, Concrete Block Machine, Paver Block Machine, Interlocking Brick Machine, Batching Plant, Storage Silo, Coimbatore Machinery Manufacturer, Jupiter Industries',
+    canonical: 'https://jupitergroups.in/',
     ogUrl: 'https://jupitergroups.in/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Organization',
+          '@id': 'https://jupitergroups.in/#organization',
+          'name': 'Jupiter Industries',
+          'url': 'https://jupitergroups.in',
+          'logo': 'https://jupitergroups.in/favicon.png',
+          'description': 'Manufacturer of heavy-duty fly ash brick, block, and concrete machinery with pan-India turnkey installation.',
+          'telephone': '+919342919060',
+          'email': 'marketing@jupitergroups.in',
+          'sameAs': [
+            'https://www.facebook.com/jupiterindustries.in',
+            'https://www.instagram.com/jupiterindustry/',
+            'https://www.youtube.com/@jupiter_industries_india'
+          ]
+        },
+        {
+          '@type': 'LocalBusiness',
+          '@id': 'https://jupitergroups.in/#localbusiness',
+          'name': 'Jupiter Industries',
+          'image': 'https://jupitergroups.in/favicon.png',
+          'telephone': '+919342919060',
+          'email': 'marketing@jupitergroups.in',
+          'priceRange': '₹₹₹',
+          'address': {
+            '@type': 'PostalAddress',
+            'streetAddress': '153-154, Sri Garden, Vilankurichi',
+            'addressLocality': 'Coimbatore',
+            'addressRegion': 'Tamil Nadu',
+            'postalCode': '641035',
+            'addressCountry': 'IN'
+          },
+          'geo': {
+            '@type': 'GeoCoordinates',
+            'latitude': 11.0538,
+            'longitude': 77.0182
+          },
+          'openingHoursSpecification': {
+            '@type': 'OpeningHoursSpecification',
+            'dayOfWeek': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+            'opens': '09:00',
+            'closes': '18:30'
+          }
+        }
+      ]
+    }
   });
 
   const [videoModal, setVideoModal] = useState<{ isOpen: boolean; url: string; title: string }>({

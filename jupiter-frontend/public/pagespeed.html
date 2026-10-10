@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PageSpeed Insights Dashboard | Jupiter Industries</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #070d17;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border: rgba(148, 163, 184, 0.12);
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-glow: rgba(2, 132, 199, 0.25);
+      --accent: #f59e0b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(circle at 15% 15%, #0c1a2e 0%, var(--bg-dark) 55%, #05080f 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2.5rem 1.5rem;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #0284c7, #06b6d4);
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.4rem;
+      box-shadow: 0 8px 24px var(--primary-glow);
+    }
+
+    .brand h1 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #ffffff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .header-links a {
+      color: #38bdf8;
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 1rem;
+      border-radius: 8px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .header-links a:hover {
+      background: rgba(56, 189, 248, 0.16);
+      transform: translateY(-1px);
+    }
+
+    /* Form Controls */
+    .control-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr auto;
+      gap: 1rem;
+      align-items: end;
+    }
+
+    @media (max-width: 900px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    input, select {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    button.btn-run {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: white;
+      font-family: inherit;
+      font-weight: 600;
+      border: none;
+      padding: 0.75rem 1.6rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+      transition: all 0.2s ease;
+      height: 46px;
+    }
+
+    button.btn-run:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(2, 132, 199, 0.5);
+    }
+
+    button.btn-run:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Output Results Section */
+    #results-area {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .placeholder-box {
+      background: var(--bg-card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 3.5rem 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .tested-header {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .tested-header h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .tested-url-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      word-break: break-all;
+    }
+
+    /* Scores Grid */
+    .score-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .score-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease;
+    }
+
+    .score-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .score-circle {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      margin: 0 auto 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      border: 4px solid var(--border);
+    }
+
+    .score-good {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(16, 185, 129, 0.08);
+    }
+
+    .score-average {
+      border-color: var(--yellow);
+      color: var(--yellow);
+      background: rgba(245, 158, 11, 0.08);
+    }
+
+    .score-poor {
+      border-color: var(--red);
+      color: var(--red);
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    .score-card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* Metrics Grid */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+
+    .metric-item {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .metric-name {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .metric-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .status-FAST, .status-GOOD {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-AVERAGE, .status-NEEDS_IMPROVEMENT {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .status-SLOW, .status-POOR {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-NA {
+      background: rgba(148, 163, 184, 0.1);
+      color: #94a3b8;
+    }
+
+    .error-banner {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      color: #fca5a5;
+    }
+
+    .error-banner h3 {
+      color: #f87171;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="logo-badge">⚡</div>
+        <div>
+          <h1>PageSpeed Insights API Tool</h1>
+          <p>Real-time Core Web Vitals & Lighthouse Performance Diagnostics</p>
+        </div>
+      </div>
+      <div class="header-links">
+        <a href="/" target="_blank">🏠 Visit Jupiter Website</a>
+      </div>
+    </header>
+
+    <div class="control-panel">
+      <form id="auditForm" onsubmit="event.preventDefault(); run();">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="targetUrl">Target Webpage URL</label>
+            <input type="url" id="targetUrl" value="https://jupitergroups.in/" placeholder="https://example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="deviceStrategy">Device Strategy</label>
+            <select id="deviceStrategy">
+              <option value="desktop" selected>Desktop</option>
+              <option value="mobile">Mobile</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="apiKey">Google API Key</label>
+            <input type="password" id="apiKey" value="AIzaSyCt8VNhlyTMJLOZ8dudMA6ndnLUzUTA63I" placeholder="API Key" />
+          </div>
+          <div class="form-group">
+            <button type="submit" id="submitBtn" class="btn-run">
+              <span class="spinner" id="btnSpinner"></span>
+              <span id="btnText">Analyze Page</span>
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <main id="results-area">
+      <div class="placeholder-box">
+        <p style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #e2e8f0;">Ready to run audit</p>
+        <p>Click "Analyze Page" above to query Google's PageSpeed Insights API using your API key.</p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /**
+     * Fetches and displays PageSpeed Insights data.
+     */
+    async function run() {
+      const apiEndpoint = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
+      const targetUrl = document.getElementById('targetUrl').value.trim();
+      const strategy = document.getElementById('deviceStrategy').value;
+      const apiKey = document.getElementById('apiKey').value.trim();
+
+      const btn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const btnSpinner = document.getElementById('btnSpinner');
+      const resultsArea = document.getElementById('results-area');
+
+      // Loading state
+      btn.disabled = true;
+      btnSpinner.style.display = 'inline-block';
+      btnText.textContent = 'Auditing with Google API...';
+      resultsArea.innerHTML = `
+        <div class="placeholder-box">
+          <div class="spinner" style="display:inline-block; width:36px; height:36px; margin-bottom:1rem; border-width:3px; border-top-color:#38bdf8;"></div>
+          <p style="font-size:1.15rem; color:#f8fafc; margin-bottom:0.4rem;">Auditing ${targetUrl}...</p>
+          <p style="color:#94a3b8;">Google Lighthouse is testing performance and web vitals. This usually takes 10 to 15 seconds.</p>
+        </div>
+      `;
+
+      const url = new URL(apiEndpoint);
+      url.searchParams.set('url', targetUrl);
+      url.searchParams.set('strategy', strategy);
+      url.searchParams.append('category', 'PERFORMANCE');
+      url.searchParams.append('category', 'ACCESSIBILITY');
+      url.searchParams.append('category', 'BEST_PRACTICES');
+      url.searchParams.append('category', 'SEO');
+
+      if (apiKey) {
+        url.searchParams.set('key', apiKey);
+      }
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errBody = await response.text();
+          throw new Error(`HTTP error! status: ${response.status} - ${errBody}`);
+        }
+        const json = await response.json();
+
+        // Clear results container
+        resultsArea.innerHTML = '';
+
+        // 1. Initial content header
+        showInitialContent(json.id, targetUrl, strategy, json.lighthouseResult?.categories);
+
+        // 2. Chrome User Experience Report (CrUX)
+        const cruxExperience = json.loadingExperience?.metrics || {};
+        const cruxMetrics = {
+          'First Contentful Paint': cruxExperience.FIRST_CONTENTFUL_PAINT_MS?.category || 'No Origin Data',
+          'Interaction to Next Paint': cruxExperience.INTERACTION_TO_NEXT_PAINT?.category || 'No Origin Data',
+          'Largest Contentful Paint': cruxExperience.LARGEST_CONTENTFUL_PAINT_MS?.category || 'No Origin Data',
+          'Cumulative Layout Shift': cruxExperience.CUMULATIVE_LAYOUT_SHIFT_SCORE?.category || 'No Origin Data',
+        };
+        showCruxContent(cruxMetrics);
+
+        // 3. Lighthouse Lab Metrics
+        const lighthouse = json.lighthouseResult || {};
+        const audits = lighthouse.audits || {};
+        const lighthouseMetrics = {
+          'First Contentful Paint': audits['first-contentful-paint']?.displayValue,
+          'Speed Index': audits['speed-index']?.displayValue,
+          'Largest Contentful Paint': audits['largest-contentful-paint']?.displayValue,
+          'Total Blocking Time': audits['total-blocking-time']?.displayValue,
+          'Cumulative Layout Shift': audits['cumulative-layout-shift']?.displayValue,
+          'Time To Interactive': audits['interactive']?.displayValue,
+        };
+        showLighthouseContent(lighthouseMetrics);
+
+      } catch (error) {
+        console.error('Fetching PageSpeed Insights failed:', error);
+        resultsArea.innerHTML = `
+          <div class="error-banner">
+            <h3>⚠️ Fetching PageSpeed Insights Failed</h3>
+            <p>${escapeHtml(error.message)}</p>
+            <p style="margin-top:0.75rem; font-size:0.85rem; color:#94a3b8;">
+              Check browser console for full stack trace. Ensure your API key is valid and target URL is publicly reachable.
+            </p>
+          </div>
+        `;
+      } finally {
+        btn.disabled = false;
+        btnSpinner.style.display = 'none';
+        btnText.textContent = 'Analyze Page';
+      }
+    }
+
+    /**
+     * Displays initial content, including the page ID and overall category scores.
+     * @param {string} id The ID of the page being tested.
+     */
+    function showInitialContent(id, targetUrl, strategy, categories) {
+      const resultsArea = document.getElementById('results-area');
+
+      const headerCard = document.createElement('div');
+      headerCard.className = 'tested-header';
+      headerCard.innerHTML = `
+        <div>
+          <h2>PageSpeed Insights API Results</h2>
+          <p style="color:var(--text-muted); font-size:0.9rem;">Strategy: <strong>${strategy.toUpperCase()}</strong></p>
+        </div>
+        <span class="tested-url-badge">${escapeHtml(id || targetUrl)}</span>
+      `;
+      resultsArea.appendChild(headerCard);
+
+      if (categories) {
+        const scoresGrid = document.createElement('div');
+        scoresGrid.className = 'score-cards-grid';
+
+        for (const catKey in categories) {
+          const cat = categories[catKey];
+          const score = Math.round((cat.score || 0) * 100);
+          const scoreClass = score >= 90 ? 'score-good' : score >= 50 ? 'score-average' : 'score-poor';
+
+          const card = document.createElement('div');
+          card.className = 'score-card';
+          card.innerHTML = `
+            <div class="score-circle ${scoreClass}">
+              ${score}
+            </div>
+            <div class="score-card-title">${escapeHtml(cat.title)}</div>
+          `;
+          scoresGrid.appendChild(card);
+        }
+        resultsArea.appendChild(scoresGrid);
+      }
+    }
+
+    /**
+     * Displays CrUX metrics.
+     * @param {!Object} cruxMetrics The CrUX metrics to display.
+     */
+    function showCruxContent(cruxMetrics) {
+      const resultsArea = document.getElementById('results-area');
+
+      const sectionCard = document.createElement('div');
+      sectionCard.className = 'section-card';
+
+      const cruxHeader = document.createElement('div');
+      cruxHeader.className = 'section-title';
+      cruxHeader.innerHTML = '<span>👥</span> Chrome User Experience Report Results (CrUX)';
+      sectionCard.appendChild(cruxHeader);
+
+      const grid = document.createElement('div');
+      grid.className = 'metrics-grid';
+
+      for (const key in cruxMetrics) {
+        const val = cruxMetrics[key];
+        const statusClass = val ? `status-${val.replace(/_/g, '_')}` : 'status-NA';
+
+        const item = document.createElement('div');
+        item.className = 'metric-item';
+        item.innerHTML = `
+          <span class="metric-name">${escapeHtml(key)}</span>
+          <span class="status-badge ${statusClass}">${escapeHtml(val || 'N/A')}</span>
+        `;
+        grid.appendChild(item);
+      }
+
+      sectionCard.appendChild(grid);
+      resultsArea.appendChild(sectionCard);
+    }
+
+    /**
+     * Displays Lighthouse metrics.
+     * @param {!Object} lighthouseMetrics The Lighthouse metrics to display.
+     */
+    function showLighthouseContent(lighthouseMetrics) {
+      const resultsArea = document.getElementById('results-area');
+
+      const sectionCard = document.createElement('div');
+      sectionCard.className = 'section-card';
+
+      const lighthouseHeader = document.createElement('div');
+      lighthouseHeader.className = 'section-title';
+      lighthouseHeader.innerHTML = '<span>📊</span> Lighthouse Lab Diagnostics';
+      sectionCard.appendChild(lighthouseHeader);
+
+      const grid = document.createElement('div');
+      grid.className = 'metrics-grid';
+
+      for (const key in lighthouseMetrics) {
+        const val = lighthouseMetrics[key];
+        const item = document.createElement('div');
+        item.className = 'metric-item';
+        item.innerHTML = `
+          <span class="metric-name">${escapeHtml(key)}</span>
+          <span class="metric-value">${escapeHtml(val || 'N/A')}</span>
+        `;
+        grid.appendChild(item);
+      }
+
+      sectionCard.appendChild(grid);
+      resultsArea.appendChild(sectionCard);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

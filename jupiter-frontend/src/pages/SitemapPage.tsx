@@ -15,6 +15,7 @@ export const SitemapPage: React.FC = () => {
     title: 'Sitemap | Jupiter Industries',
     description: 'Explore the complete sitemap of Jupiter Industries website – find all pages including product categories, gallery, blog, contact, and legal pages.',
     keywords: 'Jupiter Industries Sitemap, All Pages, Website Structure',
+    canonical: 'https://jupitergroups.in/sitemap',
     ogUrl: 'https://jupitergroups.in/sitemap',
   });
 

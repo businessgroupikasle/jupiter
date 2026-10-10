@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pagespeed": "node scripts/run-pagespeed.cjs"
   },
   "dependencies": {
     "axios": "^1.7.9",

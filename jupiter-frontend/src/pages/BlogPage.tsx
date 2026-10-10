@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useSeoMeta } from '../utils/useSeoMeta';
 import { PageBanner } from '../components/PageBanner';
+import { NotFoundPage } from './NotFoundPage';
 import { fetchBlogsFromDb, fetchBlogById, getStoredBlogs, BlogItem } from '../services/blogService';
 import { Clock, Calendar, User, Eye, ArrowLeft, BookOpen, Rss, Bell, Wrench, Layers } from 'lucide-react';
 
@@ -189,12 +190,14 @@ const BlogComingSoon: React.FC = () => (
 export const BlogPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const [selectedBlog, setSelectedBlog] = useState<BlogItem | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
     if (!id) {
       setSelectedBlog(null);
+      setIsLoaded(true);
       return;
     }
 
@@ -212,6 +215,8 @@ export const BlogPage: React.FC = () => {
         }
       } catch {
         // detail fetch failed silently
+      } finally {
+        if (isMounted) setIsLoaded(true);
       }
     };
 
@@ -230,6 +235,8 @@ export const BlogPage: React.FC = () => {
     };
   }, [id]);
 
+  const blogCanonical = id ? `https://jupitergroups.in/blog/${id}` : 'https://jupitergroups.in/blog';
+
   useSeoMeta({
     title: selectedBlog 
       ? `${selectedBlog.title} | Jupiter Industries Blog` 
@@ -238,8 +245,37 @@ export const BlogPage: React.FC = () => {
       ? selectedBlog.excerpt || selectedBlog.title
       : 'Read technical guides, machinery maintenance tips, and brick making plant ROI analyses from Jupiter Industries engineers.',
     keywords: 'Fly Ash Brick Machine Guide, Concrete Block Plant ROI, Machinery Maintenance, Jupiter Industries Blog',
-    ogUrl: id ? `https://jupitergroups.in/blog/${id}` : 'https://jupitergroups.in/blog',
+    canonical: blogCanonical,
+    ogUrl: blogCanonical,
+    jsonLd: selectedBlog ? {
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      'headline': selectedBlog.title,
+      'description': selectedBlog.excerpt || selectedBlog.title,
+      'url': blogCanonical,
+      'author': {
+        '@type': 'Organization',
+        'name': 'Jupiter Industries'
+      },
+      'publisher': {
+        '@type': 'Organization',
+        'name': 'Jupiter Industries',
+        'logo': {
+          '@type': 'ImageObject',
+          'url': 'https://jupitergroups.in/favicon.png'
+        }
+      }
+    } : {
+      '@context': 'https://schema.org',
+      '@type': 'Blog',
+      'name': 'Jupiter Industries Engineering & Machinery Blog',
+      'url': 'https://jupitergroups.in/blog'
+    }
   });
+
+  if (id && isLoaded && !selectedBlog) {
+    return <NotFoundPage />;
+  }
 
   // ─────────────────────────────────────────────────────────────
   // 1. Article Detail View (when an id is specified)

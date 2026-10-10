@@ -235,23 +235,36 @@ export const SuccessStory: React.FC = () => {
                     <ChevronLeft size={18} />
                   </button>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {TESTIMONIALS.map((t, idx) => (
                       <button
                         key={t.id}
                         type="button"
                         onClick={() => setActiveIdx(idx)}
+                        aria-label={`Go to testimonial ${idx + 1}`}
                         style={{
-                          width: activeIdx === idx ? '24px' : '10px',
-                          height: '10px',
-                          borderRadius: '10px',
-                          background: activeIdx === idx ? '#EA580C' : '#CBD5E1',
+                          width: activeIdx === idx ? '32px' : '20px',
+                          height: '24px',
+                          padding: 0,
+                          background: 'transparent',
                           border: 'none',
                           cursor: 'pointer',
-                          transition: 'all 0.3s ease'
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
                         }}
-                        aria-label={`Go to testimonial ${idx + 1}`}
-                      />
+                      >
+                        <span
+                          style={{
+                            width: activeIdx === idx ? '24px' : '10px',
+                            height: '10px',
+                            borderRadius: '10px',
+                            background: activeIdx === idx ? '#EA580C' : '#CBD5E1',
+                            display: 'block',
+                            transition: 'all 0.3s ease'
+                          }}
+                        />
+                      </button>
                     ))}
                   </div>
 

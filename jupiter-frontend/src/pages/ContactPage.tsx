@@ -23,7 +23,28 @@ export const ContactPage: React.FC = () => {
     title: 'Contact Jupiter Industries | Get a Free Machinery Quote',
     description: 'Contact Jupiter Industries for machinery inquiries, pricing, and installation support. Call us or send an enquiry – we serve customers across all of India from Coimbatore, Tamil Nadu.',
     keywords: 'Contact Jupiter Industries, Machinery Quote Request, Brick Machine Enquiry, Industrial Equipment Supplier Contact, Coimbatore Machinery Manufacturer Phone',
+    canonical: 'https://jupitergroups.in/contact',
     ogUrl: 'https://jupitergroups.in/contact',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'ContactPage',
+      'name': 'Contact Jupiter Industries',
+      'url': 'https://jupitergroups.in/contact',
+      'mainEntity': {
+        '@type': 'LocalBusiness',
+        'name': 'Jupiter Industries',
+        'telephone': '+919342919060',
+        'email': 'marketing@jupitergroups.in',
+        'address': {
+          '@type': 'PostalAddress',
+          'streetAddress': '153-154, Sri Garden, Vilankurichi',
+          'addressLocality': 'Coimbatore',
+          'addressRegion': 'Tamil Nadu',
+          'postalCode': '641035',
+          'addressCountry': 'IN'
+        }
+      }
+    }
   });
   // Form State
   const [formData, setFormData] = useState({

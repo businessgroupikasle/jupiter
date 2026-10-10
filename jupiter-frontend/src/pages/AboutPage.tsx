@@ -26,7 +26,27 @@ export const AboutPage: React.FC = () => {
     title: 'About Jupiter Industries | Brick Making Machine Manufacturer',
     description: 'Learn about Jupiter Industries, a Coimbatore-based brick making machine manufacturer specialising in 5G, fly ash, interlock and paver block machines.',
     keywords: 'About Jupiter Industries, Machinery Manufacturer Coimbatore, ISO Certified Brick Machine, 35 Years Machinery Experience, Industrial Equipment Manufacturer India',
-    ogUrl: 'https://jupitergroups.in/about-us/',
+    canonical: 'https://jupitergroups.in/about',
+    ogUrl: 'https://jupitergroups.in/about',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'AboutPage',
+      'name': 'About Jupiter Industries',
+      'url': 'https://jupitergroups.in/about',
+      'description': 'Learn about Jupiter Industries, a Coimbatore-based brick making machine manufacturer with 35+ years of engineering excellence.',
+      'mainEntity': {
+        '@type': 'Organization',
+        'name': 'Jupiter Industries',
+        'url': 'https://jupitergroups.in',
+        'foundingDate': '1991',
+        'address': {
+          '@type': 'PostalAddress',
+          'addressLocality': 'Coimbatore',
+          'addressRegion': 'Tamil Nadu',
+          'addressCountry': 'IN'
+        }
+      }
+    }
   });
 
   const [showCertModal, setShowCertModal] = useState(false);
@@ -37,7 +57,7 @@ export const AboutPage: React.FC = () => {
           1. CONSISTENT HERO BANNER WITH BREADCRUMB
           ===================================================================== */}
       <PageBanner
-        title="About Jupiter Industries – Brick Making Machine Manufacturer in Coimbatore"
+        title="About Jupiter Industries"
         breadcrumbs={[{ label: 'About Us' }]}
       />
 

@@ -6,8 +6,9 @@ import flyAsh404Bg from '../assets/images/Machines/flyash.png';
 
 export const NotFoundPage: React.FC = () => {
   useSeoMeta({
-    title: 'Page Not Found | Jupiter Industries',
+    title: '404 - Page Not Found | Jupiter Industries',
     description: 'The page you’re looking for could not be found. Browse Jupiter Industries’ range of industrial machinery or return to the homepage.',
+    robots: 'noindex, follow',
   });
 
   return (

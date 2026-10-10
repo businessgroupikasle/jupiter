@@ -12,7 +12,20 @@ export const ProjectsPage: React.FC = () => {
     title: 'Brick Making Machine Videos & Gallery | Jupiter Industries',
     description: 'Watch Jupiter Industries’ brick making machine videos, including 5G, fly ash brick, interlock brick, paver block and concrete block machine demonstrations.',
     keywords: 'Jupiter Industries Projects, Brick Machine Installation Gallery, Block Machine Videos India, Industrial Machinery Site Work, Fly Ash Machine Customer Projects',
+    canonical: 'https://jupitergroups.in/projects',
     ogUrl: 'https://jupitergroups.in/projects',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'MediaGallery',
+      'name': 'Jupiter Industries Projects & Video Showcase',
+      'url': 'https://jupitergroups.in/projects',
+      'description': 'Live video demonstrations and installation photo gallery of industrial brick and block machinery.',
+      'publisher': {
+        '@type': 'Organization',
+        'name': 'Jupiter Industries',
+        'url': 'https://jupitergroups.in'
+      }
+    }
   });
 
   // Main Dual Options Switcher: 'videos' or 'photos'

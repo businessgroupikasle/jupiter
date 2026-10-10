@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSeoMeta } from '../utils/useSeoMeta';
 import { useParams, useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
-  ArrowRight,
   CheckCircle2,
   FileText,
   Settings,
@@ -27,6 +26,7 @@ import { WhatsAppIcon } from '../components/WhatsAppButton';
 import { IMAGES } from '../assets/images/images';
 import { PhoneInputWithCountry } from '../components/PhoneInputWithCountry';
 import { validateName, validatePhone, validateEmail } from '../utils/validation';
+import { NotFoundPage } from './NotFoundPage';
 
 export const DEFAULT_BADGES = ['Durable Construction', 'Consistent Dimensions', 'Lower Water Absorption', 'Cost-Effective Solution'];
 
@@ -255,6 +255,8 @@ export const MachineCategoryPage: React.FC = () => {
 
   const isSparesCategory = currentSlug === 'machine-spares' || currentSlug === 'spares' || (categoryData && categoryData.slug === 'machine-spares');
 
+  const canonicalPath = categoryData ? `https://jupitergroups.in/products/${categoryData.slug}` : `https://jupitergroups.in/products/${currentSlug}`;
+
   // Dynamic SEO meta tags per machine category
   useSeoMeta({
     title: categoryData
@@ -266,7 +268,50 @@ export const MachineCategoryPage: React.FC = () => {
     keywords: categoryData
       ? `${categoryData.name}, Jupiter Industries, Buy ${categoryData.name} India, Industrial Machinery Coimbatore`
       : 'Industrial Machinery, Brick Machine, Block Machine, Jupiter Industries',
-    ogUrl: `https://jupitergroups.in/${currentSlug}`,
+    canonical: canonicalPath,
+    ogUrl: canonicalPath,
+    jsonLd: categoryData ? [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        'name': categoryData.name,
+        'description': categoryData.introDescription || categoryData.subTitle,
+        'url': canonicalPath,
+        'brand': {
+          '@type': 'Brand',
+          'name': 'Jupiter Industries'
+        },
+        'offers': {
+          '@type': 'AggregateOffer',
+          'priceCurrency': 'INR',
+          'availability': 'https://schema.org/InStock'
+        }
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        'itemListElement': [
+          {
+            '@type': 'ListItem',
+            'position': 1,
+            'name': 'Home',
+            'item': 'https://jupitergroups.in/'
+          },
+          {
+            '@type': 'ListItem',
+            'position': 2,
+            'name': 'Products',
+            'item': 'https://jupitergroups.in/products'
+          },
+          {
+            '@type': 'ListItem',
+            'position': 3,
+            'name': categoryData.name,
+            'item': canonicalPath
+          }
+        ]
+      }
+    ] : undefined
   });
 
   const displaySpares = useMemo(() => {
@@ -299,18 +344,7 @@ export const MachineCategoryPage: React.FC = () => {
   }, [categoryData, searchParams]);
 
   if (!categoryData) {
-    return (
-      <div className="container" style={{ padding: '120px 24px', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '16px', color: '#00233D' }}>Product / Machine Category Not Found</h2>
-        <p style={{ color: '#64748B', marginBottom: '24px' }}>
-          The requested machinery page could not be located. Please choose from our available machines below.
-        </p>
-        <Link to="/products" className="btn btn-orange">
-          <span>View All Machinery</span>
-          <ArrowRight size={18} />
-        </Link>
-      </div>
-    );
+    return <NotFoundPage />;
   }
 
   // Active Machine Model
