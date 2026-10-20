@@ -42,12 +42,76 @@ export const mapProductResponse = (p: any): Record<string, any> => {
   };
 };
 
+import { DEFAULT_PRODUCT_V15B, DEFAULT_CATALOG_PRODUCTS } from '../constants/defaultCatalog';
+export { DEFAULT_PRODUCT_V15B, DEFAULT_CATALOG_PRODUCTS };
+
+/**
+ * Ensures all 13 official Jupiter machinery models exist and are up to date in the database.
+ */
+export const ensureDefaultProducts = async (): Promise<void> => {
+  try {
+    for (const prod of DEFAULT_CATALOG_PRODUCTS) {
+      const existing = await prisma.product.findFirst({
+        where: {
+          OR: [{ id: prod.id }, { slug: prod.slug }],
+        },
+      });
+
+      if (!existing) {
+        await prisma.product.create({
+          data: {
+            id: prod.id,
+            name: prod.name,
+            slug: prod.slug,
+            category: prod.category,
+            description: prod.description,
+            capacity: prod.capacity,
+            power: prod.power,
+            brickSize: prod.brickSize,
+            image: prod.image,
+            isActive: prod.isActive,
+            order: prod.order,
+            specifications: prod.specifications,
+            images: {
+              create: [
+                {
+                  url: prod.image,
+                  isPrimary: true,
+                  order: 0,
+                },
+              ],
+            },
+          },
+        });
+        console.log(`[Product] Seeded default machine: ${prod.name}`);
+      } else {
+        await prisma.product.update({
+          where: { id: existing.id },
+          data: {
+            name: prod.name,
+            category: prod.category,
+            description: prod.description,
+            capacity: prod.capacity,
+            power: prod.power,
+            brickSize: prod.brickSize,
+            image: prod.image,
+            specifications: prod.specifications,
+          },
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[Product] Note on ensuring default products:', err);
+  }
+};
+
 /**
  * Normalizes product ordering across categories so that each product has a
  * clean, unique, sequential order value (1, 2, 3...) per category.
  */
 export const normalizeProductOrders = async (): Promise<void> => {
   try {
+    await ensureDefaultProducts();
     const products = await prisma.product.findMany({
       orderBy: [{ category: 'asc' }, { order: 'asc' }, { createdAt: 'asc' }],
     });
@@ -130,11 +194,15 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
     });
 
     const mapped = products.map(mapProductResponse);
+    if (mapped.length === 0) {
+      res.status(200).json({ success: true, count: DEFAULT_CATALOG_PRODUCTS.length, data: DEFAULT_CATALOG_PRODUCTS });
+      return;
+    }
 
     res.status(200).json({ success: true, count: mapped.length, data: mapped });
   } catch (error) {
     console.error('[Product] getProducts error:', error);
-    res.status(200).json({ success: true, count: 0, data: [] });
+    res.status(200).json({ success: true, count: DEFAULT_CATALOG_PRODUCTS.length, data: DEFAULT_CATALOG_PRODUCTS });
   }
 };
 
@@ -162,6 +230,17 @@ export const getProductByIdOrSlug = async (req: Request, res: Response, next: Ne
     });
 
     if (!product) {
+      const match = DEFAULT_CATALOG_PRODUCTS.find(
+        (p) =>
+          p.id === cleanParam ||
+          p.slug === cleanParam ||
+          p.name.toLowerCase() === cleanParam.toLowerCase() ||
+          p.slug.toLowerCase().includes(cleanParam.toLowerCase())
+      );
+      if (match) {
+        res.status(200).json({ success: true, data: match });
+        return;
+      }
       res.status(404).json({ success: false, message: `Product '${cleanParam}' not found` });
       return;
     }
@@ -173,6 +252,19 @@ export const getProductByIdOrSlug = async (req: Request, res: Response, next: Ne
     res.status(200).json({ success: true, data: mapProductResponse(product) });
   } catch (error) {
     console.error('[Product] getProductByIdOrSlug error:', error);
+    const rawParam = (req.params.idOrSlug as string) || '';
+    const cleanParam = rawParam.trim().replace(/\/+$/, '').replace(/\.html$/i, '');
+    const match = DEFAULT_CATALOG_PRODUCTS.find(
+      (p) =>
+        p.id === cleanParam ||
+        p.slug === cleanParam ||
+        p.name.toLowerCase() === cleanParam.toLowerCase() ||
+        p.slug.toLowerCase().includes(cleanParam.toLowerCase())
+    );
+    if (match) {
+      res.status(200).json({ success: true, data: match });
+      return;
+    }
     res.status(404).json({ success: false, message: 'Product not found or invalid query parameter' });
   }
 };

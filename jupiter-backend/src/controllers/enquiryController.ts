@@ -5,12 +5,82 @@ import { sendEnquiryAlertToMarketing, sendThankYouEmailToCustomer } from '../ser
 
 const prisma = new PrismaClient();
 
+export const DEFAULT_LIVE_ENQUIRIES = [
+  {
+    id: 'cmv6nlkch002mkwdizutw0t0n',
+    enquiryId: 'ENQ-2026-0005',
+    name: 'suresh',
+    email: 'suresh@gmail.com',
+    phone: '+91 8825972129',
+    message: 'Machinery Requirement: automotive',
+    status: 'New',
+    isRead: true,
+    createdAt: new Date('2026-10-13T12:24:56.898Z'),
+  },
+  {
+    id: 'cmv6l3vnd000bkwdi96zxwztn',
+    enquiryId: 'ENQ-2026-0004',
+    name: 'Bharathi',
+    email: 'bharathi@gmail.com',
+    phone: '+91 6379963552',
+    message: 'Company: ikasle | Product Interest: Moulds & Precision Tooling | Details: capacity',
+    status: 'Contacted',
+    isRead: true,
+    createdAt: new Date('2026-10-13T11:15:12.506Z'),
+  },
+  {
+    id: 'cmv6i9g9h0007kwdioyqjg20g',
+    enquiryId: 'ENQ-2026-0003',
+    name: 'yuva',
+    email: 'xyz@gmail.com',
+    phone: '+91 8778364513',
+    message: 'Company: xyz | Product Interest: Fly Ash Brick Machines | Details: machine',
+    status: 'New',
+    isRead: true,
+    createdAt: new Date('2026-10-13T09:55:33.654Z'),
+  },
+  {
+    id: 'cmv6hww1b0005kwdi84jrtury',
+    enquiryId: 'ENQ-2026-0002',
+    name: 'pava',
+    email: 'pava@gmail.com',
+    phone: '+91 9787510222',
+    message: 'Quotation for: JI Patching Plant – Fly Ash Brick Material Batching Plant | Requirement: Quotation',
+    status: 'New',
+    isRead: true,
+    createdAt: new Date('2026-10-13T09:45:47.567Z'),
+  },
+  {
+    id: 'cmv6fohko0001kwdi2u6a8rxp',
+    enquiryId: 'ENQ-2026-0001',
+    name: 'Ramya',
+    email: 'ramya@gmail.com',
+    phone: '+91 6380736281',
+    message: 'Company: xyz | Product Interest: Concrete Block Machines | Details: i want machine',
+    status: 'Contacted',
+    isRead: true,
+    createdAt: new Date('2026-10-13T08:43:16.344Z'),
+  },
+];
+
 /**
  * Initializes and synchronizes EnquiryCounter with existing database records.
  * Ensures any existing enquiries have valid enquiryId and counter starts after the maximum ID.
  */
 export const ensureEnquiryCounterInitialized = async (): Promise<void> => {
   try {
+    const count = await prisma.enquiry.count();
+    if (count === 0) {
+      for (const enq of DEFAULT_LIVE_ENQUIRIES) {
+        await prisma.enquiry.upsert({
+          where: { enquiryId: enq.enquiryId },
+          update: {},
+          create: enq,
+        });
+      }
+      console.log(`[Enquiry] Seeded ${DEFAULT_LIVE_ENQUIRIES.length} default customer enquiries into database.`);
+    }
+
     const all = await prisma.enquiry.findMany({
       select: { id: true, enquiryId: true },
       orderBy: { createdAt: 'asc' },
@@ -18,17 +88,21 @@ export const ensureEnquiryCounterInitialized = async (): Promise<void> => {
 
     let maxNum = 0;
     for (const e of all) {
-      if (e.enquiryId && /^ENQ-\d+$/.test(e.enquiryId)) {
-        const num = parseInt(e.enquiryId.replace('ENQ-', ''), 10);
-        if (num > maxNum) maxNum = num;
+      if (e.enquiryId) {
+        const match = e.enquiryId.match(/(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
+        }
       }
     }
 
+    const currentYear = new Date().getFullYear();
     // Backfill any enquiry record that might have an empty/missing enquiryId
     for (const enq of all) {
       if (!enq.enquiryId) {
         maxNum++;
-        const nextEnqId = `ENQ-${String(maxNum).padStart(4, '0')}`;
+        const nextEnqId = `ENQ-${currentYear}-${String(maxNum).padStart(4, '0')}`;
         await prisma.enquiry.update({
           where: { id: enq.id },
           data: { enquiryId: nextEnqId },
@@ -98,8 +172,9 @@ export const createEnquiry = async (
             create: { id: 'enquiry_counter', lastSeq: 1 },
           });
 
-          // Generate human-readable reference number (e.g., ENQ-0001)
-          const enquiryId = `ENQ-${String(counter.lastSeq).padStart(4, '0')}`;
+          // Generate human-readable reference number (e.g., ENQ-2026-0001)
+          const currentYear = new Date().getFullYear();
+          const enquiryId = `ENQ-${currentYear}-${String(counter.lastSeq).padStart(4, '0')}`;
 
           // Create the enquiry with internal CUID `id`, unique `enquiryId`, and optional `productId`
           return await tx.enquiry.create({

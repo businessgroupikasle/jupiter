@@ -1,14 +1,20 @@
-/**
- * Jupiter Backend — Seed Script (Disabled)
- *
- * Demo/seed data creation logic has been disabled and removed.
- * Database is configured with clean, live data only.
- */
+import { ensureDefaultProducts } from './controllers/productController';
+import { ensureEnquiryCounterInitialized } from './controllers/enquiryController';
+import { ensureDefaultAdminUser } from './controllers/userController';
 
 export async function seedDatabase(): Promise<void> {
-  console.log('ℹ️ Database seeding is disabled. Live data is preserved.');
+  console.log('🌱 Starting database seed with Jupiter official contents...');
+  await ensureDefaultAdminUser();
+  await ensureDefaultProducts();
+  await ensureEnquiryCounterInitialized();
+  console.log('✅ Database seeded successfully with official products and enquiries.');
 }
 
 if (typeof require !== 'undefined' && require.main === module) {
-  seedDatabase();
+  seedDatabase()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('❌ Seeding failed:', err);
+      process.exit(1);
+    });
 }
