@@ -27,6 +27,10 @@ export const ProductCardImage: React.FC<ProductCardImageProps> = ({
 }) => {
   const [hasError, setHasError] = useState(false);
 
+  React.useEffect(() => {
+    setHasError(false);
+  }, [src]);
+
   const resolvedUrl = getProductImageUrl(src);
   const isValid = hasValidProductImage(src) && !hasError && Boolean(resolvedUrl);
 

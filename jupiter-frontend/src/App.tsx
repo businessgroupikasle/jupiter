@@ -1,5 +1,5 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigationType, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { WhatsAppButton } from './components/WhatsAppButton';
@@ -32,11 +32,40 @@ import { X, AlertTriangle } from 'lucide-react';
 
 // Scroll to top helper on route navigation
 const ScrollToTop: React.FC = () => {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const navType = useNavigationType();
 
   useEffect(() => {
+    const handleScroll = () => {
+      const key = `scroll_${pathname}${search}`;
+      sessionStorage.setItem(key, String(window.scrollY));
+      sessionStorage.setItem(`scroll_${pathname}`, String(window.scrollY));
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [pathname, search]);
+
+  useEffect(() => {
+    if (navType === 'POP') {
+      const savedKey = `scroll_${pathname}${search}`;
+      const saved = sessionStorage.getItem(savedKey) || sessionStorage.getItem(`scroll_${pathname}`);
+      if (saved) {
+        const top = parseInt(saved, 10);
+        requestAnimationFrame(() => {
+          window.scrollTo({ top, behavior: 'auto' });
+          setTimeout(() => {
+            window.scrollTo({ top, behavior: 'auto' });
+          }, 80);
+        });
+        return;
+      }
+    }
+
     window.scrollTo(0, 0);
-  }, [pathname]);
+  }, [pathname, search, navType]);
 
   return null;
 };

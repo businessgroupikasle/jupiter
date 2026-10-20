@@ -1,4 +1,7 @@
 import { apiClient, extractApiErrorMessage } from './api';
+import { DEFAULT_CATALOG_PRODUCTS, DEFAULT_PRODUCT_V15B } from './defaultCatalog';
+
+export { DEFAULT_CATALOG_PRODUCTS, DEFAULT_PRODUCT_V15B };
 
 export interface MachineSpecItem {
   label: string;
@@ -163,10 +166,19 @@ export const sanitizeCatalog = (list: ProductItem[]): ProductItem[] => {
     cleaned.push(p);
   }
 
+  const hasV15B = cleaned.some(
+    p => p.id === 'cmus8mqtn000bkwtfhsvexaxi' ||
+         (p.name && p.name.toLowerCase().includes('v 15 b')) ||
+         (p.slug && p.slug.includes('v-15-b'))
+  );
+  if (!hasV15B) {
+    cleaned.unshift(DEFAULT_PRODUCT_V15B);
+  }
+
   return cleaned;
 };
 
-let _cachedProducts: ProductItem[] = [];
+let _cachedProducts: ProductItem[] = sanitizeCatalog(DEFAULT_CATALOG_PRODUCTS);
 
 
 // Map a backend API product to frontend ProductItem
@@ -232,7 +244,7 @@ export const fetchProducts = async (category?: string, search?: string, isAdmin:
     const data = response.data?.data || response.data || [];
     const products = Array.isArray(data) ? data.map(mapBackendProduct) : [];
 
-    _cachedProducts = sanitizeCatalog(products);
+    _cachedProducts = sanitizeCatalog(products.length > 0 ? products : DEFAULT_CATALOG_PRODUCTS);
     window.dispatchEvent(new Event('jupiter_products_updated'));
     return _cachedProducts;
   } catch {

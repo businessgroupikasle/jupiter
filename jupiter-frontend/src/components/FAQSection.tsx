@@ -55,31 +55,30 @@ export const FAQSection: React.FC = () => {
   return (
     <section className="section-padding bg-white" id="faq-section">
       <div className="container">
-        {/* Header with Top Right CTA */}
-        <div className="section-header-top">
-          <div>
-            <div style={{
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              color: '#C2410C',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              marginBottom: '12px'
-            }}>
-              FREQUENTLY ASKED QUESTIONS
-            </div>
-            <h2 className="section-title" style={{ marginBottom: '12px' }}>
-              Everything You Need to Know <span className="text-orange">Before You Buy</span>
-            </h2>
-            <p className="section-subtitle">
-              Get quick answers about Jupiter Industries’ brick making machines, concrete block machines, installation, spare parts and technical support.
-            </p>
+        {/* FAQ Section Header */}
+        <div style={{ marginBottom: '36px' }}>
+          <div style={{
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            color: '#C2410C',
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            marginBottom: '10px'
+          }}>
+            FREQUENTLY ASKED QUESTIONS
           </div>
-
-          <Link to="/contact-us" className="btn btn-orange">
-            <span>Talk to a Jupiter Machinery Expert</span>
-            <ArrowRight size={16} />
-          </Link>
+          <h2 className="section-title" style={{ marginBottom: '12px' }}>
+            Everything You Need to Know <span className="text-orange">Before You Buy</span>
+          </h2>
+          <p className="section-subtitle" style={{ maxWidth: '820px', marginBottom: '20px', lineHeight: 1.65 }}>
+            Get quick answers about Jupiter Industries’ brick making machines, concrete block machines, installation, spare parts and technical support.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <Link to="/contact-us" className="btn btn-orange">
+              <span>Talk to a Jupiter Machinery Expert</span>
+              <ArrowRight size={16} />
+            </Link>
+          </div>
         </div>
 
         {/* FAQ Accordion List */}

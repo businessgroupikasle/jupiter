@@ -33,8 +33,8 @@ export const ProductsPage: React.FC = () => {
     }
   });
 
-  const [searchParams] = useSearchParams();
-  const initialCategory = searchParams.get('category') || 'all-machines';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category') || sessionStorage.getItem('jupiter_last_product_category') || 'all-machines';
   const [activeFilter, setActiveFilter] = useState(initialCategory);
   const [products, setProducts] = useState<ProductItem[]>(getStoredProducts());
 
@@ -193,6 +193,12 @@ export const ProductsPage: React.FC = () => {
                       navigate('/products/machine-spares');
                     } else {
                       setActiveFilter(cat.id);
+                      sessionStorage.setItem('jupiter_last_product_category', cat.id);
+                      if (cat.id === 'all-machines') {
+                        setSearchParams({}, { replace: true });
+                      } else {
+                        setSearchParams({ category: cat.id }, { replace: true });
+                      }
                     }
                   }}
                   style={{
@@ -263,7 +269,15 @@ export const ProductsPage: React.FC = () => {
                 return (
                   <Link 
                     key={prod.id} 
-                    to={`/products/${targetSlug}?product=${prod.id}`} 
+                    to={{
+                      pathname: `/products/${targetSlug}`,
+                      search: `?product=${prod.id}${activeFilter && activeFilter !== 'all-machines' ? `&category=${activeFilter}` : ''}`
+                    }}
+                    onClick={() => {
+                      sessionStorage.setItem(`scroll_${window.location.pathname}${window.location.search}`, String(window.scrollY));
+                      sessionStorage.setItem(`scroll_${window.location.pathname}`, String(window.scrollY));
+                      sessionStorage.setItem('jupiter_last_product_category', activeFilter);
+                    }}
                     className="product-card-modern"
                     title={`View details for ${prod.name}`}
                   >

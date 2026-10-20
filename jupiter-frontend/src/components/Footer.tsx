@@ -1,18 +1,33 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Phone, Mail, MapPin, Instagram, Facebook, Youtube } from 'lucide-react';
 import { WhatsAppIcon } from './WhatsAppButton';
 
 import { IMAGES } from '../assets/images/images';
 
 export const Footer: React.FC = () => {
+  const location = useLocation();
+
+  const handleNavLinkClick = (targetPath: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    if (location.pathname === targetPath) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <footer className="footer-wrapper">
       <div className="container">
         <div className="footer-columns-grid">
           {/* Column 1: Brand Info & Social */}
           <div className="footer-col-brand">
-            <Link to="/" className="brand-logo-group" aria-label="Jupiter Industries Home" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none', marginBottom: '16px' }}>
+            <Link 
+              to="/" 
+              onClick={handleNavLinkClick('/')}
+              className="brand-logo-group" 
+              aria-label="Jupiter Industries Home" 
+              style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none', marginBottom: '16px' }}
+            >
               <div style={{
                 background: '#FFFFFF',
                 borderRadius: '10px',
@@ -87,12 +102,12 @@ export const Footer: React.FC = () => {
           <div className="footer-col-quicklinks">
             <h3 className="footer-col-title">QUICK LINKS</h3>
             <ul className="footer-links-list">
-              <li><Link to="/" className="footer-link-anchor">Home</Link></li>
-              <li><Link to="/about-us" className="footer-link-anchor">About Us</Link></li>
-              <li><Link to="/products" className="footer-link-anchor">Machines</Link></li>
-              <li><Link to="/gallery" className="footer-link-anchor">Gallery & Projects</Link></li>
-              <li><Link to="/blog" className="footer-link-anchor">Blog & Guides</Link></li>
-              <li><Link to="/contact-us" className="footer-link-anchor">Contact Us</Link></li>
+              <li><Link to="/" onClick={handleNavLinkClick('/')} className="footer-link-anchor">Home</Link></li>
+              <li><Link to="/about-us" onClick={handleNavLinkClick('/about-us')} className="footer-link-anchor">About Us</Link></li>
+              <li><Link to="/products" onClick={handleNavLinkClick('/products')} className="footer-link-anchor">Machines</Link></li>
+              <li><Link to="/gallery" onClick={handleNavLinkClick('/gallery')} className="footer-link-anchor">Gallery & Projects</Link></li>
+              <li><Link to="/blog" onClick={handleNavLinkClick('/blog')} className="footer-link-anchor">Blog & Guides</Link></li>
+              <li><Link to="/contact-us" onClick={handleNavLinkClick('/contact-us')} className="footer-link-anchor">Contact Us</Link></li>
             </ul>
           </div>
 
@@ -100,13 +115,13 @@ export const Footer: React.FC = () => {
           <div className="footer-col-products">
             <h3 className="footer-col-title">OUR PRODUCTS</h3>
             <ul className="footer-links-list">
-              <li><Link to="/products/fly-ash-brick-machine" className="footer-link-anchor">Fly Ash Machine</Link></li>
-              <li><Link to="/products/hollow-and-solid-block-machine" className="footer-link-anchor">Hollow and Solid Block Machine</Link></li>
-              <li><Link to="/products/inter-block-making-machine" className="footer-link-anchor">Interlock Machine</Link></li>
-              <li><Link to="/products/paver-block-machine" className="footer-link-anchor">Paver Block Machine</Link></li>
-              <li><Link to="/products/batching-plant" className="footer-link-anchor">Batching Plant</Link></li>
-              <li><Link to="/products/storage-silo" className="footer-link-anchor">Storage Silo</Link></li>
-              <li><Link to="/products/machine-spares" className="footer-link-anchor">Machine Spares</Link></li>
+              <li><Link to="/products/fly-ash-brick-machine" onClick={handleNavLinkClick('/products/fly-ash-brick-machine')} className="footer-link-anchor">Fly Ash Machine</Link></li>
+              <li><Link to="/products/hollow-and-solid-block-machine" onClick={handleNavLinkClick('/products/hollow-and-solid-block-machine')} className="footer-link-anchor">Hollow and Solid Block Machine</Link></li>
+              <li><Link to="/products/inter-block-making-machine" onClick={handleNavLinkClick('/products/inter-block-making-machine')} className="footer-link-anchor">Interlock Machine</Link></li>
+              <li><Link to="/products/paver-block-machine" onClick={handleNavLinkClick('/products/paver-block-machine')} className="footer-link-anchor">Paver Block Machine</Link></li>
+              <li><Link to="/products/batching-plant" onClick={handleNavLinkClick('/products/batching-plant')} className="footer-link-anchor">Batching Plant</Link></li>
+              <li><Link to="/products/storage-silo" onClick={handleNavLinkClick('/products/storage-silo')} className="footer-link-anchor">Storage Silo</Link></li>
+              <li><Link to="/products/machine-spares" onClick={handleNavLinkClick('/products/machine-spares')} className="footer-link-anchor">Machine Spares</Link></li>
             </ul>
           </div>
 

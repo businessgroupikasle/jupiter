@@ -553,7 +553,14 @@ export const MachineCategoryPage: React.FC = () => {
         title={isSparesCategory ? 'Machine Spares & Precision Tooling' : (activeMachine?.name || categoryData.name)}
         titleAs={!isSparesCategory && activeMachine ? 'div' : 'h1'}
         breadcrumbs={[
-          { label: 'Products', link: '/products' },
+          { 
+            label: 'Products', 
+            link: (searchParams.get('category') && searchParams.get('category') !== 'all-machines')
+              ? `/products?category=${searchParams.get('category')}`
+              : (sessionStorage.getItem('jupiter_last_product_category') && sessionStorage.getItem('jupiter_last_product_category') !== 'all-machines'
+                ? `/products?category=${sessionStorage.getItem('jupiter_last_product_category')}`
+                : '/products')
+          },
           { label: categoryData.name }
         ]}
       />
@@ -967,51 +974,54 @@ export const MachineCategoryPage: React.FC = () => {
             {isSubmittedSuccess ? (
               <div style={{ padding: '36px 20px', textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
                 <div style={{
-                  width: '64px',
-                  height: '64px',
+                  width: '68px',
+                  height: '68px',
                   borderRadius: '50%',
-                  background: 'rgba(16, 185, 129, 0.15)',
+                  background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
                   border: '2px solid #10B981',
+                  boxShadow: '0 0 0 6px rgba(16, 185, 129, 0.12)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   margin: '0 auto 16px',
-                  color: '#10B981'
+                  color: '#059669'
                 }}>
-                  <CheckCircle2 size={36} />
+                  <CheckCircle2 size={38} strokeWidth={2.4} />
                 </div>
-                <h4 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#FFFFFF', marginBottom: '10px' }}>
+                <h4 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#081322', marginBottom: '10px' }}>
                   Quotation Request Submitted!
                 </h4>
-                <p style={{ color: '#CBD5E1', fontSize: '0.92rem', lineHeight: 1.6, maxWidth: '420px', margin: '0 auto 24px' }}>
+                <p style={{ color: '#475569', fontSize: '0.94rem', lineHeight: 1.6, maxWidth: '420px', margin: '0 auto 24px' }}>
                   Thank you! Our factory technical engineers will review your request for <strong>{selectedMachineName}</strong> and contact you shortly with catalog & pricing.
                 </p>
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                   <button
                     type="button"
                     onClick={handleCloseQuote}
                     className="btn btn-orange"
-                    style={{ padding: '10px 24px', fontWeight: 700 }}
+                    style={{ padding: '11px 26px', fontWeight: 700, borderRadius: '8px' }}
                   >
                     <span>Done</span>
                   </button>
                   <a
-                    href="https://wa.me/919342919060"
+                    href="https://wa.me/919342919060?text=Hello%20Jupiter%20Industries,%20I%20have%20submitted%20a%20quotation%20request."
                     target="_blank"
                     rel="noreferrer"
-                    className="btn"
                     style={{
-                      background: 'rgba(37, 211, 102, 0.15)',
-                      color: '#25D366',
-                      border: '1px solid rgba(37, 211, 102, 0.4)',
-                      padding: '10px 18px',
-                      fontWeight: 600,
+                      background: '#25D366',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      padding: '11px 20px',
+                      fontWeight: 700,
+                      borderRadius: '8px',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      textDecoration: 'none',
+                      boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)'
                     }}
                   >
-                    <WhatsAppIcon size={16} />
+                    <WhatsAppIcon size={18} />
                     <span>Chat on WhatsApp</span>
                   </a>
                 </div>

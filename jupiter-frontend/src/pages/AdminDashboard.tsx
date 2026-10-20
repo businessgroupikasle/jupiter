@@ -8,7 +8,6 @@ import {
   Building2,
   Image as ImageIcon,
   PlayCircle,
-  HelpCircle,
   MapPin,
   Settings,
   Search,
@@ -46,19 +45,12 @@ import {
   Loader2,
   Camera,
   Wrench,
-  Menu
+  Menu,
+  Copy
 } from 'lucide-react';
 import { IMAGES } from '../assets/images/images';
 import '../styles/admin.css';
-import {
-  FAQItem,
-  getStoredFaqs,
-  fetchFaqsFromDb,
-  addFaq,
-  updateFaq,
-  deleteFaq,
-  clearAllFaqs
-} from '../services/faqService';
+import { exportAllAdminDataToExcel } from '../services/excelExportService';
 import {
   MachineDeliveryLocationItem,
   getStoredDeliveryLocations,
@@ -113,7 +105,8 @@ import {
   clearAllProducts,
   reorderProduct,
   toggleProductStatus,
-  CATEGORY_NAME_TO_SLUG_MAP
+  CATEGORY_NAME_TO_SLUG_MAP,
+  DEFAULT_PRODUCT_V15B
 } from '../services/productService';
 import { BulkUploadModal } from '../components/BulkUploadModal';
 import { ProductCardImage } from '../components/ProductCardImage';
@@ -146,6 +139,14 @@ import {
   formatEnquiryDate,
   formatEnquiryReference
 } from '../services/enquiryService';
+import {
+  searchProducts,
+  searchEnquiries,
+  searchSections,
+  renderHighlighted,
+  matchProduct,
+  matchEnquiry
+} from '../utils/adminSearch';
 import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
 
 // Helper to reliably extract an image string regardless of Vite/ES module wrapping
@@ -305,6 +306,7 @@ const ImageUploadField: React.FC<{
 // Types for Admin Dashboard
 export interface EnquiryItem {
   id: string;
+  enquiryId?: string;
   referenceNo?: string;
   name: string;
   phone: string;
@@ -429,9 +431,9 @@ interface SeoSettings {
   };
 
   const tabParam = searchParams.get('tab');
-  const validTabs = ['dashboard', 'enquiries', 'products', 'projects', 'gallery', 'videos', 'faqs', 'locations', 'blogs', 'users', 'settings'] as const;
+  const validTabs = ['dashboard', 'enquiries', 'products', 'projects', 'gallery', 'videos', 'locations', 'blogs', 'users', 'settings'] as const;
 
-  const activeTab: 'dashboard' | 'enquiries' | 'products' | 'projects' | 'gallery' | 'videos' | 'faqs' | 'locations' | 'blogs' | 'users' | 'settings' = (() => {
+  const activeTab: 'dashboard' | 'enquiries' | 'products' | 'projects' | 'gallery' | 'videos' | 'locations' | 'blogs' | 'users' | 'settings' = (() => {
     if (tabParam && (validTabs as readonly string[]).includes(tabParam)) {
       return tabParam as any;
     }
@@ -441,13 +443,29 @@ interface SeoSettings {
     return 'dashboard';
   })();
 
+  const mainContainerRef = React.useRef<HTMLDivElement>(null);
+
   const switchTab = (tabId: string, keepSearch: boolean = false) => {
     if (!keepSearch) {
       setSearchQuery('');
     }
     setSearchParams({ tab: tabId });
     setIsMobileSidebarOpen(false);
+    const container = mainContainerRef.current || document.querySelector('.admin-main-container');
+    if (container) {
+      container.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   };
+
+  // Scroll to top of module when activeTab changes
+  useEffect(() => {
+    const container = mainContainerRef.current || document.querySelector('.admin-main-container');
+    if (container) {
+      container.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [activeTab]);
   const currentMonthRange = (() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -460,17 +478,31 @@ interface SeoSettings {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [searchFilterTab, setSearchFilterTab] = useState<'all' | 'products' | 'enquiries'>('all');
+  const [activeSearchIndex, setActiveSearchIndex] = useState<number>(-1);
   const searchWrapperRef = React.useRef<HTMLDivElement>(null);
+  const [leadPerfRange, setLeadPerfRange] = useState<'30days' | '3months' | '6months' | '12months'>('6months');
+  const [isLeadPerfDropdownOpen, setIsLeadPerfDropdownOpen] = useState(false);
+  const leadPerfDropdownRef = React.useRef<HTMLDivElement>(null);
+  const [isMachineModelDropdownOpen, setIsMachineModelDropdownOpen] = useState(false);
+  const machineModelDropdownRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
         setIsSearchDropdownOpen(false);
       }
+      if (leadPerfDropdownRef.current && !leadPerfDropdownRef.current.contains(e.target as Node)) {
+        setIsLeadPerfDropdownOpen(false);
+      }
+      if (machineModelDropdownRef.current && !machineModelDropdownRef.current.contains(e.target as Node)) {
+        setIsMachineModelDropdownOpen(false);
+      }
     };
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsSearchDropdownOpen(false);
+        setIsLeadPerfDropdownOpen(false);
+        setIsMachineModelDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -493,13 +525,14 @@ interface SeoSettings {
   // Modals & Selection States
   const [selectedEnquiry, setSelectedEnquiry] = useState<EnquiryItem | null>(null);
   const [selectedProductForSpec, setSelectedProductForSpec] = useState<ProductItem | null>(null);
+  const [specModalTab, setSpecModalTab] = useState<'highlights' | 'specifications' | 'features' | 'advantages'>('specifications');
   const [selectedVideoForPlay, setSelectedVideoForPlay] = useState<VideoItem | null>(null);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
   const [isAddGalleryOpen, setIsAddGalleryOpen] = useState(false);
   const [isAddVideoOpen, setIsAddVideoOpen] = useState(false);
-  const [isAddFAQOpen, setIsAddFAQOpen] = useState(false);
   const [isAddLocationOpen, setIsAddLocationOpen] = useState(false);
+  const [locationPhoneError, setLocationPhoneError] = useState<string>('');
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [deliveryStatusFilter, setDeliveryStatusFilter] = useState<string>('All');
   const [isAddBlogOpen, setIsAddBlogOpen] = useState(false);
@@ -752,6 +785,7 @@ interface SeoSettings {
 
   const handleProductOpenSpec = async (prod: ProductItem, e: React.MouseEvent) => {
     e.stopPropagation();
+    setSpecModalTab('specifications');
     setSelectedProductForSpec(prod);
     try {
       const full = await fetchProductById(prod.id);
@@ -814,7 +848,6 @@ interface SeoSettings {
     videoUrl: '',
     category: 'Block Machines' as VideoItem['category']
   });
-  const [newFAQ, setNewFAQ] = useState({ question: '', answer: '', category: 'General' });
   const [newLocation, setNewLocation] = useState<{
     clientName: string;
     locationCity: string;
@@ -916,10 +949,6 @@ interface SeoSettings {
       if (Array.isArray(res)) setBlogs(res);
     }).catch(() => { });
 
-    fetchFaqsFromDb().then(res => {
-      if (Array.isArray(res)) setFaqs(res);
-    }).catch(() => { });
-
     fetchDeliveryLocationsFromDb().then(res => {
       if (Array.isArray(res)) setLocations(res);
     }).catch(() => { });
@@ -932,7 +961,6 @@ interface SeoSettings {
         setGallery(getStoredGalleryPhotos() || []);
         setVideos(getStoredVideos() || []);
         setBlogs(getStoredBlogs() || []);
-        setFaqs(getStoredFaqs() || []);
         setLocations(getStoredDeliveryLocations() || []);
       } catch (err) {
         console.error('Error in syncAll:', err);
@@ -958,13 +986,43 @@ interface SeoSettings {
     };
   }, []);
 
-  const [faqs, setFaqs] = useState<FAQItem[]>(() => {
-    try { return getStoredFaqs() || []; } catch { return []; }
-  });
-
   const [locations, setLocations] = useState<MachineDeliveryLocationItem[]>(() => {
     try { return getStoredDeliveryLocations() || []; } catch { return []; }
   });
+
+  // 1-Click Excel Export State & Handler
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const [exportProgressText, setExportProgressText] = useState('');
+
+  const handleExportAllToExcel = async () => {
+    if (isExportingExcel) return;
+    setIsExportingExcel(true);
+    setExportProgressText('Preparing Excel...');
+    try {
+      await exportAllAdminDataToExcel(
+        {
+          products,
+          enquiries,
+          projects,
+          blogs,
+          galleryPhotos: gallery,
+          videos,
+          deliveryLocations: locations,
+          usersList
+        },
+        (step, percentage) => {
+          setExportProgressText(`${step} (${percentage}%)`);
+        }
+      );
+      triggerToast('All admin data exported successfully to Excel with images!');
+    } catch (err: any) {
+      console.error('Excel export error:', err);
+      triggerToast('Failed to export data to Excel.');
+    } finally {
+      setIsExportingExcel(false);
+      setExportProgressText('');
+    }
+  };
 
   
 
@@ -1100,21 +1158,35 @@ interface SeoSettings {
 
   // Status toggle for enquiries (strictly isolated to the clicked enquiry)
   const handleToggleStatus = (id: string, targetEnq?: EnquiryItem, shouldCloseModal: boolean = false) => {
-    const enq = targetEnq || enquiries.find(e => e.id === id);
+    const enq = targetEnq || enquiries.find(e => e.id === id || e.enquiryId === id);
     if (!enq) return;
     const nextStatus = enq.status === 'New' ? 'Contacted' : (enq.status === 'Contacted' ? 'Closed' : 'New');
-    const targetIdx = enquiries.findIndex(e => e === enq || (e.id === enq.id && e.name === enq.name && e.product === enq.product && e.phone === enq.phone));
-    const updated = updateStoredEnquiryStatus(id, nextStatus as any, targetIdx >= 0 ? targetIdx : undefined);
-    setEnquiries(updated);
+    const targetIdx = enquiries.findIndex(e => e === enq || e.id === id || (enq.id && e.id === enq.id));
 
-    // Automatically close the enquiry details popup if requested or if currently open
-    if (shouldCloseModal || selectedEnquiry?.id === id) {
+    // Automatically close the enquiry details popup if requested or if this enquiry is currently viewed
+    if (shouldCloseModal || selectedEnquiry?.id === id || (selectedEnquiry && enq.id && selectedEnquiry.id === enq.id)) {
       setSelectedEnquiry(null);
     }
+
+    const updated = updateStoredEnquiryStatus(enq.id || id, nextStatus as any, targetIdx >= 0 ? targetIdx : undefined);
+
+    // Ensure the updated status immediately reflects in the enquiry list
+    setEnquiries(prev => {
+      const matchId = enq.id || id;
+      const exists = prev.some(e => e.id === matchId || (enq.enquiryId && e.enquiryId === enq.enquiryId));
+      if (!exists && updated) return updated;
+      return prev.map(item => {
+        if (item.id === matchId || (enq.enquiryId && item.enquiryId === enq.enquiryId)) {
+          return { ...item, status: nextStatus };
+        }
+        return item;
+      });
+    });
 
     const refNo = formatEnquiryReference(enq, enquiries);
     triggerToast(`Enquiry ${refNo} (${enq.name}) marked as "${nextStatus}" successfully!`);
   };
+
 
   const handleDeleteEnquiry = (id: string, targetEnq?: EnquiryItem) => {
     const targetIdx = enquiries.findIndex(e => e === targetEnq || (e.id === id && (!targetEnq || (e.name === targetEnq.name && e.product === targetEnq.product && e.phone === targetEnq.phone))));
@@ -1130,6 +1202,7 @@ interface SeoSettings {
   const handleMarkAllNotificationsRead = () => {
     const updated = markAllStoredEnquiriesAsRead();
     setEnquiries(updated);
+    setNotificationsOpen(false);
     triggerToast('All notifications marked as read');
   };
 
@@ -1145,10 +1218,11 @@ interface SeoSettings {
 
   // Filtered lists based on search and filters
   const filteredEnquiries = enquiries.filter(enq => {
-    const matchesFilter = enquiryFilter === 'All' || enq.status === enquiryFilter;
+    if (!enq) return false;
+    const matchesFilter = !searchQuery.trim() || enquiryFilter === 'All' || enq.status === enquiryFilter;
 
     // Filter by specific product ID if navigated from a product card
-    const matchesProductId = !filterProductId ||
+    const matchesProductId = !searchQuery.trim() || !filterProductId ||
       enq.productId === filterProductId ||
       (filteredProductObj && enq.product && (
         enq.product.toLowerCase().trim() === filteredProductObj.name.toLowerCase().trim() ||
@@ -1156,11 +1230,7 @@ interface SeoSettings {
         filteredProductObj.name.toLowerCase().includes(enq.product.toLowerCase())
       ));
 
-    const matchesSearch = searchQuery === '' ||
-      enq.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      enq.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      enq.phone.includes(searchQuery) ||
-      (enq.location && enq.location.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = !searchQuery.trim() || matchEnquiry(enq, searchQuery, enquiries).matches;
     return matchesFilter && matchesProductId && matchesSearch;
   });
 
@@ -1198,13 +1268,8 @@ interface SeoSettings {
 
   const filteredProducts = products.filter(p => {
     if (!p) return false;
-    const pName = (p.name || '').toLowerCase();
-    const pCat = (p.category || '').toLowerCase();
-    const query = (searchQuery || '').trim().toLowerCase();
-
-    const matchesCategory = matchAdminCategory(p, adminProductCategory);
-    const matchesSearch = query === '' || pName.includes(query) || pCat.includes(query);
-
+    const matchesCategory = !searchQuery.trim() || adminProductCategory === 'All' || matchAdminCategory(p, adminProductCategory);
+    const matchesSearch = !searchQuery.trim() || matchProduct(p, searchQuery).matches;
     return matchesCategory && matchesSearch;
   }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
@@ -1232,13 +1297,6 @@ interface SeoSettings {
     )
   );
 
-  const filteredFaqs = (faqs || []).filter(f =>
-    f && (
-      searchQuery === '' ||
-      (f.question || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (f.answer || '').toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  );
 
   const filteredLocations = (locations || []).filter(l =>
     l && (
@@ -1272,58 +1330,49 @@ interface SeoSettings {
 
   // Global search multi-category matching (Products, Enquiries/Customers, and Views)
   const globalMatchingProducts = React.useMemo(() => {
-    const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return [];
-    return (products || []).filter(p => {
-      if (!p) return false;
-      const name = (p.name || '').toLowerCase();
-      const cat = (p.category || '').toLowerCase();
-      const brand = (p.brandTag || '').toLowerCase();
-      const cap = (p.capacity || '').toLowerCase();
-      const power = (p.power || '').toLowerCase();
-      const desc = (p.description || '').toLowerCase();
-      const brick = (p.brickSize || '').toLowerCase();
-      return name.includes(q) || cat.includes(q) || brand.includes(q) || cap.includes(q) || power.includes(q) || desc.includes(q) || brick.includes(q);
-    });
+    return searchProducts(products || [], searchQuery);
   }, [products, searchQuery]);
 
   const globalMatchingEnquiries = React.useMemo(() => {
-    const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return [];
-    return (enquiries || []).filter(enq => {
-      if (!enq) return false;
-      const name = (enq.name || '').toLowerCase();
-      const phone = (enq.phone || '').toLowerCase();
-      const email = (enq.email || '').toLowerCase();
-      const location = (enq.location || '').toLowerCase();
-      const prod = (enq.product || '').toLowerCase();
-      const prodInt = (enq.productInterest || '').toLowerCase();
-      const msg = (enq.message || '').toLowerCase();
-      const status = (enq.status || '').toLowerCase();
-      const ref = formatEnquiryReference(enq, enquiries).toLowerCase();
-      const id = (enq.id || '').toLowerCase();
-      return name.includes(q) || phone.includes(q) || email.includes(q) || location.includes(q) || prod.includes(q) || prodInt.includes(q) || msg.includes(q) || status.includes(q) || ref.includes(q) || id.includes(q);
-    });
+    return searchEnquiries(enquiries || [], searchQuery);
   }, [enquiries, searchQuery]);
 
   const globalMatchingSections = React.useMemo(() => {
-    const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return [];
-    const sections = [
-      { id: 'dashboard', label: 'Dashboard Overview & Tasks', desc: 'KPI metrics, today\'s follow-up tasks & recent activity stream', tab: 'dashboard', keywords: ['overview', 'recent', 'activity', 'task', 'tasks', 'kpi', 'metrics', 'stats', 'home'] },
-      { id: 'enquiries', label: 'Customer Enquiries & Quotations', desc: 'Browse customer leads, requested machines & quotation statuses', tab: 'enquiries', keywords: ['enquiry', 'enquiries', 'lead', 'leads', 'customer', 'customers', 'quote', 'quotations', 'follow up'] },
-      { id: 'products', label: 'Machinery Products Catalog', desc: 'Full product line: fly ash, block, interlock, paver machines & batching plants', tab: 'products', keywords: ['product', 'products', 'machine', 'machinery', 'catalog', 'equipment', 'models'] },
-      { id: 'projects', label: 'Client Projects & Installations', desc: 'Track turn-key plant setups and industrial client sites', tab: 'projects', keywords: ['project', 'projects', 'client', 'clients', 'installation', 'installations'] },
-      { id: 'blogs', label: 'Technical Blogs & Guides', desc: 'Articles on fly ash brick manufacturing and plant economics', tab: 'blogs', keywords: ['blog', 'blogs', 'article', 'articles', 'guide', 'guides'] },
-      { id: 'locations', label: 'Machine Delivery Locations', desc: 'Pan-India dispatch tracking, transport vehicles & client delivery sites', tab: 'locations', keywords: ['location', 'locations', 'delivery', 'deliveries', 'dispatch', 'transport', 'trailer'] },
-      { id: 'settings', label: 'Company & Website Settings', desc: 'Manage company contact numbers, WhatsApp support & maintenance mode', tab: 'settings', keywords: ['setting', 'settings', 'maintenance', 'seo', 'company', 'whatsapp'] },
-    ];
-    return sections.filter(s =>
-      s.label.toLowerCase().includes(q) ||
-      s.desc.toLowerCase().includes(q) ||
-      s.keywords.some(k => k.includes(q) || q.includes(k))
-    );
+    return searchSections(searchQuery);
   }, [searchQuery]);
+
+  const visibleMatchingProducts = React.useMemo(() => {
+    if (searchFilterTab === 'all') return globalMatchingProducts.slice(0, 5);
+    if (searchFilterTab === 'products') return globalMatchingProducts;
+    return [];
+  }, [searchFilterTab, globalMatchingProducts]);
+
+  const visibleMatchingEnquiries = React.useMemo(() => {
+    if (searchFilterTab === 'all') return globalMatchingEnquiries.slice(0, 5);
+    if (searchFilterTab === 'enquiries') return globalMatchingEnquiries;
+    return [];
+  }, [searchFilterTab, globalMatchingEnquiries]);
+
+  const visibleMatchingSections = React.useMemo(() => {
+    if (searchFilterTab === 'all') return globalMatchingSections.slice(0, 3);
+    return [];
+  }, [searchFilterTab, globalMatchingSections]);
+
+  const visibleSearchResults = React.useMemo<Array<
+    | { type: 'product'; data: ProductItem }
+    | { type: 'enquiry'; data: EnquiryItem }
+    | { type: 'section'; data: (typeof globalMatchingSections)[0] }
+  >>(() => {
+    const list: Array<
+      | { type: 'product'; data: ProductItem }
+      | { type: 'enquiry'; data: EnquiryItem }
+      | { type: 'section'; data: (typeof globalMatchingSections)[0] }
+    > = [];
+    visibleMatchingProducts.forEach(p => list.push({ type: 'product', data: p }));
+    visibleMatchingEnquiries.forEach(e => list.push({ type: 'enquiry', data: e }));
+    visibleMatchingSections.forEach(s => list.push({ type: 'section', data: s }));
+    return list;
+  }, [visibleMatchingProducts, visibleMatchingEnquiries, visibleMatchingSections]);
 
   const totalGlobalSearchResults = globalMatchingProducts.length + globalMatchingEnquiries.length + globalMatchingSections.length;
 
@@ -1342,7 +1391,17 @@ interface SeoSettings {
       setEnquiries(updated);
     }
     setSelectedEnquiry({ ...enq, isRead: true });
-    switchTab('enquiries', true);
+    setEnquiryFilter('All');
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('productId');
+    nextParams.set('tab', 'enquiries');
+    setSearchParams(nextParams);
+    setIsMobileSidebarOpen(false);
+    const container = mainContainerRef.current || document.querySelector('.admin-main-container');
+    if (container) {
+      container.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     triggerToast(`Opened enquiry for ${enq.name} (${formatEnquiryReference(enq, enquiries)})`);
   };
 
@@ -1360,7 +1419,6 @@ interface SeoSettings {
     { id: 'blogs', label: 'Blogs & Guides', icon: BookOpen },
     { id: 'gallery', label: 'Gallery', icon: ImageIcon },
     { id: 'videos', label: 'Videos', icon: PlayCircle },
-    { id: 'faqs', label: 'FAQs', icon: HelpCircle },
     { id: 'locations', label: 'Machine Delivery Locations', icon: MapPin },
     { id: 'users', label: 'Users', icon: Users, badge: usersList.length.toString() },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -1418,7 +1476,13 @@ interface SeoSettings {
               <button
                 key={item.id}
                 type="button"
-                onClick={() => switchTab(item.id)}
+                onClick={() => {
+                  switchTab(item.id);
+                  const container = mainContainerRef.current || document.querySelector('.admin-main-container');
+                  if (container) {
+                    container.scrollTop = 0;
+                  }
+                }}
                 className={`admin-nav-item ${isActive ? 'active' : ''}`}
                 style={{ cursor: 'pointer' }}
               >
@@ -1485,14 +1549,14 @@ interface SeoSettings {
       {/* ---------------------------------------------------------------------
           2. MAIN CONTENT BODY AREA
           --------------------------------------------------------------------- */}
-      <div className="admin-main-container">
+      <div className="admin-main-container" ref={mainContainerRef}>
         {/* Global Toast Alert */}
         {toastMessage && (
           <div style={{
             position: 'fixed',
             top: '20px',
             right: '28px',
-            zIndex: 9999,
+            zIndex: 9999999,
             background: '#001827',
             color: '#FFFFFF',
             borderLeft: '4px solid #FF9200',
@@ -1532,38 +1596,80 @@ interface SeoSettings {
 
           {/* Global Search Box with Interactive Results Dropdown */}
           <div className="admin-search-wrapper" ref={searchWrapperRef}>
-            <div className={`admin-search-box ${isSearchDropdownOpen && searchQuery.trim() ? 'has-dropdown-open' : ''}`}>
+            <div
+              className={`admin-search-box ${isSearchDropdownOpen && searchQuery.trim() ? 'has-dropdown-open' : ''}`}
+              onClick={() => {
+                if (searchQuery.trim()) {
+                  setIsSearchDropdownOpen(true);
+                  if (activeSearchIndex === -1 && visibleSearchResults.length > 0) {
+                    setActiveSearchIndex(0);
+                  }
+                }
+              }}
+            >
               <Search size={17} className="admin-search-icon" />
               <input
                 type="text"
                 placeholder="Search products, enquiries, customers..."
                 value={searchQuery}
+                onClick={() => {
+                  if (searchQuery.trim()) {
+                    setIsSearchDropdownOpen(true);
+                    if (activeSearchIndex === -1 && visibleSearchResults.length > 0) {
+                      setActiveSearchIndex(0);
+                    }
+                  }
+                }}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setIsSearchDropdownOpen(true);
+                  setActiveSearchIndex(0);
                 }}
                 onFocus={() => {
                   if (searchQuery.trim()) {
                     setIsSearchDropdownOpen(true);
+                    if (activeSearchIndex === -1 && visibleSearchResults.length > 0) {
+                      setActiveSearchIndex(0);
+                    }
                   }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Escape') {
                     setIsSearchDropdownOpen(false);
+                    setActiveSearchIndex(-1);
+                  } else if (e.key === 'ArrowDown') {
+                    if (visibleSearchResults.length > 0) {
+                      e.preventDefault();
+                      setIsSearchDropdownOpen(true);
+                      setActiveSearchIndex(prev => (prev + 1 < visibleSearchResults.length ? prev + 1 : 0));
+                    }
+                  } else if (e.key === 'ArrowUp') {
+                    if (visibleSearchResults.length > 0) {
+                      e.preventDefault();
+                      setIsSearchDropdownOpen(true);
+                      setActiveSearchIndex(prev => (prev > 0 ? prev - 1 : visibleSearchResults.length - 1));
+                    }
                   } else if (e.key === 'Enter') {
-                    if (globalMatchingEnquiries.length === 1 && globalMatchingProducts.length === 0) {
-                      handleSelectEnquirySearchResult(globalMatchingEnquiries[0]);
-                    } else if (globalMatchingProducts.length === 1 && globalMatchingEnquiries.length === 0) {
-                      handleSelectProductSearchResult(globalMatchingProducts[0]);
-                    } else if (globalMatchingProducts.length > 0 && globalMatchingEnquiries.length === 0) {
-                      setAdminProductCategory('All');
-                      switchTab('products', true);
-                      setIsSearchDropdownOpen(false);
-                    } else if (globalMatchingEnquiries.length > 0 && globalMatchingProducts.length === 0) {
-                      switchTab('enquiries', true);
-                      setIsSearchDropdownOpen(false);
-                    } else if (globalMatchingSections.length > 0 && globalMatchingProducts.length === 0 && globalMatchingEnquiries.length === 0) {
-                      handleSelectSectionSearchResult(globalMatchingSections[0].tab);
+                    if (activeSearchIndex >= 0 && activeSearchIndex < visibleSearchResults.length) {
+                      e.preventDefault();
+                      const item = visibleSearchResults[activeSearchIndex];
+                      if (item.type === 'product') {
+                        handleSelectProductSearchResult(item.data);
+                      } else if (item.type === 'enquiry') {
+                        handleSelectEnquirySearchResult(item.data);
+                      } else if (item.type === 'section') {
+                        handleSelectSectionSearchResult(item.data.tab);
+                      }
+                    } else if (visibleSearchResults.length > 0) {
+                      e.preventDefault();
+                      const firstItem = visibleSearchResults[0];
+                      if (firstItem.type === 'product') {
+                        handleSelectProductSearchResult(firstItem.data);
+                      } else if (firstItem.type === 'enquiry') {
+                        handleSelectEnquirySearchResult(firstItem.data);
+                      } else if (firstItem.type === 'section') {
+                        handleSelectSectionSearchResult(firstItem.data.tab);
+                      }
                     }
                   }
                 }}
@@ -1572,9 +1678,11 @@ interface SeoSettings {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setSearchQuery('');
                     setIsSearchDropdownOpen(false);
+                    setActiveSearchIndex(-1);
                   }}
                   style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: '2px', display: 'flex' }}
                   title="Clear search"
@@ -1605,7 +1713,10 @@ interface SeoSettings {
                     <button
                       type="button"
                       className={`admin-search-tab-pill ${searchFilterTab === 'all' ? 'active' : ''}`}
-                      onClick={() => setSearchFilterTab('all')}
+                      onClick={() => {
+                        setSearchFilterTab('all');
+                        setActiveSearchIndex(-1);
+                      }}
                     >
                       All ({totalGlobalSearchResults})
                     </button>
@@ -1613,7 +1724,10 @@ interface SeoSettings {
                       <button
                         type="button"
                         className={`admin-search-tab-pill ${searchFilterTab === 'products' ? 'active' : ''}`}
-                        onClick={() => setSearchFilterTab('products')}
+                        onClick={() => {
+                          setSearchFilterTab('products');
+                          setActiveSearchIndex(-1);
+                        }}
                       >
                         <Package size={13} />
                         Products ({globalMatchingProducts.length})
@@ -1623,7 +1737,10 @@ interface SeoSettings {
                       <button
                         type="button"
                         className={`admin-search-tab-pill ${searchFilterTab === 'enquiries' ? 'active' : ''}`}
-                        onClick={() => setSearchFilterTab('enquiries')}
+                        onClick={() => {
+                          setSearchFilterTab('enquiries');
+                          setActiveSearchIndex(-1);
+                        }}
                       >
                         <FileText size={13} />
                         Enquiries ({globalMatchingEnquiries.length})
@@ -1674,7 +1791,7 @@ interface SeoSettings {
                   ) : (
                     <>
                       {/* 1. Products Section */}
-                      {(searchFilterTab === 'all' || searchFilterTab === 'products') && globalMatchingProducts.length > 0 && (
+                      {(searchFilterTab === 'all' || searchFilterTab === 'products') && visibleMatchingProducts.length > 0 && (
                         <div>
                           <div className="admin-search-section-head">
                             <span>Matching Products ({globalMatchingProducts.length})</span>
@@ -1690,45 +1807,49 @@ interface SeoSettings {
                               View all in Catalog →
                             </button>
                           </div>
-                          {globalMatchingProducts.slice(0, 5).map((prod) => (
-                            <div
-                              key={prod.id}
-                              className="admin-search-result-card"
-                              onClick={() => handleSelectProductSearchResult(prod)}
-                            >
-                              <div className="admin-search-thumb-box">
-                                {prod.image || prod.imageUrl ? (
-                                  <img
-                                    src={resolveImg(prod.imageUrl || prod.image)}
-                                    alt={prod.name}
-                                    className="admin-search-thumb-img"
-                                  />
-                                ) : (
-                                  <Package size={20} className="text-orange" />
-                                )}
-                              </div>
-                              <div className="admin-search-card-main">
-                                <div className="admin-search-card-title-row">
-                                  <span className="admin-search-card-title">{prod.name}</span>
-                                  <span className="admin-search-tag-badge product-cat">
-                                    {prod.category}
-                                  </span>
+                          {visibleMatchingProducts.map((prod, pIdx) => {
+                            const isCardSelected = activeSearchIndex === pIdx;
+                            return (
+                              <div
+                                key={prod.id}
+                                className={`admin-search-result-card ${isCardSelected ? 'is-selected' : ''}`}
+                                onMouseEnter={() => setActiveSearchIndex(pIdx)}
+                                onClick={() => handleSelectProductSearchResult(prod)}
+                              >
+                                <div className="admin-search-thumb-box">
+                                  {prod.image || prod.imageUrl ? (
+                                    <img
+                                      src={resolveImg(prod.imageUrl || prod.image)}
+                                      alt={prod.name}
+                                      className="admin-search-thumb-img"
+                                    />
+                                  ) : (
+                                    <Package size={20} className="text-orange" />
+                                  )}
                                 </div>
-                                <div className="admin-search-card-subline">
-                                  {prod.capacity && <span>Capacity: {prod.capacity}</span>}
-                                  {prod.power && <span>• Power: {prod.power}</span>}
-                                  {prod.brandTag && <span>• {prod.brandTag}</span>}
+                                <div className="admin-search-card-main">
+                                  <div className="admin-search-card-title-row">
+                                    <span className="admin-search-card-title">{renderHighlighted(prod.name, searchQuery)}</span>
+                                    <span className="admin-search-tag-badge product-cat">
+                                      {renderHighlighted(prod.category, searchQuery)}
+                                    </span>
+                                  </div>
+                                  <div className="admin-search-card-subline">
+                                    {prod.capacity && <span>Capacity: {prod.capacity}</span>}
+                                    {prod.power && <span>• Power: {prod.power}</span>}
+                                    {prod.brandTag && <span>• {prod.brandTag}</span>}
+                                  </div>
                                 </div>
+                                <ChevronRight size={16} className="admin-search-card-arrow" />
                               </div>
-                              <ChevronRight size={16} className="admin-search-card-arrow" />
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
                       {/* 2. Customer Enquiries Section */}
-                      {(searchFilterTab === 'all' || searchFilterTab === 'enquiries') && globalMatchingEnquiries.length > 0 && (
-                        <div style={{ marginTop: (searchFilterTab === 'all' && globalMatchingProducts.length > 0) ? '6px' : '0' }}>
+                      {(searchFilterTab === 'all' || searchFilterTab === 'enquiries') && visibleMatchingEnquiries.length > 0 && (
+                        <div style={{ marginTop: (searchFilterTab === 'all' && visibleMatchingProducts.length > 0) ? '6px' : '0' }}>
                           <div className="admin-search-section-head">
                             <span>Matching Customer Enquiries ({globalMatchingEnquiries.length})</span>
                             <button
@@ -1742,14 +1863,17 @@ interface SeoSettings {
                               View all in Enquiries →
                             </button>
                           </div>
-                          {globalMatchingEnquiries.slice(0, 5).map((enq) => {
+                          {visibleMatchingEnquiries.map((enq, eIdx) => {
+                            const itemIndex = visibleMatchingProducts.length + eIdx;
+                            const isCardSelected = activeSearchIndex === itemIndex;
                             const ref = formatEnquiryReference(enq, enquiries);
                             const initial = (enq.name || 'C').charAt(0).toUpperCase();
                             const statusNorm = normalizeEnquiryStatus(enq.status);
                             return (
                               <div
                                 key={enq.id}
-                                className="admin-search-result-card"
+                                className={`admin-search-result-card ${isCardSelected ? 'is-selected' : ''}`}
+                                onMouseEnter={() => setActiveSearchIndex(itemIndex)}
                                 onClick={() => handleSelectEnquirySearchResult(enq)}
                               >
                                 <div className="admin-search-avatar-box">
@@ -1757,19 +1881,19 @@ interface SeoSettings {
                                 </div>
                                 <div className="admin-search-card-main">
                                   <div className="admin-search-card-title-row">
-                                    <span className="admin-search-card-title">{enq.name}</span>
+                                    <span className="admin-search-card-title">{renderHighlighted(enq.name, searchQuery)}</span>
                                     <span className={`admin-search-tag-badge status-${statusNorm.toLowerCase()}`}>
                                       {enq.status}
                                     </span>
                                     <span style={{ fontSize: '0.72rem', color: '#FF9200', fontWeight: 700 }}>
-                                      {ref}
+                                      {renderHighlighted(ref, searchQuery)}
                                     </span>
                                   </div>
                                   <div className="admin-search-card-subline">
                                     <span style={{ fontWeight: 600, color: '#0F172A' }}>
-                                      {enq.productInterest || enq.product}
+                                      {renderHighlighted(enq.productInterest || enq.product, searchQuery)}
                                     </span>
-                                    <span>• {enq.phone}</span>
+                                    <span>• {renderHighlighted(enq.phone, searchQuery)}</span>
                                     {enq.date && <span>• {enq.date}</span>}
                                   </div>
                                   {enq.message && (
@@ -1786,34 +1910,39 @@ interface SeoSettings {
                       )}
 
                       {/* 3. Navigation & Section Matches */}
-                      {searchFilterTab === 'all' && globalMatchingSections.length > 0 && (
+                      {searchFilterTab === 'all' && visibleMatchingSections.length > 0 && (
                         <div style={{ marginTop: '6px' }}>
                           <div className="admin-search-section-head">
                             <span>System Navigation & Views ({globalMatchingSections.length})</span>
                           </div>
-                          {globalMatchingSections.slice(0, 3).map((sec) => (
-                            <div
-                              key={sec.id}
-                              className="admin-search-result-card"
-                              onClick={() => handleSelectSectionSearchResult(sec.tab)}
-                            >
-                              <div className="admin-search-thumb-box" style={{ background: '#FFF7ED', borderColor: '#FDBA74' }}>
-                                <ArrowRight size={18} className="text-orange" />
-                              </div>
-                              <div className="admin-search-card-main">
-                                <div className="admin-search-card-title-row">
-                                  <span className="admin-search-card-title">{sec.label}</span>
-                                  <span className="admin-search-tag-badge" style={{ background: '#F1F5F9', color: '#475569' }}>
-                                    Go to View
-                                  </span>
+                          {visibleMatchingSections.map((sec, sIdx) => {
+                            const itemIndex = visibleMatchingProducts.length + visibleMatchingEnquiries.length + sIdx;
+                            const isCardSelected = activeSearchIndex === itemIndex;
+                            return (
+                              <div
+                                key={sec.id}
+                                className={`admin-search-result-card ${isCardSelected ? 'is-selected' : ''}`}
+                                onMouseEnter={() => setActiveSearchIndex(itemIndex)}
+                                onClick={() => handleSelectSectionSearchResult(sec.tab)}
+                              >
+                                <div className="admin-search-thumb-box" style={{ background: '#FFF7ED', borderColor: '#FDBA74' }}>
+                                  <ArrowRight size={18} className="text-orange" />
                                 </div>
-                                <div className="admin-search-card-subline">
-                                  {sec.desc}
+                                <div className="admin-search-card-main">
+                                  <div className="admin-search-card-title-row">
+                                    <span className="admin-search-card-title">{sec.label}</span>
+                                    <span className="admin-search-tag-badge" style={{ background: '#F1F5F9', color: '#475569' }}>
+                                      Go to View
+                                    </span>
+                                  </div>
+                                  <div className="admin-search-card-subline">
+                                    {sec.desc}
+                                  </div>
                                 </div>
+                                <ChevronRight size={16} className="admin-search-card-arrow" />
                               </div>
-                              <ChevronRight size={16} className="admin-search-card-arrow" />
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </>
@@ -1824,7 +1953,7 @@ interface SeoSettings {
                 {totalGlobalSearchResults > 0 && (
                   <div className="admin-search-dropdown-footer">
                     <span style={{ color: '#64748B' }}>
-                      Click record to open details & specifications
+                      Use ↑↓ to navigate, Enter to open record
                     </span>
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <button
@@ -1996,7 +2125,7 @@ interface SeoSettings {
                         className="text-orange"
                         style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
                       >
-                        Mark all read
+                        Mark All as Read
                       </span>
                     )}
                   </div>
@@ -2044,6 +2173,43 @@ interface SeoSettings {
                 <span className="admin-user-role">{currentUser.role}</span>
               </div>
             </div>
+
+            {/* 1-Click Full Admin Data Excel Download with Images */}
+            <button
+              type="button"
+              className="admin-download-excel-btn"
+              onClick={handleExportAllToExcel}
+              disabled={isExportingExcel}
+              title="One-click full Excel download with images for all admin data"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: isExportingExcel ? '#94A3B8' : 'linear-gradient(135deg, #107C41 0%, #15803D 100%)',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '9px 16px',
+                borderRadius: '9px',
+                fontSize: '0.86rem',
+                fontWeight: 600,
+                cursor: isExportingExcel ? 'not-allowed' : 'pointer',
+                boxShadow: isExportingExcel ? 'none' : '0 3px 10px rgba(16, 124, 65, 0.25)',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {isExportingExcel ? (
+                <>
+                  <Loader2 size={16} className="admin-spin" />
+                  <span>{exportProgressText || 'Downloading...'}</span>
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  <span>Download Excel</span>
+                </>
+              )}
+            </button>
 
             {/* View Live Website Button */}
             <Link to="/" className="admin-live-site-btn" title="Open Public Website">
@@ -2120,6 +2286,33 @@ interface SeoSettings {
                       >
                         <Package size={16} />
                         <span>View Catalog</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportAllToExcel}
+                        disabled={isExportingExcel}
+                        className="btn"
+                        style={{
+                          background: isExportingExcel ? '#94A3B8' : '#107C41',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          cursor: isExportingExcel ? 'not-allowed' : 'pointer',
+                          zIndex: 10,
+                          fontWeight: 600,
+                          boxShadow: '0 2px 8px rgba(16, 124, 65, 0.25)'
+                        }}
+                      >
+                        {isExportingExcel ? (
+                          <>
+                            <Loader2 size={16} className="admin-spin" />
+                            <span>{exportProgressText || 'Downloading...'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download size={16} />
+                            <span>Download All Data (Excel)</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -2271,81 +2464,190 @@ interface SeoSettings {
               {/* ROW 3: LEAD PERFORMANCE + PRODUCT INTEREST + RECENT ACTIVITY */}
               <div className="admin-three-col-row">
                 {/* 1. Lead Performance Chart */}
-                <div className="admin-card">
-                  <div className="admin-card-header">
-                    <h3 className="admin-card-title">Lead Performance</h3>
-                    <div className="admin-chart-legend-group">
-                      <div className="admin-legend-item">
-                        <span className="admin-legend-dot bg-navy"></span>
-                        <span>New Leads</span>
-                      </div>
-                      <div className="admin-legend-item">
-                        <span className="admin-legend-dot bg-orange"></span>
-                        <span>Conversions</span>
-                      </div>
-                      <div className="admin-select-badge">
-                        <span>Last 6 Months</span>
-                        <ChevronDown size={14} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="admin-analytics-chart-wrap">
-                    {(() => {
-                      // 6 months dynamic labels
-                      const months = Array.from({ length: 6 }).map((_, idx) => {
+                {(() => {
+                  const leadPerfRangeOptions: Record<'30days' | '3months' | '6months' | '12months', {
+                    label: string;
+                    months: string[];
+                    xCoords: number[];
+                    leadValues: number[];
+                    convValues: number[];
+                  }> = {
+                    '30days': {
+                      label: 'Last 30 Days',
+                      months: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                      xCoords: [70, 190, 310, 430],
+                      leadValues: [14, 20, 28, 40],
+                      convValues: [5, 8, 12, 19]
+                    },
+                    '3months': {
+                      label: 'Last 3 Months',
+                      months: Array.from({ length: 3 }).map((_, idx) => {
+                        const d = new Date();
+                        d.setMonth(d.getMonth() - (2 - idx));
+                        return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+                      }),
+                      xCoords: [70, 250, 430],
+                      leadValues: [38, 48, 70],
+                      convValues: [14, 21, 34]
+                    },
+                    '6months': {
+                      label: 'Last 6 Months',
+                      months: Array.from({ length: 6 }).map((_, idx) => {
                         const d = new Date();
                         d.setMonth(d.getMonth() - (5 - idx));
                         return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-                      });
+                      }),
+                      xCoords: [60, 136, 212, 288, 364, 440],
+                      leadValues: [16, 25, 32, 42, 48, 70],
+                      convValues: [5, 10, 13, 16, 21, 34]
+                    },
+                    '12months': {
+                      label: 'Last 12 Months',
+                      months: Array.from({ length: 12 }).map((_, idx) => {
+                        const d = new Date();
+                        d.setMonth(d.getMonth() - (11 - idx));
+                        return d.toLocaleDateString('en-GB', { month: 'short' });
+                      }),
+                      xCoords: Array.from({ length: 12 }).map((_, i) => Math.round(45 + (i * 415) / 11)),
+                      leadValues: [12, 15, 18, 22, 26, 30, 35, 40, 48, 54, 62, 70],
+                      convValues: [4, 5, 7, 8, 10, 12, 14, 16, 19, 22, 27, 34]
+                    }
+                  };
 
-                      // Coordinated X positions matching month labels exactly:
-                      const xCoords = [60, 136, 212, 288, 364, 440];
+                  const currentPerf = leadPerfRangeOptions[leadPerfRange] || leadPerfRangeOptions['6months'];
+                  const months = currentPerf.months;
+                  const xCoords = currentPerf.xCoords;
+                  const leadValues = currentPerf.leadValues;
+                  const convValues = currentPerf.convValues;
 
-                      // Precise values for New Leads & Conversions
-                      const leadValues = [16, 25, 32, 42, 48, 70];
-                      const convValues = [5, 10, 13, 16, 21, 34];
+                  // Coordinate mapper: y = 160 - (val / 80) * 130
+                  const leadPoints = leadValues.map((v, i) => ({
+                    x: xCoords[i],
+                    y: 160 - (v / 80) * 130,
+                    val: v,
+                    month: months[i]
+                  }));
 
-                      // Coordinate mapper: y = 160 - (val / 80) * 130
-                      const leadPoints = leadValues.map((v, i) => ({
-                        x: xCoords[i],
-                        y: 160 - (v / 80) * 130,
-                        val: v,
-                        month: months[i]
-                      }));
+                  const convPoints = convValues.map((v, i) => ({
+                    x: xCoords[i],
+                    y: 160 - (v / 80) * 130,
+                    val: v,
+                    month: months[i]
+                  }));
 
-                      const convPoints = convValues.map((v, i) => ({
-                        x: xCoords[i],
-                        y: 160 - (v / 80) * 130,
-                        val: v,
-                        month: months[i]
-                      }));
+                  // Catmull-Rom to Cubic Bezier path generator guaranteeing line passes exactly through every point
+                  const buildSmoothPath = (pts: { x: number; y: number }[]) => {
+                    if (!pts.length) return '';
+                    if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+                    let path = `M ${pts[0].x} ${pts[0].y}`;
+                    for (let i = 0; i < pts.length - 1; i++) {
+                      const p0 = i === 0 ? pts[0] : pts[i - 1];
+                      const p1 = pts[i];
+                      const p2 = pts[i + 1];
+                      const p3 = i + 2 < pts.length ? pts[i + 2] : p2;
+                      const cp1x = p1.x + (p2.x - p0.x) / 6;
+                      const cp1y = p1.y + (p2.y - p0.y) / 6;
+                      const cp2x = p2.x - (p3.x - p1.x) / 6;
+                      const cp2y = p2.y - (p3.y - p1.y) / 6;
+                      path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x} ${p2.y}`;
+                    }
+                    return path;
+                  };
 
-                      // Catmull-Rom to Cubic Bezier path generator guaranteeing line passes exactly through every point
-                      const buildSmoothPath = (pts: { x: number; y: number }[]) => {
-                        if (!pts.length) return '';
-                        if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
-                        let path = `M ${pts[0].x} ${pts[0].y}`;
-                        for (let i = 0; i < pts.length - 1; i++) {
-                          const p0 = i === 0 ? pts[0] : pts[i - 1];
-                          const p1 = pts[i];
-                          const p2 = pts[i + 1];
-                          const p3 = i + 2 < pts.length ? pts[i + 2] : p2;
-                          const cp1x = p1.x + (p2.x - p0.x) / 6;
-                          const cp1y = p1.y + (p2.y - p0.y) / 6;
-                          const cp2x = p2.x - (p3.x - p1.x) / 6;
-                          const cp2y = p2.y - (p3.y - p1.y) / 6;
-                          path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x} ${p2.y}`;
-                        }
-                        return path;
-                      };
+                  const leadPath = buildSmoothPath(leadPoints);
+                  const convPath = buildSmoothPath(convPoints);
+                  const leadAreaPath = `${leadPath} L ${leadPoints[leadPoints.length - 1].x} 160 L ${leadPoints[0].x} 160 Z`;
+                  const convAreaPath = `${convPath} L ${convPoints[convPoints.length - 1].x} 160 L ${convPoints[0].x} 160 Z`;
 
-                      const leadPath = buildSmoothPath(leadPoints);
-                      const convPath = buildSmoothPath(convPoints);
-                      const leadAreaPath = `${leadPath} L ${leadPoints[leadPoints.length - 1].x} 160 L ${leadPoints[0].x} 160 Z`;
-                      const convAreaPath = `${convPath} L ${convPoints[convPoints.length - 1].x} 160 L ${convPoints[0].x} 160 Z`;
+                  return (
+                    <div className="admin-card">
+                      <div className="admin-card-header">
+                        <h3 className="admin-card-title">Lead Performance</h3>
+                        <div className="admin-chart-legend-group">
+                          <div className="admin-legend-item">
+                            <span className="admin-legend-dot bg-navy"></span>
+                            <span>New Leads</span>
+                          </div>
+                          <div className="admin-legend-item">
+                            <span className="admin-legend-dot bg-orange"></span>
+                            <span>Conversions</span>
+                          </div>
+                          <div style={{ position: 'relative' }} ref={leadPerfDropdownRef}>
+                            <div
+                              className="admin-select-badge"
+                              onClick={() => setIsLeadPerfDropdownOpen(prev => !prev)}
+                              style={{ cursor: 'pointer', userSelect: 'none' }}
+                              title="Click to change date range filter"
+                            >
+                              <span>{currentPerf.label}</span>
+                              <ChevronDown size={14} style={{ transform: isLeadPerfDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                            </div>
 
-                      return (
+                            {isLeadPerfDropdownOpen && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  top: 'calc(100% + 6px)',
+                                  right: 0,
+                                  background: '#FFFFFF',
+                                  border: '1px solid #E2E8F0',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+                                  padding: '6px',
+                                  minWidth: '155px',
+                                  zIndex: 50,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '2px'
+                                }}
+                              >
+                                {(['30days', '3months', '6months', '12months'] as const).map((key) => {
+                                  const isSelected = leadPerfRange === key;
+                                  const opt = leadPerfRangeOptions[key];
+                                  return (
+                                    <button
+                                      key={key}
+                                      type="button"
+                                      onClick={() => {
+                                        setLeadPerfRange(key);
+                                        setIsLeadPerfDropdownOpen(false);
+                                        triggerToast(`Lead Performance filter: ${opt.label}`);
+                                      }}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '8px 10px',
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        background: isSelected ? '#FFF7ED' : 'transparent',
+                                        color: isSelected ? '#FF9200' : '#1E293B',
+                                        fontSize: '0.8rem',
+                                        fontWeight: isSelected ? 700 : 500,
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        width: '100%',
+                                        transition: 'background 0.15s, color 0.15s'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        if (!isSelected) e.currentTarget.style.background = 'transparent';
+                                      }}
+                                    >
+                                      <span>{opt.label}</span>
+                                      {isSelected && <Check size={14} style={{ color: '#FF9200' }} />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="admin-analytics-chart-wrap">
                         <svg viewBox="0 0 500 200" className="admin-chart-svg">
                           <defs>
                             <linearGradient id="leadFillGrad" x1="0" y1="0" x2="0" y2="1">
@@ -2411,15 +2713,15 @@ interface SeoSettings {
 
                           {/* Month X-Axis Labels */}
                           {months.map((month, idx) => (
-                            <text key={month} x={xCoords[idx]} y="185" fill="#64748B" fontSize="10" fontWeight="500" textAnchor="middle">
+                            <text key={`${month}-${idx}`} x={xCoords[idx]} y="185" fill="#64748B" fontSize={leadPerfRange === '12months' ? 9 : 10} fontWeight="500" textAnchor="middle">
                               {month}
                             </text>
                           ))}
                         </svg>
-                      );
-                    })()}
-                  </div>
-                </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 2. Product Interest Bar Chart */}
                 <div className="admin-card">
@@ -2544,7 +2846,7 @@ interface SeoSettings {
                     <table className="admin-data-table">
                       <thead>
                         <tr>
-                          <th>#</th>
+                          <th>Enquiry ID</th>
                           <th>Customer</th>
                           <th>Product Interest</th>
                           <th>Lead Source</th>
@@ -2569,7 +2871,9 @@ interface SeoSettings {
                             const initials = (row.name || 'CU').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                             return (
                               <tr key={row.id || i}>
-                                <td style={{ color: '#64748B', fontWeight: 600, fontSize: '0.8rem' }}>#{String(i + 1).padStart(3, '0')}</td>
+                                <td style={{ color: '#001827', fontWeight: 700, fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                                  {formatEnquiryReference(row, enquiries)}
+                                </td>
                                 <td>
                                   <div className="admin-customer-initials-cell">
                                     <span className="admin-avatar-badge" style={{ backgroundColor: '#001827' }}>{initials}</span>
@@ -2660,19 +2964,55 @@ interface SeoSettings {
                   <h1 className="admin-page-title">Customer Enquiries Management</h1>
                   <p className="admin-page-subtitle">View, respond, filter and track all incoming machinery quotation requests.</p>
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleExportAllToExcel}
+                    disabled={isExportingExcel}
+                    className="btn"
+                    style={{
+                      background: isExportingExcel ? '#94A3B8' : 'linear-gradient(135deg, #107C41 0%, #15803D 100%)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      fontSize: '0.86rem',
+                      cursor: isExportingExcel ? 'not-allowed' : 'pointer',
+                      boxShadow: isExportingExcel ? 'none' : '0 3px 10px rgba(16, 124, 65, 0.28)'
+                    }}
+                    title="One-click full Excel download with Enquiries, Products & Videos"
+                  >
+                    {isExportingExcel ? <Loader2 size={16} className="admin-spin" /> : <Download size={16} />}
+                    <span>{isExportingExcel ? (exportProgressText || 'Downloading Excel...') : 'Download All Data (Excel)'}</span>
+                  </button>
                   <button
                     onClick={() => {
-                      const csvContent = "data:text/csv;charset=utf-8,"
-                        + ["Reference_No,Database_ID,Name,Phone,Email,Product,Date,Status,Location"].join(",") + "\n"
-                        + enquiries.map(e => `"${formatEnquiryReference(e, enquiries)}","${e.id}","${e.name}","${e.phone}","${e.email || ''}","${e.product}","${e.date}","${e.status}","${e.location || ''}"`).join("\n");
-                      const encodedUri = encodeURI(csvContent);
-                      const link = document.createElement("a");
-                      link.setAttribute("href", encodedUri);
-                      link.setAttribute("download", `jupiter_enquiries_${new Date().toISOString().slice(0, 10)}.csv`);
+                      const csvHeaders = ['Enquiry ID', 'Database ID', 'Name', 'Phone', 'Email', 'Product', 'Date', 'Status', 'Location'];
+                      const csvRows = enquiries.map(e => [
+                        formatEnquiryReference(e, enquiries),
+                        e.id,
+                        e.name || '',
+                        e.phone || '',
+                        e.email || '',
+                        e.product || '',
+                        formatEnquiryDate(e.createdAt || e.date) || e.date || '',
+                        e.status || '',
+                        e.location || ''
+                      ].map(val => `"${String(val).replace(/"/g, '""')}"`).join(','));
+
+                      const csvString = '\uFEFF' + [csvHeaders.join(','), ...csvRows].join('\r\n');
+                      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.setAttribute('href', url);
+                      link.setAttribute('download', `jupiter_enquiries_${new Date().toISOString().slice(0, 10)}.csv`);
                       document.body.appendChild(link);
                       link.click();
                       document.body.removeChild(link);
+                      URL.revokeObjectURL(url);
                       triggerToast('Enquiries exported as CSV successfully!');
                     }}
                     className="btn"
@@ -2749,7 +3089,7 @@ interface SeoSettings {
                   <table className="admin-data-table">
                     <thead>
                       <tr>
-                        <th>ID</th>
+                        <th>Enquiry ID</th>
                         <th>Customer Name</th>
                         <th>Email</th>
                         <th>Phone</th>
@@ -2768,15 +3108,18 @@ interface SeoSettings {
                           </td>
                         </tr>
                       ) : (
-                        filteredEnquiries.map((enquiry, idx) => (
+                        filteredEnquiries.map((enquiry) => (
                           <tr key={enquiry.id}>
                             <td>
                               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <strong style={{ color: '#001827', fontSize: '0.8rem' }}>
+                                <strong style={{ color: '#001827', fontSize: '0.84rem', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
                                   {formatEnquiryReference(enquiry, enquiries)}
                                 </strong>
-                                <span style={{ color: '#94A3B8', fontSize: '0.7rem' }}>
-                                  #{String(idx + 1).padStart(3, '0')}
+                                <span
+                                  style={{ color: '#94A3B8', fontSize: '0.68rem', fontFamily: 'monospace' }}
+                                  title={`Internal Database ID: ${enquiry.id}`}
+                                >
+                                  DB: {enquiry.id && enquiry.id.length > 12 ? `${enquiry.id.slice(0, 10)}...` : enquiry.id}
                                 </span>
                               </div>
                             </td>
@@ -2893,6 +3236,30 @@ interface SeoSettings {
                       <span>Clear All</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={handleExportAllToExcel}
+                    disabled={isExportingExcel}
+                    className="btn"
+                    style={{
+                      background: isExportingExcel ? '#94A3B8' : 'linear-gradient(135deg, #107C41 0%, #15803D 100%)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      fontSize: '0.86rem',
+                      cursor: isExportingExcel ? 'not-allowed' : 'pointer',
+                      boxShadow: isExportingExcel ? 'none' : '0 3px 10px rgba(16, 124, 65, 0.28)'
+                    }}
+                    title="One-click full Excel download for Products, Enquiries & Videos"
+                  >
+                    {isExportingExcel ? <Loader2 size={16} className="admin-spin" /> : <Download size={16} />}
+                    <span>{isExportingExcel ? (exportProgressText || 'Downloading Excel...') : 'Download All Data (Excel)'}</span>
+                  </button>
 
                   <button
                     type="button"
@@ -3071,19 +3438,6 @@ interface SeoSettings {
                             boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                           }}>
                             {prod.status || 'Active'}
-                          </span>
-                          <span style={{
-                            position: 'absolute',
-                            bottom: '10px',
-                            left: '10px',
-                            background: 'rgba(0, 35, 61, 0.85)',
-                            color: '#FFFFFF',
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: '4px'
-                          }}>
-                            #{prod.order ?? (pIdx + 1)}
                           </span>
                         </div>
                         <div className="admin-prod-card-body">
@@ -3578,6 +3932,24 @@ interface SeoSettings {
                         className="admin-gallery-delete-btn"
                         title={`Delete ${gal.title}`}
                         aria-label={`Delete ${gal.title}`}
+                        style={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          zIndex: 10,
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: 'rgba(239, 68, 68, 0.9)',
+                          color: '#FFFFFF',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          padding: 0,
+                          boxShadow: '0 4px 10px rgba(0, 0, 0, 0.25)',
+                        }}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -3603,10 +3975,35 @@ interface SeoSettings {
                   <h1 className="admin-page-title">Machinery in Action Videos ({videos.length})</h1>
                   <p className="admin-page-subtitle">Manage YouTube demonstration videos, machine trials, and factory tour recordings.</p>
                 </div>
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsAddVideoOpen(true); }} className="btn btn-orange">
-                  <Plus size={18} />
-                  <span>Add Video</span>
-                </button>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={handleExportAllToExcel}
+                    disabled={isExportingExcel}
+                    className="btn"
+                    style={{
+                      background: isExportingExcel ? '#94A3B8' : 'linear-gradient(135deg, #107C41 0%, #15803D 100%)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      fontSize: '0.86rem',
+                      cursor: isExportingExcel ? 'not-allowed' : 'pointer',
+                      boxShadow: isExportingExcel ? 'none' : '0 3px 10px rgba(16, 124, 65, 0.28)'
+                    }}
+                    title="One-click full Excel download for Videos, Enquiries & Products"
+                  >
+                    {isExportingExcel ? <Loader2 size={16} className="admin-spin" /> : <Download size={16} />}
+                    <span>{isExportingExcel ? (exportProgressText || 'Downloading Excel...') : 'Download All Data (Excel)'}</span>
+                  </button>
+                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsAddVideoOpen(true); }} className="btn btn-orange">
+                    <Plus size={18} />
+                    <span>Add Video</span>
+                  </button>
+                </div>
               </div>
 
               <div className="admin-videos-grid-list">
@@ -3699,109 +4096,7 @@ interface SeoSettings {
             </div>
           )}
 
-          {/* =================================================================
-              TAB 8: FAQS MANAGER
-              ================================================================= */}
-          {activeTab === 'faqs' && (
-            <div className="admin-tab-view-container">
-              <div className="admin-page-header-flex">
-                <div>
-                  <h1 className="admin-page-title">Frequently Asked Questions Manager</h1>
-                  <p className="admin-page-subtitle">Manage client questions regarding machinery technical specifications, foundation, warranty and delivery.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  {faqs.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        requestConfirm({
-                          title: 'Clear All FAQs',
-                          message: 'Are you sure you want to remove all FAQs from the database?',
-                          confirmText: 'Clear All FAQs',
-                          variant: 'danger',
-                          icon: 'alert',
-                          onConfirm: async () => {
-                            await clearAllFaqs();
-                            setFaqs([]);
-                            triggerToast('All FAQs removed');
-                          }
-                        });
-                      }}
-                      className="btn"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        background: '#FEE2E2',
-                        color: '#DC2626',
-                        border: '1px solid #FCA5A5',
-                        fontWeight: 600,
-                        padding: '8px 14px',
-                        borderRadius: '6px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Trash2 size={16} />
-                      <span>Clear All</span>
-                    </button>
-                  )}
-                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsAddFAQOpen(true); }} className="btn btn-orange">
-                    <Plus size={18} />
-                    <span>Add FAQ</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="admin-faqs-stack-list">
-                {filteredFaqs.map((faq) => (
-                  <div key={faq.id} className="admin-card admin-faq-manage-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                      <span className="admin-faq-cat-tag">{faq.category}</span>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={async () => {
-                            const newQ = prompt('Edit Question:', faq.question);
-                            const newA = prompt('Edit Answer:', faq.answer);
-                            if (newQ && newA) {
-                              await updateFaq(faq.id, { question: newQ, answer: newA });
-                              setFaqs(getStoredFaqs());
-                              triggerToast('FAQ updated successfully');
-                            }
-                          }}
-                          className="admin-icon-btn"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            requestConfirm({
-                              title: 'Delete FAQ',
-                              message: 'Are you sure you want to delete this FAQ?',
-                              itemName: faq.question,
-                              confirmText: 'Delete FAQ',
-                              variant: 'danger',
-                              icon: 'trash',
-                              onConfirm: async () => {
-                                await deleteFaq(faq.id);
-                                setFaqs(getStoredFaqs());
-                                triggerToast('FAQ deleted successfully');
-                              }
-                            });
-                          }}
-                          className="admin-icon-btn text-danger"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#001827', marginBottom: '8px' }}>{faq.question}</h3>
-                    <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.5 }}>{faq.answer}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* FAQs Manager removed as requested */}
 
           {/* =================================================================
           {/* =================================================================
@@ -3814,7 +4109,7 @@ interface SeoSettings {
                   <h1 className="admin-page-title">Machine Delivery Locations & Dispatch Tracker</h1>
                   <p className="admin-page-subtitle">Track customer plant deliveries, dispatched machinery models, transit status and on-site commissioning across India.</p>
                 </div>
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsAddLocationOpen(true); }} className="btn btn-orange">
+                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLocationPhoneError(''); setIsAddLocationOpen(true); }} className="btn btn-orange">
                   <Plus size={18} />
                   <span>Add Delivery Location</span>
                 </button>
@@ -4630,30 +4925,44 @@ interface SeoSettings {
           --------------------------------------------------------------------- */}
       {selectedEnquiry && (
         <div className="modal-backdrop-overlay" onClick={() => setSelectedEnquiry(null)}>
-          <div className="modal-content-card" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-content-card"
+            style={{
+              maxWidth: '560px',
+              maxHeight: 'calc(100vh - 40px)',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header-bar">
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>Customer Enquiry Details</h3>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FFFFFF', marginBottom: '6px' }}>
+                  Customer Enquiry Details
+                </h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    color: '#FF9200',
-                    background: 'rgba(255, 146, 0, 0.15)',
-                    border: '1px solid rgba(255, 146, 0, 0.4)',
-                    padding: '2px 8px',
+                    fontSize: '0.84rem',
+                    fontWeight: 800,
+                    color: '#00233D',
+                    background: '#FF9200',
+                    padding: '2px 10px',
                     borderRadius: '5px',
-                    letterSpacing: '0.03em'
+                    letterSpacing: '0.04em',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                   }}>
-                    Ref: {formatEnquiryReference(selectedEnquiry, enquiries)}
+                    {formatEnquiryReference(selectedEnquiry, enquiries)}
                   </span>
-                  <span style={{ fontSize: '0.76rem', color: '#CBD5E1' }}>• {selectedEnquiry.date}</span>
-                  <span
-                    style={{ fontSize: '0.72rem', color: '#94A3B8', cursor: 'help' }}
-                    title={`Internal Database ID: ${selectedEnquiry.id}`}
-                  >
-                    (DB: {selectedEnquiry.id && selectedEnquiry.id.length > 14 ? `${selectedEnquiry.id.slice(0, 10)}...` : selectedEnquiry.id})
+                  <span style={{ fontSize: '0.8rem', color: '#CBD5E1', fontWeight: 500 }}>
+                    • {formatEnquiryDate(selectedEnquiry.createdAt || selectedEnquiry.date) || selectedEnquiry.date}
                   </span>
+                  {selectedEnquiry.id && (
+                    <span
+                      style={{ fontSize: '0.74rem', color: '#94A3B8', cursor: 'help' }}
+                      title={`Internal Database ID: ${selectedEnquiry.id}`}
+                    >
+                      (DB ID: {selectedEnquiry.id.length > 12 ? `${selectedEnquiry.id.slice(0, 10)}...` : selectedEnquiry.id})
+                    </span>
+                  )}
                 </div>
               </div>
               <button className="modal-close-btn" onClick={() => setSelectedEnquiry(null)}>
@@ -4699,16 +5008,80 @@ interface SeoSettings {
               {selectedEnquiry.message && (
                 <div>
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>Customer Message</span>
-                  <p style={{ background: '#F1F5F9', padding: '12px', borderRadius: '6px', fontSize: '0.9rem', color: '#334155', marginTop: '4px', lineHeight: 1.5 }}>
+                  <p style={{ background: '#F1F5F9', padding: '12px', borderRadius: '6px', fontSize: '0.9rem', color: '#334155', margin: '4px 0 0', lineHeight: 1.5 }}>
                     "{selectedEnquiry.message}"
                   </p>
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+              {/* Internal System / Database ID (retained for backend operations) */}
+              <div style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                flexWrap: 'wrap'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap' }}>
+                    Internal DB ID:
+                  </span>
+                  <code
+                    style={{
+                      fontSize: '0.74rem',
+                      fontFamily: 'monospace',
+                      color: '#0F172A',
+                      background: '#E2E8F0',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                    title={`Internal Database ID: ${selectedEnquiry.id} (used for backend operations and API requests)`}
+                  >
+                    {selectedEnquiry.id}
+                  </code>
+                </div>
                 <button
                   type="button"
-                  onClick={() => handleToggleStatus(selectedEnquiry.id, selectedEnquiry, true)}
+                  onClick={() => {
+                    if (selectedEnquiry.id) {
+                      navigator.clipboard.writeText(selectedEnquiry.id);
+                      triggerToast('Internal DB ID copied to clipboard');
+                    }
+                  }}
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '5px',
+                    color: '#334155',
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    padding: '3px 8px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                  title="Copy internal database ID for backend operations"
+                >
+                  <Copy size={12} className="text-muted" />
+                  <span>Copy ID</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToggleStatus(selectedEnquiry.id, selectedEnquiry, true);
+                    setSelectedEnquiry(null);
+                  }}
                   className="btn btn-orange"
                   style={{ flex: 1, justifyContent: 'center' }}
                 >
@@ -5688,14 +6061,14 @@ interface SeoSettings {
           --------------------------------------------------------------------- */}
       {selectedProductForSpec && (
         <div className="modal-backdrop-overlay" onClick={() => setSelectedProductForSpec(null)}>
-          <div className="modal-content-card" style={{ maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content-card" style={{ maxWidth: '900px', maxHeight: '92vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-bar">
               <div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#001827' }}>
-                  {selectedProductForSpec.name} — Technical Specifications
+                  {selectedProductForSpec.name} — Technical Specifications & Catalog Details
                 </h3>
                 <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
-                  {selectedProductForSpec.brandTag || 'JUPITER EQUIPMENTS'} • Category: {selectedProductForSpec.category}
+                  {selectedProductForSpec.brandTag || 'JUPITER INDUSTRIES'} • Category: {selectedProductForSpec.category}
                 </span>
               </div>
               <button className="modal-close-btn" onClick={() => setSelectedProductForSpec(null)}>
@@ -5703,49 +6076,121 @@ interface SeoSettings {
               </button>
             </div>
 
-            <div className="modal-body-content">
-              <div className="admin-spec-modal-grid">
-                {/* Yellow framed machine image */}
-                <div style={{ border: '4px solid #FF9200', borderRadius: '10px', padding: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', minHeight: '200px' }}>
+            <div className="modal-body-content" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Machine Top Summary Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '20px', alignItems: 'center', background: '#F8FAFC', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                <div style={{ border: '3px solid #FF9200', borderRadius: '8px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', height: '140px' }}>
                   <ProductCardImage
                     src={selectedProductForSpec.imageUrl || selectedProductForSpec.image}
                     alt={selectedProductForSpec.name}
-                    style={{ maxHeight: '230px', maxWidth: '100%', width: 'auto', objectFit: 'contain' }}
+                    style={{ maxHeight: '120px', maxWidth: '100%', width: 'auto', objectFit: 'contain' }}
                   />
                 </div>
-
                 <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#00233D', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                    {selectedProductForSpec.brandTag || 'JUPITER EQUIPMENTS'}
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#FF9200', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    {selectedProductForSpec.brandTag || 'JUPITER INDUSTRIES'}
                   </div>
-                  <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#00233D', marginBottom: '12px' }}>
+                  <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#00233D', margin: '4px 0 10px' }}>
                     {selectedProductForSpec.name}
                   </h2>
-
-                  <div style={{ display: 'inline-block', background: '#00233D', color: '#FFFFFF', padding: '6px 16px', borderRadius: '4px', fontSize: '0.88rem', fontWeight: 800, border: '1.5px solid #FF9200', marginBottom: '14px' }}>
-                    Technical Specifications
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    <span style={{ background: '#00233D', color: '#FFFFFF', padding: '4px 10px', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 700 }}>
+                      Capacity: {selectedProductForSpec.capacity || '3,500 - 3,600 Bricks/Hr'}
+                    </span>
+                    <span style={{ background: '#E2E8F0', color: '#00233D', padding: '4px 10px', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 700 }}>
+                      Power: {selectedProductForSpec.power || '15 HP / 11.0 kW'}
+                    </span>
+                    <span style={{ background: '#FEF3C7', color: '#B45309', padding: '4px 10px', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 700 }}>
+                      Mold: {selectedProductForSpec.brickSize || '230 x 110 x 75 mm'}
+                    </span>
+                    <span style={{ background: selectedProductForSpec.status === 'Inactive' ? '#FEE2E2' : '#DCFCE7', color: selectedProductForSpec.status === 'Inactive' ? '#DC2626' : '#15803D', padding: '4px 10px', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 700 }}>
+                      {selectedProductForSpec.status || 'Active'}
+                    </span>
                   </div>
+                </div>
+              </div>
 
-                  {selectedProductForSpec.specTableColumns && selectedProductForSpec.specTableRows ? (
-                    <div style={{ overflowX: 'auto', border: '1.5px solid #CBD5E1', borderRadius: '6px' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+              {/* Navigation Tabs Bar */}
+              <div style={{ display: 'flex', gap: '6px', borderBottom: '2px solid #E2E8F0', paddingBottom: '0', background: '#FFFFFF' }}>
+                {[
+                  { id: 'highlights', label: 'Product Description' },
+                  { id: 'specifications', label: 'Specifications' },
+                  { id: 'features', label: 'Features' },
+                  { id: 'advantages', label: 'Applications' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setSpecModalTab(t.id as any)}
+                    style={{
+                      padding: '10px 18px',
+                      fontWeight: specModalTab === t.id ? 800 : 600,
+                      color: specModalTab === t.id ? '#FF9200' : '#475569',
+                      borderBottom: specModalTab === t.id ? '3px solid #FF9200' : '3px solid transparent',
+                      background: 'none',
+                      borderTop: 'none',
+                      borderLeft: 'none',
+                      borderRight: 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.88rem',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* TAB 1: PRODUCT DESCRIPTION & 4 HIGHLIGHT CARDS */}
+              {specModalTab === 'highlights' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ background: '#F8FAFC', padding: '16px 20px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '0.92rem', color: '#1E293B', lineHeight: 1.6 }}>
+                    <strong style={{ color: '#00233D' }}>Overview:</strong> {selectedProductForSpec.description || DEFAULT_PRODUCT_V15B.description}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+                    {(selectedProductForSpec.highlights && selectedProductForSpec.highlights.length > 0 ? selectedProductForSpec.highlights : DEFAULT_PRODUCT_V15B.highlights || []).map((hl, idx) => (
+                      <div key={idx} style={{ background: '#FFFFFF', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                        <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: '#00233D', marginBottom: '6px' }}>{hl.title}</h4>
+                        <p style={{ fontSize: '0.86rem', color: '#475569', lineHeight: 1.5, margin: 0 }}>{hl.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: SPECIFICATIONS TABLE (12 ROWS) */}
+              {specModalTab === 'specifications' && (
+                <div style={{ overflowX: 'auto', border: '1px solid #CBD5E1', borderRadius: '8px' }}>
+                  {(() => {
+                    const cols = selectedProductForSpec.specTableColumns && selectedProductForSpec.specTableColumns.length > 1 ? selectedProductForSpec.specTableColumns : ['Parameter', 'Details', 'Specification'];
+                    const rows = selectedProductForSpec.specTableRows && selectedProductForSpec.specTableRows.length > 0 ? selectedProductForSpec.specTableRows : DEFAULT_PRODUCT_V15B.specTableRows || [];
+                    return (
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
                         <thead>
-                          <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #CBD5E1' }}>
-                            {selectedProductForSpec.specTableColumns.map((col, idx) => (
-                              <th key={idx} style={{ padding: '8px 10px', textAlign: 'left', borderRight: '1px solid #CBD5E1', color: '#001827', fontWeight: 700 }}>
+                          <tr style={{ background: '#00233D', color: '#FFFFFF' }}>
+                            {cols.map((col, idx) => (
+                              <th key={idx} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, borderRight: '1px solid rgba(255,255,255,0.1)' }}>
                                 {col}
                               </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedProductForSpec.specTableRows.map((r, rIdx) => (
+                          {rows.map((r, rIdx) => (
                             <tr key={rIdx} style={{ borderBottom: '1px solid #E2E8F0', background: rIdx % 2 === 0 ? '#FFFFFF' : '#F8FAFC' }}>
-                              {selectedProductForSpec.specTableColumns?.map((col, cIdx) => {
-                                const cellText = r && typeof r[col] === 'string' ? r[col] : (r && r[col] != null ? String(r[col]) : '-');
+                              {cols.map((col, cIdx) => {
+                                const val = r && typeof r[col] === 'string' ? r[col] : (r && r[col] != null ? String(r[col]) : (r && r[Object.keys(r)[cIdx]] ? String(r[Object.keys(r)[cIdx]]) : '-'));
                                 return (
-                                  <td key={cIdx} style={{ padding: '7px 10px', borderRight: '1px solid #E2E8F0', color: '#334155' }}>
-                                    {cellText}
+                                  <td
+                                    key={cIdx}
+                                    style={{
+                                      padding: '9px 14px',
+                                      fontWeight: cIdx === 0 ? 700 : 500,
+                                      color: cIdx === 0 ? '#00233D' : '#334155',
+                                      borderRight: '1px solid #E2E8F0'
+                                    }}
+                                  >
+                                    {val}
                                   </td>
                                 );
                               })}
@@ -5753,23 +6198,39 @@ interface SeoSettings {
                           ))}
                         </tbody>
                       </table>
-                    </div>
-                  ) : (
-                    <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '0.9rem' }}>
-                      <p><strong>Capacity:</strong> {selectedProductForSpec.capacity}</p>
-                      <p style={{ marginTop: '6px' }}><strong>Power:</strong> {selectedProductForSpec.power}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {selectedProductForSpec.description && (
-                <div style={{ background: '#F1F5F9', padding: '14px 18px', borderRadius: '8px', fontSize: '0.88rem', color: '#334155', lineHeight: 1.5, marginBottom: '16px' }}>
-                  <strong>Description:</strong> {selectedProductForSpec.description}
+                    );
+                  })()}
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+              {/* TAB 3: FEATURES (4 CHECKLIST ITEMS) */}
+              {specModalTab === 'features' && (
+                <div style={{ background: '#F8FAFC', padding: '20px 24px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {(selectedProductForSpec.keyFeatures && selectedProductForSpec.keyFeatures.length > 0 ? selectedProductForSpec.keyFeatures : DEFAULT_PRODUCT_V15B.keyFeatures || []).map((feat, fIdx) => (
+                      <li key={fIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                        <span style={{ color: '#FF9200', fontWeight: 900, fontSize: '1.1rem', lineHeight: 1 }}>✓</span>
+                        <span style={{ fontSize: '0.94rem', color: '#1E293B', fontWeight: 500 }}>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* TAB 4: APPLICATIONS / ADVANTAGES (4 CARDS) */}
+              {specModalTab === 'advantages' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+                  {(selectedProductForSpec.advantages && selectedProductForSpec.advantages.length > 0 ? selectedProductForSpec.advantages : DEFAULT_PRODUCT_V15B.advantages || []).map((adv, idx) => (
+                    <div key={idx} style={{ background: '#FFFFFF', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                      <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: '#00233D', marginBottom: '6px' }}>{adv.title}</h4>
+                      <p style={{ fontSize: '0.86rem', color: '#475569', lineHeight: 1.5, margin: 0 }}>{adv.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Bottom Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', paddingTop: '10px', borderTop: '1px solid #E2E8F0' }}>
                 <a
                   href={getProductLiveUrl(selectedProductForSpec)}
                   target="_blank"
@@ -7204,93 +7665,20 @@ interface SeoSettings {
         </div>
       )}
 
-      {/* ---------------------------------------------------------------------
-          MODAL 6: ADD FAQ MODAL
-          --------------------------------------------------------------------- */}
-      {isAddFAQOpen && (
-        <div className="modal-backdrop-overlay" onClick={() => setIsAddFAQOpen(false)}>
-          <div className="modal-content-card" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-bar">
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#001827' }}>Add Frequently Asked Question</h3>
-                <span style={{ fontSize: '0.78rem', color: '#64748B' }}>Help buyers understand machinery specs and terms</span>
-              </div>
-              <button className="modal-close-btn" onClick={() => setIsAddFAQOpen(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <form className="modal-body-content" onSubmit={async (e) => {
-              e.preventDefault();
-              await addFaq({
-                question: newFAQ.question,
-                answer: newFAQ.answer,
-                category: newFAQ.category
-              });
-              setFaqs(getStoredFaqs());
-              setIsAddFAQOpen(false);
-              setNewFAQ({ question: '', answer: '', category: 'Technical Specifications' });
-              triggerToast('FAQ created successfully!');
-            }}>
-              <div className="form-group-item" style={{ marginBottom: '14px' }}>
-                <label className="form-field-label">Category</label>
-                <select
-                  className="form-input-field"
-                  value={newFAQ.category}
-                  onChange={(e) => setNewFAQ({ ...newFAQ, category: e.target.value })}
-                >
-                  <option>Technical Specifications</option>
-                  <option>Installation & Support</option>
-                  <option>Warranty & Spares</option>
-                  <option>Raw Materials & Mix Ratio</option>
-                </select>
-              </div>
-
-              <div className="form-group-item" style={{ marginBottom: '14px' }}>
-                <label className="form-field-label">Question</label>
-                <input
-                  type="text"
-                  className="form-input-field"
-                  placeholder="e.g. What is the hydraulic pressure rating?"
-                  value={newFAQ.question}
-                  onChange={(e) => setNewFAQ({ ...newFAQ, question: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group-item" style={{ marginBottom: '18px' }}>
-                <label className="form-field-label">Answer</label>
-                <textarea
-                  className="form-textarea-field"
-                  rows={3}
-                  placeholder="Provide comprehensive answer..."
-                  value={newFAQ.answer}
-                  onChange={(e) => setNewFAQ({ ...newFAQ, answer: e.target.value })}
-                  required
-                ></textarea>
-              </div>
-
-              <button type="submit" className="btn btn-orange" style={{ width: '100%', justifyContent: 'center' }}>
-                <Plus size={18} />
-                <span>Save FAQ</span>
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Add FAQ Modal removed */}
 
       {/* ---------------------------------------------------------------------
           MODAL 7: ADD MACHINE DELIVERY LOCATION MODAL
           --------------------------------------------------------------------- */}
       {isAddLocationOpen && (
-        <div className="modal-backdrop-overlay" onClick={() => setIsAddLocationOpen(false)}>
+        <div className="modal-backdrop-overlay" onClick={() => { setIsAddLocationOpen(false); setIsMachineModelDropdownOpen(false); }}>
           <div className="modal-content-card" style={{ maxWidth: '580px' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-bar">
               <div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#001827' }}>Add Machine Delivery Location</h3>
                 <span style={{ fontSize: '0.78rem', color: '#64748B' }}>Log customer plant dispatch, machine model and commissioning status</span>
               </div>
-              <button className="modal-close-btn" onClick={() => setIsAddLocationOpen(false)}>
+              <button className="modal-close-btn" onClick={() => { setIsAddLocationOpen(false); setIsMachineModelDropdownOpen(false); }}>
                 <X size={20} />
               </button>
             </div>
@@ -7301,31 +7689,51 @@ interface SeoSettings {
                 alert('Please enter at least client name and location city');
                 return;
               }
-              await addDeliveryLocation({
-                clientName: newLocation.clientName.trim(),
-                locationCity: newLocation.locationCity.trim(),
-                state: newLocation.state.trim() || 'India',
-                machineModel: newLocation.machineModel.trim() || 'Fly Ash Brick Machine',
-                deliveryDate: newLocation.deliveryDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-                status: newLocation.status,
-                transportVehicle: newLocation.transportVehicle.trim() || 'Heavy Haulage Carrier',
-                contactPhone: newLocation.contactPhone.trim() || '+91 98765 43210',
-                notes: newLocation.notes.trim()
-              });
-              setLocations(getStoredDeliveryLocations());
-              setIsAddLocationOpen(false);
-              setNewLocation({
-                clientName: '',
-                locationCity: '',
-                state: '',
-                machineModel: 'Fully Automatic 6-Cavity Fly Ash Brick Machine',
-                deliveryDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-                status: 'Delivered & Operational',
-                transportVehicle: '12-Wheeler Hydraulic Trailer',
-                contactPhone: '+91 ',
-                notes: ''
-              });
-              triggerToast(`Delivery to "${newLocation.clientName}" recorded successfully!`);
+              const phoneDigits = newLocation.contactPhone.replace(/^\+91\s*/, '').replace(/\D/g, '');
+              if (phoneDigits.length > 0) {
+                if (!/^[6-9]/.test(phoneDigits)) {
+                  setLocationPhoneError('Indian mobile number should begin with 6, 7, 8, or 9.');
+                  return;
+                }
+                if (phoneDigits.length !== 10) {
+                  setLocationPhoneError(`Phone number must be exactly 10 digits for +91 (currently ${phoneDigits.length} digits).`);
+                  return;
+                }
+              }
+              try {
+                const clientNameSaved = newLocation.clientName.trim();
+                const createdLoc = await addDeliveryLocation({
+                  clientName: clientNameSaved,
+                  locationCity: newLocation.locationCity.trim(),
+                  state: newLocation.state.trim() || 'India',
+                  machineModel: newLocation.machineModel.trim() || 'Fly Ash Brick Machine',
+                  deliveryDate: newLocation.deliveryDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                  status: newLocation.status,
+                  transportVehicle: newLocation.transportVehicle.trim() || 'Heavy Haulage Carrier',
+                  contactPhone: phoneDigits.length === 10 ? `+91 ${phoneDigits}` : (newLocation.contactPhone.trim() || '+91 98765 43210'),
+                  notes: newLocation.notes.trim()
+                });
+                const updatedList = getStoredDeliveryLocations();
+                setLocations(updatedList.length > 0 ? updatedList : [createdLoc]);
+                setIsAddLocationOpen(false);
+                setLocationPhoneError('');
+                setIsMachineModelDropdownOpen(false);
+                setNewLocation({
+                  clientName: '',
+                  locationCity: '',
+                  state: '',
+                  machineModel: 'Fully Automatic 6-Cavity Fly Ash Brick Machine',
+                  deliveryDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+                  status: 'Delivered & Operational',
+                  transportVehicle: '12-Wheeler Hydraulic Trailer',
+                  contactPhone: '+91 ',
+                  notes: ''
+                });
+                triggerToast(`Delivery to "${clientNameSaved}" recorded successfully!`);
+              } catch (err: any) {
+                console.error('Failed to save delivery location:', err);
+                triggerToast(err?.message || 'Failed to save delivery location. Please try again.');
+              }
             }}>
               {/* Row 1: Client Name & Machine Model */}
               <div className="enquiry-fields-grid" style={{ marginBottom: '14px' }}>
@@ -7340,22 +7748,109 @@ interface SeoSettings {
                     required
                   />
                 </div>
-                <div className="form-group-item">
+                <div className="form-group-item" style={{ position: 'relative' }} ref={machineModelDropdownRef}>
                   <label className="form-field-label">Machine Model Delivered *</label>
-                  <select
+                  <button
+                    type="button"
+                    onClick={() => setIsMachineModelDropdownOpen(prev => !prev)}
                     className="form-input-field"
-                    value={newLocation.machineModel}
-                    onChange={(e) => setNewLocation({ ...newLocation, machineModel: e.target.value })}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      background: '#FFFFFF',
+                      borderColor: isMachineModelDropdownOpen ? '#FF9200' : '#CBD5E1',
+                      boxShadow: isMachineModelDropdownOpen ? '0 0 0 1px #FF9200' : 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
                   >
-                    <option value="Fully Automatic 6-Cavity Fly Ash Brick Machine">Fully Automatic 6-Cavity Fly Ash Brick Machine</option>
-                    <option value="Hydraulic Interlocking Paver Block Machine">Hydraulic Interlocking Paver Block Machine</option>
-                    <option value="Heavy Duty Solid & Hollow Concrete Block Machine">Heavy Duty Solid & Hollow Concrete Block Machine</option>
-                    <option value="4-Brick Rotary High-Pressure Hydraulic Machine">4-Brick Rotary High-Pressure Hydraulic Machine</option>
-                    <option value="Automatic Brick Making Plant with 50-Ton Silo">Automatic Brick Making Plant with 50-Ton Silo</option>
-                    <option value="Ready-Mix Concrete Batching Plant">Ready-Mix Concrete Batching Plant</option>
-                    <option value="Cement & Fly Ash Storage Silo">Cement & Fly Ash Storage Silo</option>
-                    <option value="Custom Industrial Machinery">Custom Industrial Machinery</option>
-                  </select>
+                    <span style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: '#0F172A',
+                      fontSize: '0.88rem'
+                    }}>
+                      {newLocation.machineModel || 'Select Machine Model'}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      style={{
+                        color: '#64748B',
+                        flexShrink: 0,
+                        marginLeft: '8px',
+                        transform: isMachineModelDropdownOpen ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.15s ease'
+                      }}
+                    />
+                  </button>
+
+                  {isMachineModelDropdownOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        right: 0,
+                        width: '100%',
+                        maxWidth: '100%',
+                        boxSizing: 'border-box',
+                        zIndex: 100,
+                        background: '#FFFFFF',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        maxHeight: '220px',
+                        overflowY: 'auto'
+                      }}
+                    >
+                      {[
+                        'Fully Automatic 6-Cavity Fly Ash Brick Machine',
+                        'Hydraulic Interlocking Paver Block Machine',
+                        'Heavy Duty Solid & Hollow Concrete Block Machine',
+                        '4-Brick Rotary High-Pressure Hydraulic Machine',
+                        'Automatic Brick Making Plant with 50-Ton Silo',
+                        'Ready-Mix Concrete Batching Plant',
+                        'Cement & Fly Ash Storage Silo',
+                        'Custom Industrial Machinery'
+                      ].map((model, mIdx) => {
+                        const isSelected = newLocation.machineModel === model;
+                        return (
+                          <div
+                            key={mIdx}
+                            onClick={() => {
+                              setNewLocation(prev => ({ ...prev, machineModel: model }));
+                              setIsMachineModelDropdownOpen(false);
+                            }}
+                            style={{
+                              padding: '10px 14px',
+                              fontSize: '0.84rem',
+                              fontWeight: isSelected ? 700 : 500,
+                              color: isSelected ? '#FF9200' : '#1E293B',
+                              background: isSelected ? '#FFF7ED' : 'transparent',
+                              cursor: 'pointer',
+                              lineHeight: 1.35,
+                              whiteSpace: 'normal',
+                              wordBreak: 'break-word',
+                              borderBottom: mIdx < 7 ? '1px solid #F1F5F9' : 'none',
+                              transition: 'background 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) (e.currentTarget as HTMLElement).style.background = '#F8FAFC';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent';
+                            }}
+                          >
+                            {model}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -7429,9 +7924,60 @@ interface SeoSettings {
                     type="text"
                     className="form-input-field"
                     placeholder="+91 98765 43210"
+                    maxLength={15}
                     value={newLocation.contactPhone}
-                    onChange={(e) => setNewLocation({ ...newLocation, contactPhone: e.target.value })}
+                    onChange={(e) => {
+                      const inputVal = e.target.value;
+                      if (!inputVal.trim()) {
+                        setNewLocation(prev => ({ ...prev, contactPhone: '+91 ' }));
+                        setLocationPhoneError('');
+                        return;
+                      }
+                      if (inputVal.startsWith('+91') || !inputVal.startsWith('+')) {
+                        const rawDigits = inputVal.replace(/^\+91\s*/, '').replace(/\D/g, '');
+                        const limited = rawDigits.slice(0, 10);
+                        const formatted = `+91 ${limited}`;
+                        setNewLocation(prev => ({ ...prev, contactPhone: formatted }));
+                        if (limited.length > 0) {
+                          if (!/^[6-9]/.test(limited)) {
+                            setLocationPhoneError('Indian mobile number should begin with 6, 7, 8, or 9.');
+                          } else if (limited.length < 10) {
+                            setLocationPhoneError(`Phone number must be exactly 10 digits for +91 (currently ${limited.length} digits).`);
+                          } else {
+                            setLocationPhoneError('');
+                          }
+                        } else {
+                          setLocationPhoneError('');
+                        }
+                      } else {
+                        setNewLocation(prev => ({ ...prev, contactPhone: inputVal }));
+                        setLocationPhoneError('');
+                      }
+                    }}
+                    onBlur={() => {
+                      const rawDigits = newLocation.contactPhone.replace(/^\+91\s*/, '').replace(/\D/g, '');
+                      if (rawDigits.length > 0) {
+                        if (!/^[6-9]/.test(rawDigits)) {
+                          setLocationPhoneError('Indian mobile number should begin with 6, 7, 8, or 9.');
+                        } else if (rawDigits.length < 10) {
+                          setLocationPhoneError(`Phone number must be exactly 10 digits for +91 (currently ${rawDigits.length} digits).`);
+                        } else {
+                          setLocationPhoneError('');
+                        }
+                      } else {
+                        setLocationPhoneError('');
+                      }
+                    }}
+                    style={{
+                      borderColor: locationPhoneError ? '#EF4444' : undefined,
+                      boxShadow: locationPhoneError ? '0 0 0 1px #EF4444' : undefined
+                    }}
                   />
+                  {locationPhoneError && (
+                    <span style={{ color: '#EF4444', fontSize: '0.76rem', marginTop: '4px', display: 'block', fontWeight: 600 }}>
+                      {locationPhoneError}
+                    </span>
+                  )}
                 </div>
               </div>
 

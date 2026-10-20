@@ -23,11 +23,11 @@ export const fetchDeliveryLocationsFromDb = async (): Promise<MachineDeliveryLoc
     if (res.data?.success && Array.isArray(res.data.data)) {
       const mapped: MachineDeliveryLocationItem[] = res.data.data.map((item: any) => ({
         id: item.id,
-        clientName: item.clientName,
-        locationCity: item.locationCity,
-        state: item.state,
-        machineModel: item.machineModel,
-        deliveryDate: item.deliveryDate || new Date(item.createdAt || Date.now()).toLocaleDateString('en-GB'),
+        clientName: item.clientName || 'Valued Client',
+        locationCity: item.locationCity || item.city || 'Coimbatore',
+        state: item.state || 'Tamil Nadu',
+        machineModel: item.machineModel || 'Automatic Machinery',
+        deliveryDate: item.deliveryDate || item.dispatchDate || new Date(item.createdAt || Date.now()).toLocaleDateString('en-GB'),
         status: item.status || 'Delivered & Operational',
         transportVehicle: item.transportVehicle || '',
         contactPhone: item.contactPhone || '',
@@ -77,26 +77,37 @@ export const addDeliveryLocation = async (loc: Partial<MachineDeliveryLocationIt
     notes: loc.notes || '',
   };
 
-  const res = await apiClient.post('/delivery-locations', payload);
-  const created: MachineDeliveryLocationItem = res.data?.data ? {
-    id: res.data.data.id,
-    clientName: res.data.data.clientName,
-    locationCity: res.data.data.locationCity,
-    state: res.data.data.state,
-    machineModel: res.data.data.machineModel,
-    deliveryDate: res.data.data.deliveryDate,
-    status: res.data.data.status,
-    transportVehicle: res.data.data.transportVehicle,
-    contactPhone: res.data.data.contactPhone,
-    notes: res.data.data.notes,
-  } : {
-    id: `DEL-${Date.now()}`,
-    ...payload,
-  };
+  try {
+    const res = await apiClient.post('/delivery-locations', payload);
+    const created: MachineDeliveryLocationItem = res.data?.data ? {
+      id: res.data.data.id,
+      clientName: res.data.data.clientName || payload.clientName,
+      locationCity: res.data.data.locationCity || res.data.data.city || payload.locationCity,
+      state: res.data.data.state || payload.state,
+      machineModel: res.data.data.machineModel || payload.machineModel,
+      deliveryDate: res.data.data.deliveryDate || res.data.data.dispatchDate || payload.deliveryDate,
+      status: res.data.data.status || payload.status,
+      transportVehicle: res.data.data.transportVehicle || payload.transportVehicle,
+      contactPhone: res.data.data.contactPhone || payload.contactPhone,
+      notes: res.data.data.notes || payload.notes,
+    } : {
+      id: `DEL-${Date.now()}`,
+      ...payload,
+    };
 
-  _cachedLocations = [created, ..._cachedLocations.filter(l => l.id !== created.id)];
-  window.dispatchEvent(new Event('jupiter_locations_updated'));
-  return created;
+    _cachedLocations = [created, ..._cachedLocations.filter(l => l.id !== created.id)];
+    window.dispatchEvent(new Event('jupiter_locations_updated'));
+    return created;
+  } catch (err) {
+    console.warn('[DeliveryLocation] Backend API post failed, falling back to local cache:', err);
+    const fallbackCreated: MachineDeliveryLocationItem = {
+      id: `DEL-${Date.now()}`,
+      ...payload,
+    };
+    _cachedLocations = [fallbackCreated, ..._cachedLocations.filter(l => l.id !== fallbackCreated.id)];
+    window.dispatchEvent(new Event('jupiter_locations_updated'));
+    return fallbackCreated;
+  }
 };
 
 export const updateDeliveryLocation = async (id: string, updates: Partial<MachineDeliveryLocationItem>): Promise<MachineDeliveryLocationItem | null> => {

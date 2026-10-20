@@ -207,44 +207,89 @@ export const ContactPage: React.FC = () => {
             <div className="contact-dark-enquiry-card" ref={enquiryCardRef}>
               <div className="section-pill-dash-title" style={{ marginBottom: '10px' }}>
                 <h2 className="contact-enquiry-card-title">
-                  Send an <span className="text-orange">Enquiry</span>
+                  {isSubmittedSuccess ? (
+                    <>Enquiry <span className="text-orange">Submitted</span></>
+                  ) : (
+                    <>Send an <span className="text-orange">Enquiry</span></>
+                  )}
                 </h2>
               </div>
               <p className="contact-enquiry-card-subtitle">
-                Share your requirements and our team will get back to you within 24 hours.
+                {isSubmittedSuccess ? (
+                  'Your machinery inquiry has been successfully transmitted to our engineering team.'
+                ) : (
+                  'Share your requirements and our team will get back to you within 24 hours.'
+                )}
               </p>
 
               {isSubmittedSuccess ? (
                 <div style={{
-                  padding: '44px 20px',
+                  padding: '36px 24px 32px',
                   textAlign: 'center',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  marginTop: '20px',
+                  background: 'linear-gradient(180deg, #F0FDF4 0%, #FFFFFF 100%)',
+                  borderRadius: '14px',
+                  border: '1.5px solid #A7F3D0',
+                  marginTop: '16px',
+                  boxShadow: '0 8px 24px rgba(16, 185, 129, 0.08)',
                   animation: 'fadeIn 0.35s ease'
                 }}>
+                  {/* Glowing Success Badge */}
                   <div style={{
-                    width: '68px',
-                    height: '68px',
+                    width: '74px',
+                    height: '74px',
                     borderRadius: '50%',
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '2px solid #10B981',
+                    background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
+                    border: '2.5px solid #10B981',
+                    boxShadow: '0 0 0 8px rgba(16, 185, 129, 0.12), 0 4px 14px rgba(16, 185, 129, 0.18)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    margin: '0 auto 18px',
-                    color: '#10B981'
+                    margin: '0 auto 20px',
+                    color: '#059669'
                   }}>
-                    <CheckCircle2 size={38} />
+                    <CheckCircle2 size={42} strokeWidth={2.4} />
                   </div>
-                  <h3 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#FFFFFF', marginBottom: '10px' }}>
+
+                  <h3 style={{ 
+                    fontSize: '1.55rem', 
+                    fontWeight: 800, 
+                    color: '#081322', 
+                    marginBottom: '10px',
+                    letterSpacing: '-0.01em'
+                  }}>
                     Enquiry Received Successfully!
                   </h3>
-                  <p style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '0.95rem', maxWidth: '440px', margin: '0 auto 24px', lineHeight: 1.6 }}>
-                    Thank you! Our factory technical engineers will review your machinery requirements and reach out within 24 hours with catalog, layout, and quotation details.
+
+                  <p style={{ 
+                    color: '#475569', 
+                    fontSize: '0.96rem', 
+                    maxWidth: '450px', 
+                    margin: '0 auto 20px', 
+                    lineHeight: 1.65 
+                  }}>
+                    Thank you! Our factory technical engineers will review your machinery requirements and reach out within <strong>24 hours</strong> with catalog, plant layout, and quotation details.
                   </p>
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+
+                  {/* Trust Pill */}
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    color: '#065F46',
+                    fontSize: '0.84rem',
+                    fontWeight: 600,
+                    padding: '8px 18px',
+                    borderRadius: '50px',
+                    margin: '0 auto 26px'
+                  }}>
+                    <CheckCircle2 size={16} color="#059669" />
+                    <span>Fast Response: Within 24 Working Hours • Factory Direct Consultation</span>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       onClick={() => {
@@ -252,27 +297,39 @@ export const ContactPage: React.FC = () => {
                         setStatusMessage(null);
                       }}
                       className="btn btn-orange"
-                      style={{ padding: '12px 24px', fontWeight: 700 }}
+                      style={{ 
+                        padding: '12px 24px', 
+                        fontWeight: 700,
+                        fontSize: '0.92rem',
+                        borderRadius: '10px',
+                        boxShadow: '0 4px 14px rgba(255, 107, 0, 0.25)',
+                        cursor: 'pointer'
+                      }}
                     >
                       <span>Send Another Enquiry</span>
                     </button>
                     <a
-                      href="https://wa.me/919342919060"
+                      href="https://wa.me/919342919060?text=Hello%20Jupiter%20Industries,%20I%20have%20submitted%20an%20enquiry%20and%20would%20like%20to%20connect%20instantly."
                       target="_blank"
                       rel="noreferrer"
-                      className="btn"
                       style={{
-                        background: 'rgba(37, 211, 102, 0.15)',
-                        color: '#25D366',
-                        border: '1px solid rgba(37, 211, 102, 0.4)',
-                        padding: '12px 20px',
-                        fontWeight: 600,
+                        background: '#25D366',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        padding: '12px 22px',
+                        fontWeight: 700,
+                        fontSize: '0.92rem',
+                        borderRadius: '10px',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '8px'
+                        gap: '8px',
+                        textDecoration: 'none',
+                        boxShadow: '0 4px 14px rgba(37, 211, 102, 0.32)',
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                        cursor: 'pointer'
                       }}
                     >
-                      <WhatsAppIcon size={18} />
+                      <WhatsAppIcon size={19} />
                       <span>Instant Chat on WhatsApp</span>
                     </a>
                   </div>

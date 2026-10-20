@@ -2,6 +2,7 @@ import { apiClient } from './api';
 
 export interface EnquiryItem {
   id: string;
+  enquiryId?: string;
   referenceNo?: string;
   name: string;
   phone: string;
@@ -17,9 +18,118 @@ export interface EnquiryItem {
   isRead?: boolean;
 }
 
-export const INITIAL_ENQUIRIES: EnquiryItem[] = [];
+export const DEFAULT_INITIAL_ENQUIRIES: EnquiryItem[] = [
+  {
+    id: 'cmv6nlkch002mkwdizutw0t0n',
+    enquiryId: 'ENQ-2026-0005',
+    referenceNo: 'ENQ-2026-0005',
+    name: 'suresh',
+    email: 'suresh@gmail.com',
+    phone: '+91 8825972129',
+    product: 'automotive',
+    productInterest: 'automotive',
+    location: 'Pan India',
+    message: 'Machinery Requirement: automotive',
+    status: 'New',
+    date: '13 Oct 2026',
+    createdAt: '2026-10-13T12:24:56.898Z',
+    isRead: true
+  },
+  {
+    id: 'cmv6l3vnd000bkwdi96zxwztn',
+    enquiryId: 'ENQ-2026-0004',
+    referenceNo: 'ENQ-2026-0004',
+    name: 'Bharathi',
+    email: 'bharathi@gmail.com',
+    phone: '+91 6379963552',
+    product: 'Moulds & Precision Tooling',
+    productInterest: 'Moulds & Precision Tooling',
+    location: 'Pan India',
+    message: 'Company: ikasle | Product Interest: Moulds & Precision Tooling | Details: capacity',
+    status: 'Contacted',
+    date: '13 Oct 2026',
+    createdAt: '2026-10-13T11:15:12.506Z',
+    isRead: true
+  },
+  {
+    id: 'cmv6i9g9h0007kwdioyqjg20g',
+    enquiryId: 'ENQ-2026-0003',
+    referenceNo: 'ENQ-2026-0003',
+    name: 'yuva',
+    email: 'xyz@gmail.com',
+    phone: '+91 8778364513',
+    product: 'Fly Ash Brick Machines',
+    productInterest: 'Fly Ash Brick Machines',
+    location: 'Pan India',
+    message: 'Company: xyz | Product Interest: Fly Ash Brick Machines | Details: machine',
+    status: 'New',
+    date: '13 Oct 2026',
+    createdAt: '2026-10-13T09:55:33.654Z',
+    isRead: true
+  },
+  {
+    id: 'cmv6hww1b0005kwdi84jrtury',
+    enquiryId: 'ENQ-2026-0002',
+    referenceNo: 'ENQ-2026-0002',
+    name: 'pava',
+    email: 'pava@gmail.com',
+    phone: '+91 9787510222',
+    product: 'JI Patching Plant – Fly Ash Brick Material Batching Plant',
+    productInterest: 'JI Patching Plant – Fly Ash Brick Material Batching Plant',
+    location: 'Pan India',
+    message: 'Quotation for: JI Patching Plant – Fly Ash Brick Material Batching Plant | Requirement: Quotation',
+    status: 'New',
+    date: '13 Oct 2026',
+    createdAt: '2026-10-13T09:45:47.567Z',
+    isRead: true
+  },
+  {
+    id: 'cmv6fohko0001kwdi2u6a8rxp',
+    enquiryId: 'ENQ-2026-0001',
+    referenceNo: 'ENQ-2026-0001',
+    name: 'Ramya',
+    email: 'ramya@gmail.com',
+    phone: '+91 6380736281',
+    product: 'Concrete Block Machines',
+    productInterest: 'Concrete Block Machines',
+    location: 'Pan India',
+    message: 'Company: xyz | Product Interest: Concrete Block Machines | Details: i want machine',
+    status: 'Contacted',
+    date: '13 Oct 2026',
+    createdAt: '2026-10-13T08:43:16.344Z',
+    isRead: true
+  }
+];
 
-let _cachedEnquiries: EnquiryItem[] = [];
+export const INITIAL_ENQUIRIES: EnquiryItem[] = DEFAULT_INITIAL_ENQUIRIES;
+
+const ENQUIRIES_STORAGE_KEY = 'jupiter_stored_enquiries';
+
+const loadInitialEnquiries = (): EnquiryItem[] => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = window.localStorage.getItem(ENQUIRIES_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((item: any) => {
+            const friendlyRef = formatEnquiryReference(item, parsed);
+            return {
+              ...item,
+              enquiryId: item.enquiryId && /^ENQ-\d{4}-\d{3,5}$/i.test(item.enquiryId) ? item.enquiryId : friendlyRef,
+              referenceNo: friendlyRef
+            };
+          });
+        }
+      }
+    }
+  } catch (err) {
+    // Ignore storage parse error
+  }
+  return DEFAULT_INITIAL_ENQUIRIES;
+};
+
+let _cachedEnquiries: EnquiryItem[] = loadInitialEnquiries();
 
 const READ_STORAGE_KEY = 'jupiter_read_enquiry_ids';
 
@@ -76,18 +186,40 @@ export const normalizeEnquiryStatus = (status?: string): 'New' | 'Contacted' | '
 
 export const formatEnquiryReference = (enquiry?: Partial<EnquiryItem> | null, allEnquiries?: EnquiryItem[]): string => {
   if (!enquiry) return 'ENQ-2026-0001';
-  if (enquiry.referenceNo) return enquiry.referenceNo;
-  if (enquiry.id && /^ENQ-\d{4}-\d{3,4}$/i.test(enquiry.id)) return enquiry.id;
 
+  // Determine year from createdAt or date
   const dateStr = enquiry.createdAt || enquiry.date;
-  const d = dateStr ? new Date(dateStr) : new Date();
-  const year = !isNaN(d.getFullYear()) ? d.getFullYear() : 2026;
+  let year = 2026;
+  if (dateStr) {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getFullYear()) && d.getFullYear() >= 2000) {
+      year = d.getFullYear();
+    }
+  }
 
-  // If cuid / alphanumeric id contains a sequence (e.g. cmv6fohko0001kwdi2u6a8rxp -> 0001)
-  const idStr = enquiry.id || '';
-  const seqMatch = idStr.match(/\d{4}/);
-  if (seqMatch) {
-    return `ENQ-${year}-${seqMatch[0]}`;
+  const rawCandidate = (enquiry.enquiryId || enquiry.referenceNo || '').trim();
+
+  // If already in standard format ENQ-YYYY-XXXX (e.g., ENQ-2026-0001)
+  if (/^ENQ-\d{4}-\d{3,5}$/i.test(rawCandidate)) {
+    return rawCandidate.toUpperCase();
+  }
+
+  // If in format ENQ-XXXX (e.g., ENQ-0004, ENQ-0001, ENQ-4)
+  const shortMatch = rawCandidate.match(/^ENQ-(\d+)$/i);
+  if (shortMatch) {
+    const seqNum = parseInt(shortMatch[1], 10);
+    return `ENQ-${year}-${String(seqNum).padStart(4, '0')}`;
+  }
+
+  // Check if id itself is ENQ-YYYY-XXXX
+  if (enquiry.id && /^ENQ-\d{4}-\d{3,5}$/i.test(enquiry.id)) {
+    return enquiry.id.toUpperCase();
+  }
+
+  // Check if id is ENQ-XXXX
+  if (enquiry.id && /^ENQ-\d+$/i.test(enquiry.id)) {
+    const seqNum = parseInt(enquiry.id.replace(/^ENQ-/i, ''), 10);
+    return `ENQ-${year}-${String(seqNum).padStart(4, '0')}`;
   }
 
   // If allEnquiries is provided, use chronological index
@@ -101,6 +233,21 @@ export const formatEnquiryReference = (enquiry?: Partial<EnquiryItem> | null, al
     if (idx >= 0) {
       return `ENQ-${year}-${String(idx + 1).padStart(4, '0')}`;
     }
+  }
+
+  // If cuid / alphanumeric id contains a sequence (e.g. cmv6fohko0001kwdi2u6a8rxp -> 0001)
+  const idStr = enquiry.id || '';
+  if (idStr.startsWith('c') && idStr.length >= 13) {
+    const counterHex = idStr.slice(9, 13);
+    const parsed = parseInt(counterHex, 36);
+    if (!isNaN(parsed) && parsed > 0 && parsed <= 99999) {
+      return `ENQ-${year}-${String(parsed).padStart(4, '0')}`;
+    }
+  }
+
+  const seqMatch = idStr.match(/\d{4}/);
+  if (seqMatch) {
+    return `ENQ-${year}-${seqMatch[0]}`;
   }
 
   // Deterministic fallback based on id / string hash
@@ -124,7 +271,8 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
     if (res.status === 200) {
       if (json.success && Array.isArray(json.data)) {
         const readIds = getLocalReadIds();
-        const mapped: EnquiryItem[] = json.data.map((item: any) => {
+        const rawList = json.data;
+        const mapped: EnquiryItem[] = rawList.map((item: any) => {
           const productFromObj = (typeof item.product === 'object' && item.product !== null) ? item.product.name : (typeof item.product === 'string' ? item.product : '');
           const productMatch = item.message?.match(/(?:Quotation for|Product Interest|Machinery Requirement):\s*([^|\n]+)/i);
           const productInterest = item.productInterest || productFromObj || (productMatch ? productMatch[1].trim() : (item.message?.split('|')[0]?.trim() || 'Paver Block Machines'));
@@ -133,9 +281,13 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
           const dt = formatEnquiryDate(createdAt);
           const location = item.location || 'Pan India';
           const isRead = item.isRead === true || readIds.has(item.id);
+          const enqId = item.enquiryId || item.referenceNo || undefined;
+          const friendlyRef = formatEnquiryReference({ id: item.id, enquiryId: enqId, createdAt, date: dt }, rawList);
 
           return {
             id: item.id,
+            enquiryId: enqId && /^ENQ-\d{4}-\d{3,5}$/i.test(enqId) ? enqId : friendlyRef,
+            referenceNo: friendlyRef,
             name: item.name,
             phone: item.phone,
             email: item.email || '',
@@ -152,6 +304,11 @@ export const fetchEnquiriesFromDb = async (): Promise<EnquiryItem[]> => {
         });
         
         _cachedEnquiries = mapped;
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem(ENQUIRIES_STORAGE_KEY, JSON.stringify(mapped));
+          }
+        } catch {}
         window.dispatchEvent(new Event('jupiter_enquiries_updated'));
         return mapped;
       }
@@ -187,6 +344,11 @@ export const getStoredEnquiries = (): EnquiryItem[] => {
 
 export const saveStoredEnquiries = (enquiries: EnquiryItem[]): void => {
   _cachedEnquiries = enquiries;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(ENQUIRIES_STORAGE_KEY, JSON.stringify(enquiries));
+    }
+  } catch {}
   window.dispatchEvent(new Event('jupiter_enquiries_updated'));
 };
 
@@ -219,17 +381,16 @@ export const updateStoredEnquiryStatus = (id: string, status: EnquiryItem['statu
   const current = getStoredEnquiries();
   let updatedOnce = false;
   const updated = current.map((item, idx) => {
-    if (targetIndex !== undefined) {
-      if (idx === targetIndex) {
+      const isTarget = item.id === id ||
+        (item.enquiryId && item.enquiryId === id) ||
+        (item.referenceNo && item.referenceNo === id) ||
+        (targetIndex !== undefined && idx === targetIndex);
+
+      if (isTarget && !updatedOnce) {
+        updatedOnce = true;
         return { ...item, status: normalized };
       }
       return item;
-    }
-    if (item.id === id && !updatedOnce) {
-      updatedOnce = true;
-      return { ...item, status: normalized };
-    }
-    return item;
   });
   saveStoredEnquiries(updated);
   return updated;

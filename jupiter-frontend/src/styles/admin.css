@@ -570,6 +570,16 @@
   background: #FFFBF6;
 }
 
+.admin-search-result-card.is-selected {
+  background: #FFF7ED;
+  outline: 2px solid #FF9200;
+  outline-offset: -2px;
+}
+
+.admin-search-result-card.is-selected .admin-search-card-title {
+  color: #FF9200;
+}
+
 .admin-search-result-card:last-child {
   border-bottom: none;
 }

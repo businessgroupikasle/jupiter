@@ -87,7 +87,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
     <header className={`navbar-wrapper ${isScrolled ? 'scrolled' : 'transparent-hero'}`}>
       <div className="container navbar-container">
         {/* Brand Logo */}
-        <Link to="/" className="brand-logo-group" aria-label="Jupiter Industries Home" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+        <Link 
+          to="/" 
+          onClick={(e) => {
+            window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            if (location.pathname === '/') {
+              e.preventDefault();
+            }
+          }}
+          className="brand-logo-group" 
+          aria-label="Jupiter Industries Home" 
+          style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}
+        >
           <div style={{
             background: '#FFFFFF',
             borderRadius: '10px',
@@ -116,6 +127,12 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
         <nav className="nav-links-menu">
           <Link 
             to="/" 
+            onClick={(e) => {
+              window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+              if (location.pathname === '/') {
+                e.preventDefault();
+              }
+            }}
             className={`nav-link-item ${location.pathname === '/' ? 'active' : ''}`}
           >
             Home
