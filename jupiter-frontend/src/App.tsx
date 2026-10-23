@@ -160,6 +160,7 @@ const AppContent: React.FC = () => {
         <Route path="/about.html" element={<Navigate to="/about-us" replace />} />
         <Route path="/machines" element={<Navigate to="/products" replace />} />
         <Route path="/products" element={<ProductsPage />} />
+        <Route path="/products.html" element={<Navigate to="/products" replace />} />
 
         {/* Dynamic & Sub-Product Machine Pages */}
         <Route path="/products/:categorySlug" element={<MachineCategoryPage />} />

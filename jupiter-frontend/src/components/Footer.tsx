@@ -166,7 +166,22 @@ export const Footer: React.FC = () => {
             </div>
             
             <div style={{ color: 'rgba(255, 255, 255, 0.65)', fontWeight: 500 }}>
-              Crafted and Maintained by Ikasle Business Group
+              Crafted and Maintained by{' '}
+              <a
+                href="https://ikasleinnovations.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: '#FF9200',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  transition: 'text-decoration 0.2s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+              >
+                Ikasle Business Group
+              </a>
             </div>
 
             <div className="footer-legal-links">

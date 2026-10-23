@@ -84,21 +84,8 @@ export const ensureDefaultProducts = async (): Promise<void> => {
           },
         });
         console.log(`[Product] Seeded default machine: ${prod.name}`);
-      } else {
-        await prisma.product.update({
-          where: { id: existing.id },
-          data: {
-            name: prod.name,
-            category: prod.category,
-            description: prod.description,
-            capacity: prod.capacity,
-            power: prod.power,
-            brickSize: prod.brickSize,
-            image: prod.image,
-            specifications: prod.specifications,
-          },
-        });
       }
+      // If product already exists in database, do not overwrite it so admin updates remain permanent
     }
   } catch (err) {
     console.warn('[Product] Note on ensuring default products:', err);

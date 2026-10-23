@@ -45,8 +45,7 @@ import {
   Loader2,
   Camera,
   Wrench,
-  Menu,
-  Copy
+  Menu
 } from 'lucide-react';
 import { IMAGES } from '../assets/images/images';
 import '../styles/admin.css';
@@ -456,6 +455,17 @@ interface SeoSettings {
       container.scrollTop = 0;
     }
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+
+    // Fetch fresh database records upon navigation
+    if (tabId === 'enquiries') {
+      fetchEnquiriesFromDb().then(res => {
+        if (Array.isArray(res)) setEnquiries(res);
+      }).catch(() => {});
+    } else if (tabId === 'products') {
+      fetchProducts(undefined, undefined, true).then(res => {
+        if (Array.isArray(res)) setProducts(res);
+      }).catch(() => {});
+    }
   };
 
   // Scroll to top of module when activeTab changes
@@ -773,7 +783,7 @@ interface SeoSettings {
     setActionInProgressId(`toggle-${prod.id}`);
     try {
       const updated = await toggleProductStatus(prod.id, prod.status || 'Active');
-      const fresh = await fetchProducts();
+      const fresh = await fetchProducts(undefined, undefined, true);
       setProducts(fresh);
       triggerToast(`Product status set to ${updated?.status || (prod.status === 'Active' ? 'Inactive' : 'Active')}`);
     } catch (err: any) {
@@ -810,7 +820,7 @@ interface SeoSettings {
         setActionInProgressId(`delete-${prod.id}`);
         try {
           await deleteProduct(prod.id);
-          const fresh = await fetchProducts();
+          const fresh = await fetchProducts(undefined, undefined, true);
           setProducts(fresh);
           triggerToast('Product removed successfully');
         } catch (err: any) {
@@ -923,14 +933,14 @@ interface SeoSettings {
     try { return getStoredBlogs() || []; } catch { return []; }
   });
 
-  // Real-time synchronization across all tabs and services
+  // Real-time synchronization across all tabs and services from PostgreSQL database
   React.useEffect(() => {
-    fetchProducts().then(res => {
+    fetchProducts(undefined, undefined, true).then(res => {
       if (Array.isArray(res)) setProducts(res);
     }).catch(() => { });
 
     fetchEnquiriesFromDb().then(res => {
-      if (res) setEnquiries(res);
+      if (Array.isArray(res)) setEnquiries(res);
     }).catch(() => { });
 
     fetchProjectsFromDb().then(res => {
@@ -967,6 +977,24 @@ interface SeoSettings {
       }
     };
 
+    // Auto-poll database for incoming enquiries
+    const pollInterval = setInterval(() => {
+      fetchEnquiriesFromDb().then(res => {
+        if (Array.isArray(res)) setEnquiries(res);
+      }).catch(() => {});
+    }, 10000);
+
+    // Refresh database records when user refocuses window/tab
+    const handleWindowFocus = () => {
+      fetchProducts(undefined, undefined, true).then(res => {
+        if (Array.isArray(res)) setProducts(res);
+      }).catch(() => {});
+      fetchEnquiriesFromDb().then(res => {
+        if (Array.isArray(res)) setEnquiries(res);
+      }).catch(() => {});
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('jupiter_enquiries_updated', syncAll);
     window.addEventListener('jupiter_products_updated', syncAll);
     window.addEventListener('jupiter_projects_updated', syncAll);
@@ -976,6 +1004,8 @@ interface SeoSettings {
     window.addEventListener('storage', syncAll);
 
     return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('jupiter_enquiries_updated', syncAll);
       window.removeEventListener('jupiter_products_updated', syncAll);
       window.removeEventListener('jupiter_projects_updated', syncAll);
@@ -1235,40 +1265,52 @@ interface SeoSettings {
   });
 
   // Helper to reliably match product category without false positives (e.g. "block" matching "lock")
+  // A product whose category is a canonical tab name only matches that exact tab, so a stale slug or a
+  // substring can never pull it into another tab. Fuzzy matching is kept for non-canonical legacy values.
   const matchAdminCategory = (p: ProductItem, cat: string): boolean => {
     if (!p) return false;
-    if (cat === 'All') {
-      const specificCats = [
-        'Fly Ash Brick Machine',
-        'Hollow and Solid Block Machine',
-        'Inter Block Making Machine',
-        'Paver Block Machine',
-        'Batching Plant',
-        'Storage Silo',
-        'Machine Spares'
-      ];
-      return specificCats.some(c => matchAdminCategory(p, c));
-    }
-    if (p.category === cat) return true;
+    if (cat === 'All') return true;
 
-    const pCat = (p.category || '').toLowerCase();
-    const cLow = cat.toLowerCase();
+    const pCat = (p.category || '').trim().toLowerCase();
+    if (!pCat) return false;
+
+    const cLow = cat.trim().toLowerCase();
+    const canonicalCat = adminProductCategories.find(c => c !== 'All' && c.toLowerCase() === pCat);
+    if (canonicalCat) return canonicalCat.toLowerCase() === cLow;
+
     const pSlug = (p.categorySlug || '').toLowerCase();
 
-    if (cLow.includes('fly ash')) return pCat.includes('fly ash') || pSlug.includes('fly-ash');
-    if (cLow.includes('hollow') || cLow.includes('solid')) return pCat.includes('hollow') || pCat.includes('solid') || pSlug.includes('hollow');
-    if (cLow.includes('inter')) return pCat.includes('interlock') || pCat.includes('inter block') || pCat.includes('inter-lock') || pSlug.includes('inter');
-    if (cLow.includes('paver')) return pCat.includes('paver') || pSlug.includes('paver');
-    if (cLow.includes('batching') || cLow.includes('patching')) return pCat.includes('batching') || pCat.includes('patching') || pSlug.includes('batching');
-    if (cLow.includes('silo')) return pCat.includes('silo') || pSlug.includes('silo');
-    if (cLow.includes('spares')) return pCat.includes('spares') || pSlug.includes('spares');
+    if (cLow.includes('fly ash')) {
+      return (pCat.includes('fly ash') || pCat.includes('flyash') || pSlug === 'fly-ash-brick-machine' || pSlug === 'fly-ash-making-machine') &&
+        !pCat.includes('silo') && !pCat.includes('batch');
+    }
+    if (cLow.includes('hollow') || cLow.includes('solid')) {
+      return (pCat.includes('hollow') || pCat.includes('solid') || pSlug === 'hollow-and-solid-block-machine') &&
+        !pCat.includes('inter') && !pCat.includes('paver');
+    }
+    if (cLow.includes('inter')) {
+      return (pCat.includes('interlock') || pCat.includes('inter block') || pCat.includes('inter-lock') || pSlug === 'inter-block-making-machine') &&
+        !pCat.includes('paver');
+    }
+    if (cLow.includes('paver')) {
+      return pCat.includes('paver') || pSlug === 'paver-block-machine';
+    }
+    if (cLow.includes('batching') || cLow.includes('patching')) {
+      return pCat.includes('batching') || pCat.includes('patching') || pSlug.includes('batching') || pSlug.includes('patching');
+    }
+    if (cLow.includes('silo')) {
+      return pCat.includes('silo') || pSlug.includes('silo');
+    }
+    if (cLow.includes('spares')) {
+      return pCat.includes('spares') || pSlug.includes('spares');
+    }
 
     return pCat === cLow;
   };
 
   const filteredProducts = products.filter(p => {
     if (!p) return false;
-    const matchesCategory = !searchQuery.trim() || adminProductCategory === 'All' || matchAdminCategory(p, adminProductCategory);
+    const matchesCategory = matchAdminCategory(p, adminProductCategory);
     const matchesSearch = !searchQuery.trim() || matchProduct(p, searchQuery).matches;
     return matchesCategory && matchesSearch;
   }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -2184,28 +2226,29 @@ interface SeoSettings {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '7px',
                 background: isExportingExcel ? '#94A3B8' : 'linear-gradient(135deg, #107C41 0%, #15803D 100%)',
                 color: '#FFFFFF',
                 border: 'none',
-                padding: '9px 16px',
+                padding: '8px 14px',
                 borderRadius: '9px',
-                fontSize: '0.86rem',
+                fontSize: '0.82rem',
                 fontWeight: 600,
                 cursor: isExportingExcel ? 'not-allowed' : 'pointer',
                 boxShadow: isExportingExcel ? 'none' : '0 3px 10px rgba(16, 124, 65, 0.25)',
                 transition: 'all 0.2s ease',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
             >
               {isExportingExcel ? (
                 <>
-                  <Loader2 size={16} className="admin-spin" />
+                  <Loader2 size={15} className="admin-spin" />
                   <span>{exportProgressText || 'Downloading...'}</span>
                 </>
               ) : (
                 <>
-                  <Download size={16} />
+                  <Download size={15} />
                   <span>Download Excel</span>
                 </>
               )}
@@ -2214,7 +2257,7 @@ interface SeoSettings {
             {/* View Live Website Button */}
             <Link to="/" className="admin-live-site-btn" title="Open Public Website">
               <ExternalLink size={15} />
-              <span>Live Site</span>
+              <span>Live Website</span>
             </Link>
 
             {/* Logout Button */}
@@ -2226,16 +2269,18 @@ interface SeoSettings {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '7px',
                 background: 'rgba(239, 68, 68, 0.12)',
                 color: '#EF4444',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
-                padding: '10px 16px',
+                padding: '8px 14px',
                 borderRadius: '9px',
-                fontSize: '0.86rem',
+                fontSize: '0.82rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
               }}
             >
               <LogOut size={15} />
@@ -2561,89 +2606,92 @@ interface SeoSettings {
 
                   return (
                     <div className="admin-card">
-                      <div className="admin-card-header">
-                        <h3 className="admin-card-title">Lead Performance</h3>
-                        <div className="admin-chart-legend-group">
-                          <div className="admin-legend-item">
-                            <span className="admin-legend-dot bg-navy"></span>
-                            <span>New Leads</span>
-                          </div>
-                          <div className="admin-legend-item">
-                            <span className="admin-legend-dot bg-orange"></span>
-                            <span>Conversions</span>
-                          </div>
-                          <div style={{ position: 'relative' }} ref={leadPerfDropdownRef}>
-                            <div
-                              className="admin-select-badge"
-                              onClick={() => setIsLeadPerfDropdownOpen(prev => !prev)}
-                              style={{ cursor: 'pointer', userSelect: 'none' }}
-                              title="Click to change date range filter"
-                            >
-                              <span>{currentPerf.label}</span>
-                              <ChevronDown size={14} style={{ transform: isLeadPerfDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                      <div className="admin-card-header lead-perf-card-header">
+                        <div className="lead-perf-header-left">
+                          <h3 className="admin-card-title">Lead Performance</h3>
+                          <div className="admin-chart-legend-group">
+                            <div className="admin-legend-item">
+                              <span className="admin-legend-dot bg-navy"></span>
+                              <span>New Leads</span>
                             </div>
-
-                            {isLeadPerfDropdownOpen && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  top: 'calc(100% + 6px)',
-                                  right: 0,
-                                  background: '#FFFFFF',
-                                  border: '1px solid #E2E8F0',
-                                  borderRadius: '8px',
-                                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
-                                  padding: '6px',
-                                  minWidth: '155px',
-                                  zIndex: 50,
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '2px'
-                                }}
-                              >
-                                {(['30days', '3months', '6months', '12months'] as const).map((key) => {
-                                  const isSelected = leadPerfRange === key;
-                                  const opt = leadPerfRangeOptions[key];
-                                  return (
-                                    <button
-                                      key={key}
-                                      type="button"
-                                      onClick={() => {
-                                        setLeadPerfRange(key);
-                                        setIsLeadPerfDropdownOpen(false);
-                                        triggerToast(`Lead Performance filter: ${opt.label}`);
-                                      }}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '8px 10px',
-                                        borderRadius: '6px',
-                                        border: 'none',
-                                        background: isSelected ? '#FFF7ED' : 'transparent',
-                                        color: isSelected ? '#FF9200' : '#1E293B',
-                                        fontSize: '0.8rem',
-                                        fontWeight: isSelected ? 700 : 500,
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        width: '100%',
-                                        transition: 'background 0.15s, color 0.15s'
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        if (!isSelected) e.currentTarget.style.background = 'transparent';
-                                      }}
-                                    >
-                                      <span>{opt.label}</span>
-                                      {isSelected && <Check size={14} style={{ color: '#FF9200' }} />}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
+                            <div className="admin-legend-item">
+                              <span className="admin-legend-dot bg-orange"></span>
+                              <span>Conversions</span>
+                            </div>
                           </div>
+                        </div>
+
+                        <div className="lead-perf-dropdown-wrap" ref={leadPerfDropdownRef}>
+                          <div
+                            className="admin-select-badge"
+                            onClick={() => setIsLeadPerfDropdownOpen(prev => !prev)}
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                            title="Click to change date range filter"
+                          >
+                            <span>{currentPerf.label}</span>
+                            <ChevronDown size={14} style={{ transform: isLeadPerfDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                          </div>
+
+                          {isLeadPerfDropdownOpen && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 6px)',
+                                right: 0,
+                                background: '#FFFFFF',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '8px',
+                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+                                padding: '6px',
+                                minWidth: '155px',
+                                zIndex: 50,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '2px'
+                              }}
+                            >
+                              {(['30days', '3months', '6months', '12months'] as const).map((key) => {
+                                const isSelected = leadPerfRange === key;
+                                const opt = leadPerfRangeOptions[key];
+                                return (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => {
+                                      setLeadPerfRange(key);
+                                      setIsLeadPerfDropdownOpen(false);
+                                      triggerToast(`Lead Performance filter: ${opt.label}`);
+                                    }}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      padding: '8px 10px',
+                                      borderRadius: '6px',
+                                      border: 'none',
+                                      background: isSelected ? '#FFF7ED' : 'transparent',
+                                      color: isSelected ? '#FF9200' : '#1E293B',
+                                      fontSize: '0.8rem',
+                                      fontWeight: isSelected ? 700 : 500,
+                                      cursor: 'pointer',
+                                      textAlign: 'left',
+                                      width: '100%',
+                                      transition: 'background 0.15s, color 0.15s'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                                    }}
+                                  >
+                                    <span>{opt.label}</span>
+                                    {isSelected && <Check size={14} style={{ color: '#FF9200' }} />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -2871,7 +2919,7 @@ interface SeoSettings {
                             const initials = (row.name || 'CU').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
                             return (
                               <tr key={row.id || i}>
-                                <td style={{ color: '#001827', fontWeight: 700, fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                                <td style={{ color: '#001827', fontWeight: 700, fontSize: '0.8rem', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                                   {formatEnquiryReference(row, enquiries)}
                                 </td>
                                 <td>
@@ -3111,17 +3159,9 @@ interface SeoSettings {
                         filteredEnquiries.map((enquiry) => (
                           <tr key={enquiry.id}>
                             <td>
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <strong style={{ color: '#001827', fontSize: '0.84rem', fontFamily: 'monospace', letterSpacing: '0.02em' }}>
-                                  {formatEnquiryReference(enquiry, enquiries)}
-                                </strong>
-                                <span
-                                  style={{ color: '#94A3B8', fontSize: '0.68rem', fontFamily: 'monospace' }}
-                                  title={`Internal Database ID: ${enquiry.id}`}
-                                >
-                                  DB: {enquiry.id && enquiry.id.length > 12 ? `${enquiry.id.slice(0, 10)}...` : enquiry.id}
-                                </span>
-                              </div>
+                              <strong style={{ color: '#001827', fontSize: '0.84rem', fontFamily: 'monospace', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+                                {formatEnquiryReference(enquiry, enquiries)}
+                              </strong>
                             </td>
                             <td>
                               <strong>{enquiry.name}</strong>
@@ -3279,7 +3319,7 @@ interface SeoSettings {
               {/* Category Filter Pills (Exact Matching Tabs in Single Row) */}
               <div className="admin-category-filter-bar">
                 {adminProductCategories.map((cat) => {
-                  const count = cat === 'All' ? products.filter(p => matchAdminCategory(p, 'All')).length : products.filter(p => matchAdminCategory(p, cat)).length;
+                  const count = products.filter(p => matchAdminCategory(p, cat)).length;
                   const isActive = adminProductCategory === cat;
                   return (
                     <button
@@ -4915,7 +4955,24 @@ interface SeoSettings {
           {/* Admin Footer */}
           <footer className="admin-page-footer">
             <span>© 2026 Jupiter Industries, All rights reserved.</span>
-            <span className="admin-footer-motto" style={{ color: '#FF9200', fontWeight: 600 }}>Crafted and Maintained by Ikasle Business Group</span>
+            <span className="admin-footer-motto" style={{ color: '#FF9200', fontWeight: 600 }}>
+              Crafted and Maintained by{' '}
+              <a
+                href="https://ikasleinnovations.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: '#FF9200',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  transition: 'text-decoration 0.2s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+              >
+                Ikasle Business Group
+              </a>
+            </span>
           </footer>
         </main>
       </div>
@@ -4955,14 +5012,6 @@ interface SeoSettings {
                   <span style={{ fontSize: '0.8rem', color: '#CBD5E1', fontWeight: 500 }}>
                     • {formatEnquiryDate(selectedEnquiry.createdAt || selectedEnquiry.date) || selectedEnquiry.date}
                   </span>
-                  {selectedEnquiry.id && (
-                    <span
-                      style={{ fontSize: '0.74rem', color: '#94A3B8', cursor: 'help' }}
-                      title={`Internal Database ID: ${selectedEnquiry.id}`}
-                    >
-                      (DB ID: {selectedEnquiry.id.length > 12 ? `${selectedEnquiry.id.slice(0, 10)}...` : selectedEnquiry.id})
-                    </span>
-                  )}
                 </div>
               </div>
               <button className="modal-close-btn" onClick={() => setSelectedEnquiry(null)}>
@@ -5013,67 +5062,6 @@ interface SeoSettings {
                   </p>
                 </div>
               )}
-
-              {/* Internal System / Database ID (retained for backend operations) */}
-              <div style={{
-                background: '#F8FAFC',
-                border: '1px solid #E2E8F0',
-                borderRadius: '8px',
-                padding: '8px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '10px',
-                flexWrap: 'wrap'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', whiteSpace: 'nowrap' }}>
-                    Internal DB ID:
-                  </span>
-                  <code
-                    style={{
-                      fontSize: '0.74rem',
-                      fontFamily: 'monospace',
-                      color: '#0F172A',
-                      background: '#E2E8F0',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}
-                    title={`Internal Database ID: ${selectedEnquiry.id} (used for backend operations and API requests)`}
-                  >
-                    {selectedEnquiry.id}
-                  </code>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (selectedEnquiry.id) {
-                      navigator.clipboard.writeText(selectedEnquiry.id);
-                      triggerToast('Internal DB ID copied to clipboard');
-                    }
-                  }}
-                  style={{
-                    background: '#FFFFFF',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: '5px',
-                    color: '#334155',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    padding: '3px 8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    cursor: 'pointer'
-                  }}
-                  title="Copy internal database ID for backend operations"
-                >
-                  <Copy size={12} className="text-muted" />
-                  <span>Copy ID</span>
-                </button>
-              </div>
 
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button

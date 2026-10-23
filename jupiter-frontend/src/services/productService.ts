@@ -88,7 +88,7 @@ export const CATEGORY_NAME_TO_SLUG_MAP: Record<string, string> = {
   'Batching Plant': 'batching-plant',
   'Batching & Mixing': 'batching-plant',
   'Storage Silo': 'storage-silo',
-  'Material Handling': 'fly-ash-brick-machine',
+  'Material Handling': 'material-handling',
   'Machine Spares': 'machine-spares',
   'All Genuine Machine Spares': 'machine-spares',
 };
@@ -104,6 +104,8 @@ export const SLUG_TO_CATEGORY_NAME_MAP: Record<string, string> = {
   'paver-block-machine': 'Paver Block Machine',
   'batching-plant': 'Batching Plant',
   'patching-plant': 'Batching Plant',
+  'ji-batching-plant': 'Batching Plant',
+  'ji-patching-plant-fly-ash-brick-material-batching-plant': 'Batching Plant',
   'storage-silo': 'Storage Silo',
   'machine-spares': 'Machine Spares',
   'spares': 'Machine Spares',
@@ -186,22 +188,52 @@ const mapBackendProduct = (p: any): ProductItem => {
   const specs = (typeof p.specifications === 'object' && p.specifications !== null)
     ? p.specifications
     : (typeof p.specs === 'object' && p.specs !== null ? p.specs : {});
-  const catLower = (p.category || '').toLowerCase();
+
+  // BUG 01 & BUG 02: Normalize JI Batching Plant name and category
+  const rawName = String(p.name || '').trim();
+  const rawSlug = String(p.slug || '').trim().toLowerCase();
+  const isBatchingPlantItem =
+    p.id === 'cmuwvagh20002kwuylnv0but0' ||
+    rawName.toLowerCase().includes('patching plant') ||
+    rawName.toLowerCase().includes('ji batching plant') ||
+    rawSlug.includes('patching-plant') ||
+    rawSlug.includes('ji-batching-plant');
+
+  const resolvedName = isBatchingPlantItem ? 'JI Batching Plant' : p.name;
+  const resolvedCategory = isBatchingPlantItem ? 'Batching Plant' : p.category;
+  const catLower = (resolvedCategory || '').toLowerCase();
   const categorySlug = p.categorySlug ||
-    CATEGORY_NAME_TO_SLUG_MAP[p.category] ||
+    CATEGORY_NAME_TO_SLUG_MAP[resolvedCategory] ||
     (catLower.includes('fly ash') ? 'fly-ash-brick-machine' :
      catLower.includes('block') ? 'hollow-and-solid-block-machine' :
      catLower.includes('paver') ? 'paver-block-machine' :
      catLower.includes('inter') ? 'inter-block-making-machine' :
      catLower.includes('batch') || catLower.includes('mix') ? 'batching-plant' :
      catLower.includes('silo') ? 'storage-silo' :
-     catLower.includes('spare') ? 'machine-spares' : 'fly-ash-brick-machine');
+     catLower.includes('spare') ? 'machine-spares' :
+     (resolvedCategory ? resolvedCategory.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''));
+
+  const rawDescription = String(p.description || '');
+  const resolvedDescription = isBatchingPlantItem
+    ? rawDescription.replace(/JI Patching Plant/g, 'JI Batching Plant').replace(/Patching Plant/g, 'Batching Plant')
+    : rawDescription;
+
+  const rawSpecRows = (Array.isArray(p.specTableRows) && p.specTableRows.length > 0)
+    ? p.specTableRows
+    : (Array.isArray(specs.specTableRows) ? specs.specTableRows : []);
+  const resolvedSpecTableRows = isBatchingPlantItem
+    ? rawSpecRows.map((r: any) => ({
+        ...r,
+        Details: typeof r.Details === 'string' ? r.Details.replace(/Patching/g, 'Batching') : r.Details,
+      }))
+    : rawSpecRows;
+
   return {
     id: p.id,
-    name: p.name,
-    slug: p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
-    brandTag: p.brandTag || specs.brandTag || p.category || '',
-    category: p.category,
+    name: resolvedName,
+    slug: p.slug || (resolvedName ? resolvedName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
+    brandTag: p.brandTag || specs.brandTag || resolvedCategory || '',
+    category: resolvedCategory,
     categorySlug,
     capacity: p.capacity || specs.capacity || (specs['Capacity'] || ''),
     capacityLabel: p.capacityLabel || specs.capacityLabel || 'Production Capacity',
@@ -215,12 +247,12 @@ const mapBackendProduct = (p: any): ProductItem => {
     galleryImages: (Array.isArray(p.galleryImages) && p.galleryImages.length > 0) ? p.galleryImages : (Array.isArray(specs.galleryImages) ? specs.galleryImages : []),
     status: (p.status || (p.isActive === false ? 'Inactive' : (p.isActive === true ? 'Active' : undefined)) || specs.status || 'Active') as 'Active' | 'Draft' | 'Inactive',
     order: Number(p.order ?? specs.order ?? specs.displayOrder ?? 0),
-    description: p.description || '',
+    description: resolvedDescription,
     featureBadges: (Array.isArray(p.featureBadges) && p.featureBadges.length > 0) ? p.featureBadges : (Array.isArray(specs.featureBadges) && specs.featureBadges.length > 0 ? specs.featureBadges : []),
     keyFeatures: (Array.isArray(p.keyFeatures) && p.keyFeatures.length > 0) ? p.keyFeatures : (Array.isArray(specs.keyFeatures) && specs.keyFeatures.length > 0 ? specs.keyFeatures : []),
     specs: typeof specs === 'object' ? specs : {},
     specTableColumns: (Array.isArray(p.specTableColumns) && p.specTableColumns.length > 0) ? p.specTableColumns : (Array.isArray(specs.specTableColumns) && specs.specTableColumns.length > 0 ? specs.specTableColumns : ['Parameter', 'Details']),
-    specTableRows: (Array.isArray(p.specTableRows) && p.specTableRows.length > 0) ? p.specTableRows : (Array.isArray(specs.specTableRows) ? specs.specTableRows : []),
+    specTableRows: resolvedSpecTableRows,
     highlights: (Array.isArray(p.highlights) && p.highlights.length > 0) ? p.highlights : (Array.isArray(specs.highlights) ? specs.highlights : []),
     advantages: (Array.isArray(p.advantages) && p.advantages.length > 0) ? p.advantages : (Array.isArray(specs.advantages) ? specs.advantages : []),
   };
@@ -794,7 +826,7 @@ const BASE_CATEGORY_METAS: Record<string, { name: string; subTitle: string; intr
     subTitle: 'Automatic Concrete Batching Plant',
     introDescription: 'High-precision concrete batching and mixing plants for concrete products, precast components, and ready-mix production. Features multi-bin aggregate hoppers, electronic digital loadcell weighing, and planetary pan mixers for homogenous mixes.',
     heroImage: '',
-    aliases: ['patching-plant', 'concrete-batching-plant']
+    aliases: ['patching-plant', 'concrete-batching-plant', 'ji-batching-plant', 'ji-patching-plant-fly-ash-brick-material-batching-plant']
   },
   'storage-silo': {
     name: 'Storage Silo',

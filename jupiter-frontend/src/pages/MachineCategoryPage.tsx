@@ -92,11 +92,18 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
       {/* Left Column: Product Image Gallery */}
       <div className="pdp-gallery-col">
         {/* Main Image Card with Zoom Button */}
-        <div className="pdp-main-image-card">
+        <div 
+          className="pdp-main-image-card"
+          onClick={() => onZoom(currentImg)}
+          title="Click to view full image"
+        >
           <button
             type="button"
             className="pdp-zoom-btn"
-            onClick={() => onZoom(currentImg)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onZoom(currentImg);
+            }}
             title="Click to zoom image"
             aria-label="Zoom image"
           >
@@ -647,11 +654,19 @@ export const MachineCategoryPage: React.FC = () => {
                 {/* Left Column: Product Image Gallery */}
                 <div className="pdp-gallery-col">
                   {/* Main Image Card with Zoom Button */}
-                  <div className="pdp-main-image-card">
+                  <div 
+                    className="pdp-main-image-card"
+                    onClick={() => {
+                      setLightboxImage(currentDisplayImage);
+                      setLightboxOpen(true);
+                    }}
+                    title="Click to view full image"
+                  >
                     <button
                       type="button"
                       className="pdp-zoom-btn"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setLightboxImage(currentDisplayImage);
                         setLightboxOpen(true);
                       }}

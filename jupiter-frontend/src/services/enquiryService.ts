@@ -74,10 +74,10 @@ export const DEFAULT_INITIAL_ENQUIRIES: EnquiryItem[] = [
     name: 'pava',
     email: 'pava@gmail.com',
     phone: '+91 9787510222',
-    product: 'JI Patching Plant – Fly Ash Brick Material Batching Plant',
-    productInterest: 'JI Patching Plant – Fly Ash Brick Material Batching Plant',
+    product: 'JI Batching Plant',
+    productInterest: 'JI Batching Plant',
     location: 'Pan India',
-    message: 'Quotation for: JI Patching Plant – Fly Ash Brick Material Batching Plant | Requirement: Quotation',
+    message: 'Quotation for: JI Batching Plant | Requirement: Quotation',
     status: 'New',
     date: '13 Oct 2026',
     createdAt: '2026-10-13T09:45:47.567Z',
@@ -126,7 +126,7 @@ const loadInitialEnquiries = (): EnquiryItem[] => {
   } catch (err) {
     // Ignore storage parse error
   }
-  return DEFAULT_INITIAL_ENQUIRIES;
+  return [];
 };
 
 let _cachedEnquiries: EnquiryItem[] = loadInitialEnquiries();
@@ -334,7 +334,12 @@ export const deleteEnquiryFromDb = async (id: string): Promise<void> => {
   } catch (err) {
     console.warn('Backend delete failed:', err);
   }
-  _cachedEnquiries = _cachedEnquiries.filter(e => e.id !== id);
+  _cachedEnquiries = _cachedEnquiries.filter(e => e.id !== id && e.enquiryId !== id);
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(ENQUIRIES_STORAGE_KEY, JSON.stringify(_cachedEnquiries));
+    }
+  } catch {}
   window.dispatchEvent(new Event('jupiter_enquiries_updated'));
 };
 
@@ -465,3 +470,6 @@ export const addStoredEnquiry = (item: Partial<EnquiryItem>): EnquiryItem => {
   saveStoredEnquiries(updated);
   return newEnq;
 };
+
+// Immediately load actual enquiries from database on initialization
+fetchEnquiriesFromDb().catch(() => {});

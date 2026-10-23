@@ -68,9 +68,19 @@ apiClient.interceptors.request.use((config) => {
     config.headers.set('Authorization', `Bearer ${token}`);
     config.headers.set('x-admin-request', 'true');
   } else {
-    // Explicitly delete to prevent sending empty/undefined/malformed values
-    config.headers.delete('Authorization');
-    config.headers.delete('x-admin-request');
+    // If admin session exists or on admin route, ensure admin header is set
+    const hasAdminContext = typeof window !== 'undefined' && (
+      window.location.pathname.startsWith('/admin') ||
+      window.location.search.includes('tab=') ||
+      !!window.localStorage.getItem('jupiter_admin_session_v1') ||
+      !!window.localStorage.getItem('admin_session')
+    );
+    if (hasAdminContext) {
+      config.headers.set('x-admin-request', 'true');
+    } else {
+      config.headers.delete('Authorization');
+      config.headers.delete('x-admin-request');
+    }
   }
   return config;
 });
@@ -188,6 +198,9 @@ export const submitEnquiry = async (data: EnquiryPayload): Promise<EnquiryRespon
   try {
     const response = await apiClient.post<EnquiryResponse>('/enquiries', data);
     await enforceDelay();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('jupiter_enquiries_updated'));
+    }
     return response.data;
   } catch (error: any) {
     await enforceDelay();

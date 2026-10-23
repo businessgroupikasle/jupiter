@@ -266,6 +266,15 @@ export const createApp = (): Application => {
     res.json({ success: true, status: 'OK', timestamp: new Date().toISOString() });
   });
 
+  // BUG 03: Legacy Website URLs permanent 301 redirects
+  app.get(['/about.html', '/about'], (req: Request, res: Response) => {
+    res.redirect(301, '/about-us');
+  });
+
+  app.get('/products.html', (req: Request, res: Response) => {
+    res.redirect(301, '/products');
+  });
+
   // Bulk test runner endpoint
   app.get('/api/test-bulk-runner', async (req: Request, res: Response) => {
     const fs = require('fs');

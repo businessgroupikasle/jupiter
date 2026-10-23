@@ -45,7 +45,7 @@ export const DEFAULT_LIVE_ENQUIRIES = [
     name: 'pava',
     email: 'pava@gmail.com',
     phone: '+91 9787510222',
-    message: 'Quotation for: JI Patching Plant – Fly Ash Brick Material Batching Plant | Requirement: Quotation',
+    message: 'Quotation for: JI Batching Plant | Requirement: Quotation',
     status: 'New',
     isRead: true,
     createdAt: new Date('2026-10-13T09:45:47.567Z'),
