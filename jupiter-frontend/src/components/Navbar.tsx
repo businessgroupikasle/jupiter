@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Phone, Menu, X, ArrowRight, ChevronDown } from 'lucide-react';
+import { Phone, Menu, X, ArrowRight, ChevronDown, ChevronRight } from 'lucide-react';
 
 import { IMAGES } from '../assets/images/images';
 
@@ -12,8 +12,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileProductsOpen, setMobileProductsOpen] = useState(false);
   const [desktopDropdownOpen, setDesktopDropdownOpen] = useState(false);
+  const [hoveredSubCategory, setHoveredSubCategory] = useState<string | null>(null);
+  const [mobileExpandedCategory, setMobileExpandedCategory] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const dropdownTimeoutRef = useRef<any>(null);
+  const subMenuTimeoutRef = useRef<any>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -27,6 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
   // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
+    setHoveredSubCategory(null);
   }, [location.pathname]);
 
   // Lock body scroll when mobile drawer is open
@@ -42,7 +46,30 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
   }, [mobileMenuOpen]);
 
   const productSubLinks = [
-    { name: 'Fly Ash Brick Machine', path: '/products/fly-ash-brick-machine' },
+    { 
+      name: 'Fly Ash Brick Machine', 
+      path: '/products/fly-ash-brick-machine',
+      subItems: [
+        {
+          name: 'Jupiter V 10 B Model – High Speed Fly Ash Brick Making Machine',
+          path: '/products/fly-ash-brick-machine?model=jupiter-v-10-b-model-high-speed-fly-ash-brick-making-machine',
+          shortCode: 'V 10 B',
+          tag: 'High-Speed Planetary Compaction'
+        },
+        {
+          name: 'Jupiter V 12 B Model – High Speed Fly Ash Brick Making Machine',
+          path: '/products/fly-ash-brick-machine?model=jupiter-v-12-b-model-high-speed-fly-ash-brick-making-machine',
+          shortCode: 'V 12 B',
+          tag: 'High-Speed Automated Press'
+        },
+        {
+          name: 'Jupiter V 15 B Model – High Speed Fly Ash Brick Making Machine',
+          path: '/products/fly-ash-brick-machine?model=jupiter-v-15-b-model-high-speed-fly-ash-brick-making-machine',
+          shortCode: 'V 15 B',
+          tag: 'Heavy-Duty 120 Ton Double Cylinder'
+        },
+      ]
+    },
     { name: 'Hollow and Solid Block Machine', path: '/products/hollow-and-solid-block-machine' },
     { name: 'Inter Block Making Machine', path: '/products/inter-block-making-machine' },
     { name: 'Paver Block Machine', path: '/products/paver-block-machine' },
@@ -186,37 +213,146 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
                     Machinery Categories
                   </span>
                 </div>
-                {productSubLinks.map((sub) => (
-                  <Link
-                    key={sub.path}
-                    to={sub.path}
-                    onClick={() => setDesktopDropdownOpen(false)}
-                    style={{
-                      display: 'block',
-                      padding: '10px 18px',
-                      fontSize: '0.88rem',
-                      fontWeight: 600,
-                      color: location.pathname === sub.path ? '#FF9200' : 'rgba(255, 255, 255, 0.9)',
-                      textDecoration: 'none',
-                      transition: 'all 0.15s ease',
-                      borderLeft: location.pathname === sub.path ? '3px solid #FF9200' : '3px solid transparent',
-                      background: location.pathname === sub.path ? 'rgba(255, 146, 0, 0.1)' : 'transparent'
-                    }}
-                    className="dropdown-hover-item"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 146, 0, 0.12)';
-                      e.currentTarget.style.color = '#FF9200';
-                      e.currentTarget.style.paddingLeft = '22px';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = location.pathname === sub.path ? 'rgba(255, 146, 0, 0.1)' : 'transparent';
-                      e.currentTarget.style.color = location.pathname === sub.path ? '#FF9200' : 'rgba(255, 255, 255, 0.9)';
-                      e.currentTarget.style.paddingLeft = '18px';
-                    }}
-                  >
-                    {sub.name}
-                  </Link>
-                ))}
+                {productSubLinks.map((sub: any) => {
+                  const hasSubItems = sub.subItems && sub.subItems.length > 0;
+                  const isHovered = hoveredSubCategory === sub.path;
+
+                  return (
+                    <div
+                      key={sub.path}
+                      style={{ position: 'relative' }}
+                      onMouseEnter={() => {
+                        if (subMenuTimeoutRef.current) clearTimeout(subMenuTimeoutRef.current);
+                        if (hasSubItems) {
+                          setHoveredSubCategory(sub.path);
+                        } else {
+                          setHoveredSubCategory(null);
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (hasSubItems) {
+                          subMenuTimeoutRef.current = setTimeout(() => {
+                            setHoveredSubCategory(null);
+                          }, 150);
+                        }
+                      }}
+                    >
+                      <Link
+                        to={sub.path}
+                        onClick={() => {
+                          setDesktopDropdownOpen(false);
+                          setHoveredSubCategory(null);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 18px',
+                          fontSize: '0.88rem',
+                          fontWeight: 600,
+                          color: location.pathname === sub.path || isHovered ? '#FF9200' : 'rgba(255, 255, 255, 0.9)',
+                          textDecoration: 'none',
+                          transition: 'all 0.15s ease',
+                          borderLeft: location.pathname === sub.path || isHovered ? '3px solid #FF9200' : '3px solid transparent',
+                          background: isHovered || location.pathname === sub.path ? 'rgba(255, 146, 0, 0.12)' : 'transparent',
+                          paddingLeft: isHovered ? '22px' : '18px'
+                        }}
+                        className="dropdown-hover-item"
+                      >
+                        <span>{sub.name}</span>
+                        {hasSubItems && (
+                          <ChevronRight
+                            size={14}
+                            style={{
+                              color: isHovered ? '#FF9200' : 'rgba(255, 255, 255, 0.45)',
+                              transition: 'transform 0.15s ease',
+                              transform: isHovered ? 'translateX(3px)' : 'none'
+                            }}
+                          />
+                        )}
+                      </Link>
+
+                      {/* Nested Flyout Submenu for Machine Models - Theme Format */}
+                      {hasSubItems && isHovered && (
+                        <div
+                          className="nav-custom-dropdown-panel"
+                          style={{
+                            position: 'absolute',
+                            top: '0',
+                            left: '100%',
+                            minWidth: '380px',
+                            background: '#081322',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            borderRadius: '10px',
+                            boxShadow: '0 14px 35px rgba(0, 15, 30, 0.45)',
+                            padding: '8px 0',
+                            zIndex: 1010,
+                            marginLeft: '4px',
+                            backdropFilter: 'blur(10px)',
+                            animation: 'fadeInMenu 0.18s ease'
+                          }}
+                          onMouseEnter={() => {
+                            if (subMenuTimeoutRef.current) clearTimeout(subMenuTimeoutRef.current);
+                            setHoveredSubCategory(sub.path);
+                          }}
+                          onMouseLeave={() => {
+                            subMenuTimeoutRef.current = setTimeout(() => {
+                              setHoveredSubCategory(null);
+                            }, 150);
+                          }}
+                        >
+                          {/* Invisible mouse bridge */}
+                          <div style={{ position: 'absolute', top: 0, left: '-12px', width: '12px', height: '100%' }} />
+
+                          {/* Submenu Header matching theme */}
+                          <div style={{ padding: '6px 16px 8px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#FF9200', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                              Machine Models
+                            </span>
+                          </div>
+
+                          {/* Submenu Item Links matching theme format */}
+                          {sub.subItems.map((model: any) => (
+                            <Link
+                              key={model.path}
+                              to={model.path}
+                              onClick={() => {
+                                setDesktopDropdownOpen(false);
+                                setHoveredSubCategory(null);
+                              }}
+                              style={{
+                                display: 'block',
+                                padding: '10px 18px',
+                                fontSize: '0.86rem',
+                                fontWeight: 600,
+                                color: 'rgba(255, 255, 255, 0.9)',
+                                textDecoration: 'none',
+                                transition: 'all 0.15s ease',
+                                borderLeft: '3px solid transparent',
+                                background: 'transparent'
+                              }}
+                              className="dropdown-hover-item"
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(255, 146, 0, 0.12)';
+                                e.currentTarget.style.color = '#FF9200';
+                                e.currentTarget.style.paddingLeft = '22px';
+                                e.currentTarget.style.borderLeft = '3px solid #FF9200';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+                                e.currentTarget.style.paddingLeft = '18px';
+                                e.currentTarget.style.borderLeft = '3px solid transparent';
+                              }}
+                            >
+                              {model.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -319,27 +455,107 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
             </div>
 
             {mobileProductsOpen && (
-              <div style={{ paddingLeft: '12px', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
-                {productSubLinks.map(sub => (
-                  <Link
-                    key={sub.path}
-                    to={sub.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    style={{
-                      fontSize: '0.88rem',
-                      color: location.pathname === sub.path ? '#FF9200' : 'rgba(255, 255, 255, 0.85)',
-                      padding: '10px 12px',
-                      textDecoration: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      minHeight: '44px',
-                      borderRadius: '6px',
-                      background: location.pathname === sub.path ? 'rgba(255, 146, 0, 0.1)' : 'transparent'
-                    }}
-                  >
-                    • {sub.name}
-                  </Link>
-                ))}
+              <div style={{ paddingLeft: '8px', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px' }}>
+                {productSubLinks.map((sub: any) => {
+                  const hasSubItems = sub.subItems && sub.subItems.length > 0;
+                  const isExpanded = mobileExpandedCategory === sub.path;
+
+                  return (
+                    <div key={sub.path} style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '6px'
+                      }}>
+                        <Link
+                          to={sub.path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          style={{
+                            fontSize: '0.88rem',
+                            color: location.pathname === sub.path ? '#FF9200' : 'rgba(255, 255, 255, 0.85)',
+                            padding: '10px 12px',
+                            textDecoration: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            flex: 1,
+                            minHeight: '44px',
+                            borderRadius: '6px',
+                            background: location.pathname === sub.path ? 'rgba(255, 146, 0, 0.1)' : 'transparent'
+                          }}
+                        >
+                          • {sub.name}
+                        </Link>
+                        {hasSubItems && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMobileExpandedCategory(isExpanded ? null : sub.path);
+                            }}
+                            style={{
+                              background: isExpanded ? '#FF9200' : 'rgba(255, 146, 0, 0.15)',
+                              border: '1px solid rgba(255, 146, 0, 0.35)',
+                              borderRadius: '6px',
+                              color: isExpanded ? '#000000' : '#FF9200',
+                              padding: '6px 10px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              marginRight: '8px'
+                            }}
+                            aria-label={`Toggle ${sub.name} models`}
+                          >
+                            <span>Models</span>
+                            <ChevronDown
+                              size={13}
+                              style={{
+                                transform: isExpanded ? 'rotate(180deg)' : 'none',
+                                transition: 'transform 0.2s ease'
+                              }}
+                            />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Nested Models Accordion */}
+                      {hasSubItems && isExpanded && (
+                        <div style={{
+                          paddingLeft: '14px',
+                          marginLeft: '14px',
+                          borderLeft: '2px solid rgba(255, 146, 0, 0.4)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          marginTop: '4px',
+                          marginBottom: '8px'
+                        }}>
+                          {sub.subItems.map((model: any) => (
+                            <Link
+                              key={model.path}
+                              to={model.path}
+                              onClick={() => setMobileMenuOpen(false)}
+                              style={{
+                                fontSize: '0.84rem',
+                                color: 'rgba(255, 255, 255, 0.85)',
+                                padding: '8px 10px',
+                                textDecoration: 'none',
+                                display: 'block',
+                                borderRadius: '4px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              {model.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

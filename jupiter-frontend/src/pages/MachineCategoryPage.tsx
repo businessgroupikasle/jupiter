@@ -16,9 +16,17 @@ import {
   Droplets,
   Coins,
   Check,
-  Search
+  Search,
+  Zap,
+  RotateCw,
+  Layers,
+  CircleDot,
+  Truck,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import { getCategoryBySlug, SubMachineItem, fetchProducts } from '../services/productService';
+import { getStoredAncillaryEquipment, AncillaryEquipmentItem, getAncillaryEnabledCategories } from '../services/ancillaryEquipmentService';
 import { submitEnquiry } from '../services/api';
 import { PageBanner } from '../components/PageBanner';
 import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
@@ -238,6 +246,23 @@ export const MachineCategoryPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Ancillary / Related Machinery list synced live with Admin Panel
+  const [ancillaryEquipmentList, setAncillaryEquipmentList] = useState<AncillaryEquipmentItem[]>(() => getStoredAncillaryEquipment());
+  const [ancillaryEnabledCategories, setAncillaryEnabledCategories] = useState<string[]>(() => getAncillaryEnabledCategories());
+
+  useEffect(() => {
+    const handleAncillaryUpdate = () => {
+      setAncillaryEquipmentList(getStoredAncillaryEquipment());
+      setAncillaryEnabledCategories(getAncillaryEnabledCategories());
+    };
+    window.addEventListener('jupiter_ancillary_updated', handleAncillaryUpdate);
+    window.addEventListener('storage', handleAncillaryUpdate);
+    return () => {
+      window.removeEventListener('jupiter_ancillary_updated', handleAncillaryUpdate);
+      window.removeEventListener('storage', handleAncillaryUpdate);
+    };
+  }, []);
+
   // Sync live whenever products are added, edited, or loaded
   useEffect(() => {
     fetchProducts().then(() => setUpdateTrigger(prev => prev + 1)).catch(() => {});
@@ -262,6 +287,12 @@ export const MachineCategoryPage: React.FC = () => {
   }, [currentSlug, updateTrigger]);
 
   const isSparesCategory = currentSlug === 'machine-spares' || currentSlug === 'spares' || (categoryData && categoryData.slug === 'machine-spares');
+
+  const isAncillaryVisibleOnThisCategory = useMemo(() => {
+    if (isSparesCategory) return false;
+    const slug = (currentSlug || '').toLowerCase();
+    return ancillaryEnabledCategories.some(s => s.toLowerCase() === slug);
+  }, [currentSlug, isSparesCategory, ancillaryEnabledCategories]);
 
   const canonicalPath = categoryData ? `https://jupitergroups.in/products/${categoryData.slug}` : `https://jupitergroups.in/products/${currentSlug}`;
 
@@ -932,7 +963,772 @@ export const MachineCategoryPage: React.FC = () => {
                   )}
                 </div>
               </div>
-            </>
+
+              {/* CREATIVE ANCILLARY MACHINERY & EQUIPMENT SECTION (VISIBLE ONLY ON ALLOWED CATEGORIES) */}
+              {isAncillaryVisibleOnThisCategory && (
+                <div className="pdp-creative-ancillary-section">
+                <style>{`
+                  .pdp-creative-ancillary-section {
+                    margin-top: 64px;
+                    padding-top: 56px;
+                    border-top: 1px solid #E2E8F0;
+                    position: relative;
+                  }
+
+                  .pdp-ancillary-header {
+                    text-align: center;
+                    max-width: 820px;
+                    margin: 0 auto 46px auto;
+                  }
+
+                  .pdp-ancillary-pill {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 6px 16px;
+                    background: #FFF7ED;
+                    border: 1px solid #FFEDD5;
+                    border-radius: 9999px;
+                    color: #C2410C;
+                    font-size: 0.75rem;
+                    font-weight: 800;
+                    letter-spacing: 0.5px;
+                    text-transform: uppercase;
+                    margin-bottom: 14px;
+                    box-shadow: 0 2px 6px rgba(255, 146, 0, 0.1);
+                  }
+
+                  .pdp-ancillary-pill-dot {
+                    width: 7px;
+                    height: 7px;
+                    border-radius: 50%;
+                    background: #FF9200;
+                    box-shadow: 0 0 0 3px rgba(255, 146, 0, 0.25);
+                  }
+
+                  .pdp-ancillary-title {
+                    color: #00233D;
+                    font-size: 2.15rem;
+                    font-weight: 800;
+                    margin: 0 0 12px 0;
+                    letter-spacing: -0.5px;
+                    line-height: 1.2;
+                  }
+
+                  .pdp-ancillary-divider {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 12px;
+                    margin: 0 auto 16px auto;
+                  }
+
+                  .pdp-ancillary-divider-line {
+                    width: 50px;
+                    height: 3px;
+                    background: #FF9200;
+                    border-radius: 3px;
+                  }
+
+                  .pdp-ancillary-divider-diamond {
+                    width: 8px;
+                    height: 8px;
+                    background: #FF9200;
+                    transform: rotate(45deg);
+                    border-radius: 1px;
+                  }
+
+                  .pdp-ancillary-desc {
+                    color: #555555;
+                    font-size: 0.95rem;
+                    line-height: 1.6;
+                    margin: 0;
+                  }
+
+                  /* 2-Column Responsive Grid */
+                  .pdp-ancillary-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 32px;
+                    align-items: start;
+                  }
+
+                  @media (max-width: 992px) {
+                    .pdp-ancillary-grid {
+                      grid-template-columns: 1fr;
+                      gap: 28px;
+                    }
+                  }
+
+                  /* Creative Card */
+                  .pdp-equipment-card {
+                    background: #FFFFFF;
+                    border-radius: 20px;
+                    border: 1px solid rgba(0, 35, 61, 0.12);
+                    box-shadow: 0 10px 30px -4px rgba(0, 35, 61, 0.08), 0 2px 6px -1px rgba(0, 35, 61, 0.04);
+                    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                    margin-bottom: 32px;
+                  }
+
+                  .pdp-equipment-card:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 22px 42px -8px rgba(0, 35, 61, 0.16), 0 4px 14px -2px rgba(255, 146, 0, 0.2);
+                    border-color: rgba(255, 146, 0, 0.45);
+                  }
+
+                  .pdp-card-accent-bar {
+                    height: 4px;
+                    background: linear-gradient(90deg, #FF9200 0%, #FFA826 50%, #00233D 100%);
+                  }
+
+                  .pdp-card-header {
+                    padding: 18px 24px 14px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #F1F5F9;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                  }
+
+                  .pdp-card-header-left {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                  }
+
+                  .pdp-card-cat-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 0.72rem;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    color: #FF9200;
+                  }
+
+                  .pdp-card-title {
+                    color: #00233D;
+                    font-size: 1.4rem;
+                    font-weight: 800;
+                    margin: 0;
+                    letter-spacing: -0.3px;
+                  }
+
+                  .pdp-card-compat-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: #FFF7ED;
+                    border: 1px solid #FFEDD5;
+                    color: #C2410C;
+                    font-size: 0.73rem;
+                    font-weight: 700;
+                    padding: 4px 10px;
+                    border-radius: 9999px;
+                  }
+
+                  .pdp-card-compat-dot {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background: #FF9200;
+                  }
+
+                  /* Card Body Layout */
+                  .pdp-card-body-split {
+                    display: flex;
+                    padding: 20px 24px;
+                    gap: 20px;
+                    align-items: stretch;
+                  }
+
+                  @media (max-width: 640px) {
+                    .pdp-card-body-split {
+                      flex-direction: column;
+                      padding: 16px;
+                    }
+                  }
+
+                  .pdp-card-img-col {
+                    flex: 0 0 42%;
+                    background: radial-gradient(circle at center, #FFFFFF 0%, #F8FAFC 85%);
+                    border: 1px solid #E2E8F0;
+                    border-radius: 14px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px 14px;
+                    position: relative;
+                    cursor: pointer;
+                    overflow: hidden;
+                    transition: all 0.3s ease;
+                  }
+
+                  .pdp-card-img-col:hover {
+                    border-color: #FED7AA;
+                    box-shadow: 0 8px 20px rgba(255, 146, 0, 0.12);
+                  }
+
+                  .pdp-card-img {
+                    max-width: 100%;
+                    max-height: 180px;
+                    object-fit: contain;
+                    filter: drop-shadow(0 10px 15px rgba(0, 35, 61, 0.1));
+                    transition: transform 0.35s ease;
+                  }
+
+                  .pdp-card-img-col:hover .pdp-card-img {
+                    transform: scale(1.06);
+                  }
+
+                  .pdp-img-zoom-chip {
+                    position: absolute;
+                    bottom: 10px;
+                    background: rgba(0, 35, 61, 0.75);
+                    backdrop-filter: blur(4px);
+                    color: #FFFFFF;
+                    font-size: 0.68rem;
+                    font-weight: 700;
+                    padding: 3px 9px;
+                    border-radius: 20px;
+                    opacity: 0;
+                    transform: translateY(6px);
+                    transition: all 0.25s ease;
+                    pointer-events: none;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                  }
+
+                  .pdp-card-img-col:hover .pdp-img-zoom-chip {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+
+                  /* Specs Column & Micro-Tiles */
+                  .pdp-card-specs-col {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                  }
+
+                  .pdp-specs-col-header {
+                    font-size: 0.8rem;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    letter-spacing: 0.6px;
+                    color: #00233D;
+                    margin-bottom: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                  }
+
+                  .pdp-spec-tiles-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 10px;
+                    flex: 1;
+                  }
+
+                  @media (max-width: 480px) {
+                    .pdp-spec-tiles-grid {
+                      grid-template-columns: 1fr;
+                    }
+                  }
+
+                  .pdp-spec-tile {
+                    background: linear-gradient(145deg, #FFFFFF 0%, #F8FAFC 100%);
+                    border: 1px solid #E2E8F0;
+                    border-radius: 12px;
+                    padding: 12px 10px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    text-align: center;
+                    justify-content: center;
+                    transition: all 0.25s ease;
+                  }
+
+                  .pdp-spec-tile:hover {
+                    background: #FFFFFF;
+                    border-color: #FED7AA;
+                    box-shadow: 0 4px 12px rgba(255, 146, 0, 0.1);
+                    transform: translateY(-2px);
+                  }
+
+                  .pdp-tile-icon-badge {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 9px;
+                    background: linear-gradient(135deg, #FF9200 0%, #E05300 100%);
+                    color: #FFFFFF;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: 6px;
+                    box-shadow: 0 3px 8px rgba(255, 146, 0, 0.3);
+                  }
+
+                  .pdp-tile-label {
+                    color: #00233D;
+                    font-size: 0.68rem;
+                    font-weight: 800;
+                    letter-spacing: 0.4px;
+                    text-transform: uppercase;
+                    margin-bottom: 4px;
+                  }
+
+                  .pdp-tile-val {
+                    color: #00233D;
+                    font-size: 0.78rem;
+                    font-weight: 700;
+                    line-height: 1.35;
+                  }
+
+                  .pdp-pill-wrap {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 4px;
+                    justify-content: center;
+                    margin-top: 2px;
+                  }
+
+                  .pdp-val-chip {
+                    background: #FFF7ED;
+                    border: 1px solid #FFEDD5;
+                    color: #C2410C;
+                    font-size: 0.68rem;
+                    font-weight: 700;
+                    padding: 1px 6px;
+                    border-radius: 4px;
+                  }
+
+                  /* Card Footer Actions */
+                  .pdp-card-footer {
+                    padding: 14px 24px;
+                    background: #F8FAFC;
+                    border-top: 1px solid #F1F5F9;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                  }
+
+                  .pdp-card-btn-quote {
+                    background: #FF9200;
+                    color: #FFFFFF;
+                    font-weight: 700;
+                    font-size: 0.82rem;
+                    letter-spacing: 0.3px;
+                    padding: 8px 18px;
+                    border-radius: 8px;
+                    border: none;
+                    cursor: pointer;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: all 0.25s ease;
+                    box-shadow: 0 3px 10px rgba(255, 146, 0, 0.35);
+                  }
+
+                  .pdp-card-btn-quote:hover {
+                    background: #E05300;
+                    box-shadow: 0 5px 15px rgba(255, 146, 0, 0.45);
+                    transform: translateY(-1px);
+                  }
+
+                  .pdp-card-btn-wa {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    color: #15803D;
+                    background: #F0FDF4;
+                    border: 1px solid #BBF7D0;
+                    padding: 7px 14px;
+                    border-radius: 8px;
+                    font-size: 0.8rem;
+                    font-weight: 700;
+                    text-decoration: none;
+                    transition: all 0.2s ease;
+                  }
+
+                  .pdp-card-btn-wa:hover {
+                    background: #DCFCE7;
+                    color: #166534;
+                  }
+
+                  /* Pallet Truck Dual Showcase */
+                  .pdp-pallet-dual-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 16px;
+                    padding: 20px 24px 14px;
+                  }
+
+                  @media (max-width: 600px) {
+                    .pdp-pallet-dual-grid {
+                      grid-template-columns: 1fr;
+                    }
+                  }
+
+                  .pdp-pallet-subcard {
+                    background: radial-gradient(circle at center, #FFFFFF 0%, #F8FAFC 85%);
+                    border: 1px solid #E2E8F0;
+                    border-radius: 14px;
+                    padding: 16px 14px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    text-align: center;
+                    cursor: pointer;
+                    position: relative;
+                    transition: all 0.3s ease;
+                  }
+
+                  .pdp-pallet-subcard:hover {
+                    border-color: #FED7AA;
+                    box-shadow: 0 6px 16px rgba(255, 146, 0, 0.12);
+                  }
+
+                  .pdp-subcard-tag {
+                    background: #00233D;
+                    color: #FF9200;
+                    font-size: 0.68rem;
+                    font-weight: 800;
+                    letter-spacing: 0.5px;
+                    padding: 2px 8px;
+                    border-radius: 6px;
+                    margin-bottom: 8px;
+                  }
+
+                  .pdp-pallet-img {
+                    max-width: 100%;
+                    max-height: 130px;
+                    object-fit: contain;
+                    margin-bottom: 10px;
+                    filter: drop-shadow(0 6px 10px rgba(0, 35, 61, 0.08));
+                    transition: transform 0.35s ease;
+                  }
+
+                  .pdp-pallet-img-type1 {
+                    clip-path: inset(0 0 16% 0);
+                    margin-bottom: -4px;
+                  }
+
+                  .pdp-pallet-subcard:hover .pdp-pallet-img {
+                    transform: scale(1.05);
+                  }
+
+                  .pdp-pallet-subcard-text {
+                    font-size: 0.76rem;
+                    color: #475569;
+                    font-weight: 600;
+                    line-height: 1.35;
+                    margin: 0;
+                  }
+
+                  .pdp-pallet-type2-specs-wrap {
+                    padding: 0 24px 20px;
+                  }
+
+                  .pdp-type2-specs-title {
+                    color: #00233D;
+                    font-size: 0.8rem;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-bottom: 10px;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                  }
+
+                  .pdp-pallet-specs-3col {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 12px;
+                  }
+
+                  @media (max-width: 540px) {
+                    .pdp-pallet-specs-3col {
+                      grid-template-columns: 1fr;
+                    }
+                  }
+                `}</style>
+
+                {/* Section Header */}
+                <div className="pdp-ancillary-header">
+                  <div className="pdp-ancillary-pill">
+                    <span className="pdp-ancillary-pill-dot"></span>
+                    <Sparkles size={14} style={{ color: '#FF9200' }} />
+                    <span>Factory-Integrated Ancillary Equipment</span>
+                  </div>
+                  <h3 className="pdp-ancillary-title">Related Machinery & Equipment</h3>
+                  <div className="pdp-ancillary-divider">
+                    <div className="pdp-ancillary-divider-line"></div>
+                    <div className="pdp-ancillary-divider-diamond"></div>
+                    <div className="pdp-ancillary-divider-line"></div>
+                  </div>
+                  <p className="pdp-ancillary-desc">
+                    Engineered to complement your Jupiter brick & block production line with heavy-duty automated batch mixing, continuous material conveying, and ergonomic yard handling.
+                  </p>
+                </div>
+
+                {/* 2-Column Responsive Dynamic Grid */}
+                {(() => {
+                  const activeEquipment = ancillaryEquipmentList.filter(item => {
+                    if (!item.isActive) return false;
+                    if (item.applicableCategories === undefined) {
+                      return (currentSlug || '').toLowerCase() === 'fly-ash-brick-machine';
+                    }
+                    return item.applicableCategories.map(s => s.toLowerCase()).includes((currentSlug || '').toLowerCase());
+                  });
+                  if (activeEquipment.length === 0) return null;
+
+                  const leftColumnItems = activeEquipment.filter((_, idx) => idx % 2 === 0);
+                  const rightColumnItems = activeEquipment.filter((_, idx) => idx % 2 === 1);
+
+                  const renderSpecIcon = (label: string) => {
+                    const l = label.toLowerCase();
+                    if (l.includes('capacity')) return <Maximize2 size={16} />;
+                    if (l.includes('power')) return <Zap size={16} />;
+                    if (l.includes('gear')) return <Settings size={16} />;
+                    if (l.includes('wheel')) return <CircleDot size={16} />;
+                    if (l.includes('system') || l.includes('transport') || l.includes('truck')) return <Truck size={16} />;
+                    if (l.includes('storage') || l.includes('feed') || l.includes('mode')) return <RotateCw size={16} />;
+                    return <Layers size={16} />;
+                  };
+
+                  const renderCategoryIcon = (badge: string) => {
+                    const b = badge.toLowerCase();
+                    if (b.includes('mixing')) return <Layers size={13} />;
+                    if (b.includes('convey') || b.includes('feed')) return <RotateCw size={13} />;
+                    if (b.includes('transport') || b.includes('handling')) return <Truck size={13} />;
+                    if (b.includes('wheel') || b.includes('hauling')) return <CircleDot size={13} />;
+                    return <Sparkles size={13} />;
+                  };
+
+                  const renderEquipmentCard = (eq: AncillaryEquipmentItem) => {
+                    if (eq.layoutType === 'dual_variant' && eq.variants && eq.variants.length > 0) {
+                      return (
+                        <div key={eq.id} className="pdp-equipment-card">
+                          <div className="pdp-card-accent-bar"></div>
+                          <div className="pdp-card-header">
+                            <div className="pdp-card-header-left">
+                              <span className="pdp-card-cat-badge">
+                                {renderCategoryIcon(eq.categoryBadge)}
+                                <span>{eq.categoryBadge}</span>
+                              </span>
+                              <h4 className="pdp-card-title">{eq.name}</h4>
+                            </div>
+                            <div className="pdp-card-compat-badge">
+                              <span className="pdp-card-compat-dot"></span>
+                              <span>{eq.compatibilityBadge}</span>
+                            </div>
+                          </div>
+
+                          {/* Dual Configurations Grid */}
+                          <div className="pdp-pallet-dual-grid">
+                            {eq.variants.map((v) => (
+                              <div
+                                key={v.id}
+                                className="pdp-pallet-subcard"
+                                onClick={() => {
+                                  setLightboxImage(v.image);
+                                  setLightboxOpen(true);
+                                }}
+                              >
+                                <span className="pdp-subcard-tag">{v.name}</span>
+                                <img
+                                  src={v.image}
+                                  alt={v.name}
+                                  className={`pdp-pallet-img ${v.imageClass || ''}`}
+                                  onError={handleImageError}
+                                />
+                                <p className="pdp-pallet-subcard-text">
+                                  {v.description}
+                                </p>
+                                <div className="pdp-img-zoom-chip" style={{ bottom: '8px' }}>
+                                  <Maximize2 size={12} />
+                                  <span>Inspect</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Variant Specs */}
+                          {eq.specs && eq.specs.length > 0 && (
+                            <div className="pdp-pallet-type2-specs-wrap">
+                              <div className="pdp-type2-specs-title">
+                                <Settings size={14} />
+                                <span>{eq.specsTitle || 'Technical Specifications'}</span>
+                              </div>
+                              <div className="pdp-pallet-specs-3col">
+                                {eq.specs.map((s, sIdx) => (
+                                  <div key={sIdx} className="pdp-spec-tile">
+                                    <div className="pdp-tile-icon-badge">
+                                      {renderSpecIcon(s.label)}
+                                    </div>
+                                    <span className="pdp-tile-label">{s.label}</span>
+                                    <span className="pdp-tile-val" style={{ whiteSpace: 'pre-line' }}>{s.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="pdp-card-footer">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenQuote(eq.name)}
+                              className="pdp-card-btn-quote"
+                            >
+                              <span>{eq.quoteLabel || `Get ${eq.name} Quote`}</span>
+                              <ArrowRight size={14} />
+                            </button>
+                            <a
+                              href={`https://wa.me/919342919060?text=${encodeURIComponent(eq.whatsAppMessage || `Hello Jupiter, I am interested in the ${eq.name} specifications and pricing.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="pdp-card-btn-wa"
+                            >
+                              <WhatsAppIcon size={16} />
+                              <span>Enquire on WhatsApp</span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Standard Card Layout
+                    return (
+                      <div key={eq.id} className="pdp-equipment-card">
+                        <div className="pdp-card-accent-bar"></div>
+                        <div className="pdp-card-header">
+                          <div className="pdp-card-header-left">
+                            <span className="pdp-card-cat-badge">
+                              {renderCategoryIcon(eq.categoryBadge)}
+                              <span>{eq.categoryBadge}</span>
+                            </span>
+                            <h4 className="pdp-card-title">{eq.name}</h4>
+                          </div>
+                          <div className="pdp-card-compat-badge">
+                            <span className="pdp-card-compat-dot"></span>
+                            <span>{eq.compatibilityBadge}</span>
+                          </div>
+                        </div>
+
+                        <div className="pdp-card-body-split">
+                          <div
+                            className="pdp-card-img-col"
+                            onClick={() => {
+                              setLightboxImage(eq.image);
+                              setLightboxOpen(true);
+                            }}
+                            title={`Click to zoom ${eq.name}`}
+                          >
+                            <img
+                              src={eq.image}
+                              alt={`Jupiter ${eq.name}`}
+                              className="pdp-card-img"
+                              onError={handleImageError}
+                            />
+                            <div className="pdp-img-zoom-chip">
+                              <Maximize2 size={12} />
+                              <span>Inspect</span>
+                            </div>
+                          </div>
+
+                          <div className="pdp-card-specs-col">
+                            <div className="pdp-specs-col-header">
+                              <Settings size={14} />
+                              <span>Technical Specifications</span>
+                            </div>
+
+                            <div
+                              className="pdp-spec-tiles-grid"
+                              style={eq.specs && eq.specs.length <= 2 ? { gridTemplateColumns: '1fr' } : undefined}
+                            >
+                              {eq.specs.map((s, sIdx) => {
+                                const isPill = s.isPillList || (s.value.includes(',') && s.value.split(',').length >= 3);
+                                return (
+                                  <div
+                                    key={sIdx}
+                                    className="pdp-spec-tile"
+                                    style={eq.specs.length <= 2 ? { padding: '14px 10px' } : undefined}
+                                  >
+                                    <div className="pdp-tile-icon-badge">
+                                      {renderSpecIcon(s.label)}
+                                    </div>
+                                    <span className="pdp-tile-label">{s.label}</span>
+                                    {isPill ? (
+                                      <div className="pdp-pill-wrap">
+                                        {s.value.split(',').map((pillVal, pIdx) => (
+                                          <span key={pIdx} className="pdp-val-chip">
+                                            {pillVal.trim()}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="pdp-tile-val"
+                                        style={s.value.length > 25 ? { fontSize: '0.74rem' } : undefined}
+                                      >
+                                        {s.value}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pdp-card-footer">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenQuote(eq.name)}
+                            className="pdp-card-btn-quote"
+                          >
+                            <span>{eq.quoteLabel || `Get ${eq.name} Quote`}</span>
+                            <ArrowRight size={14} />
+                          </button>
+                          <a
+                            href={`https://wa.me/919342919060?text=${encodeURIComponent(eq.whatsAppMessage || `Hello Jupiter, I am interested in the ${eq.name} specifications and pricing.`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="pdp-card-btn-wa"
+                          >
+                            <WhatsAppIcon size={16} />
+                            <span>Enquire on WhatsApp</span>
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  };
+
+                  return (
+                    <div className="pdp-ancillary-grid">
+                      <div>
+                        {leftColumnItems.map(renderEquipmentCard)}
+                      </div>
+                      <div>
+                        {rightColumnItems.map(renderEquipmentCard)}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </>
           )}
         </div>
       </section>

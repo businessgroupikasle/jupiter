@@ -19,7 +19,7 @@ export const Hero: React.FC<HeroProps> = ({ onOpenVideoModal }) => {
 
   return (
     <section className="hero-section">
-      {/* High-Performance LCP Discovery Image with Responsive WebP Sources */}
+      {/* High-Performance LCP Discovery Image using /images/hero-banner-desktop.png */}
       <picture
         style={{
           position: 'absolute',
@@ -31,17 +31,15 @@ export const Hero: React.FC<HeroProps> = ({ onOpenVideoModal }) => {
           pointerEvents: 'none'
         }}
       >
-        <source media="(max-width: 768px)" srcSet="/images/hero-banner-mobile.webp" type="image/webp" />
-        <source media="(min-width: 769px)" srcSet="/images/hero-banner-desktop.webp" type="image/webp" />
-        <source media="(max-width: 768px)" srcSet="/images/hero-banner-mobile.jpg" type="image/jpeg" />
+        <source srcSet="/images/hero-banner-desktop.png" type="image/png" />
         <img
-          src="/images/hero-banner-desktop.jpg"
+          src="/images/hero-banner-desktop.png"
           alt="Jupiter Industries Industrial Machinery Plant"
           fetchPriority="high"
           loading="eager"
           decoding="async"
-          width={1400}
-          height={787}
+          width={1920}
+          height={768}
           style={{
             position: 'absolute',
             top: 0,
