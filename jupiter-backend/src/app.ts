@@ -19,8 +19,12 @@ import reviewRoutes from './routes/reviewRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import authRoutes from './routes/authRoutes';
 import uploadRoutes from './routes/uploadRoutes';
+import mediaRoutes from './routes/mediaRoutes';
 import seoRoutes from './routes/seoRoutes';
 import { errorHandler } from './middleware/errorHandler';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const createApp = (): Application => {
   const app = express();
@@ -113,7 +117,7 @@ export const createApp = (): Application => {
   app.use('/api/uploads', express.static(uploadsDir, { maxAge: '1d' }));
 
   // Fallback handler for product images to ensure no configured/requested image returns 404
-  const serveProductUpload = (req: Request, res: Response, next: NextFunction) => {
+  const serveProductUpload = async (req: Request, res: Response, next: NextFunction): Promise<any> => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
 
     const requestPath = req.path;
@@ -128,6 +132,29 @@ export const createApp = (): Application => {
     const directUploads = path.join(uploadsDir, filename);
     if (fs.existsSync(directUploads)) {
       return res.sendFile(directUploads);
+    }
+
+    // Check PostgreSQL Media table first before filesystem heuristics
+    try {
+      const media = await prisma.media.findFirst({
+        where: {
+          OR: [
+            { filename: filename },
+            { id: filename.replace(/\.[^.]+$/, '') },
+          ],
+        },
+      });
+      if (media && media.data) {
+        try {
+          fs.writeFileSync(directProducts, Buffer.from(media.data));
+        } catch {}
+        res.setHeader('Content-Type', media.mimeType || 'image/jpeg');
+        res.setHeader('Content-Length', media.size);
+        res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+        return res.end(Buffer.from(media.data));
+      }
+    } catch {
+      // proceed to heuristics
     }
 
     try {
@@ -311,6 +338,8 @@ export const createApp = (): Application => {
   app.use('/api', reviewRoutes);
   app.use('/api', dashboardRoutes);
   app.use('/api', uploadRoutes);
+  app.use('/api', mediaRoutes);
+  app.use(mediaRoutes);
 
   // Technical SEO routes (/sitemap.xml, /robots.txt, /api/sitemap.xml, /api/robots.txt)
   app.use(seoRoutes);

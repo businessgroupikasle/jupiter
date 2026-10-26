@@ -50,6 +50,11 @@ export { DEFAULT_PRODUCT_V15B, DEFAULT_CATALOG_PRODUCTS };
  */
 export const ensureDefaultProducts = async (): Promise<void> => {
   try {
+    const totalCount = await prisma.product.count();
+    if (totalCount > 0) {
+      // Products already exist in database — do not override with default catalog
+      return;
+    }
     for (const prod of DEFAULT_CATALOG_PRODUCTS) {
       const existing = await prisma.product.findFirst({
         where: {
@@ -85,7 +90,6 @@ export const ensureDefaultProducts = async (): Promise<void> => {
         });
         console.log(`[Product] Seeded default machine: ${prod.name}`);
       }
-      // If product already exists in database, do not overwrite it so admin updates remain permanent
     }
   } catch (err) {
     console.warn('[Product] Note on ensuring default products:', err);
@@ -93,8 +97,8 @@ export const ensureDefaultProducts = async (): Promise<void> => {
 };
 
 /**
- * Normalizes product ordering across categories so that each product has a
- * clean, unique, sequential order value (1, 2, 3...) per category.
+ * Normalizes product ordering across categories so that products without
+ * an explicit order get a clean sequential value without clobbering existing orders.
  */
 export const normalizeProductOrders = async (): Promise<void> => {
   try {
@@ -114,11 +118,11 @@ export const normalizeProductOrders = async (): Promise<void> => {
 
     for (const [, catProducts] of categoryGroups.entries()) {
       for (let i = 0; i < catProducts.length; i++) {
-        const expectedOrder = i + 1;
-        if (catProducts[i].order !== expectedOrder) {
+        // Only set order if product has no order or order is non-positive
+        if (!catProducts[i].order || catProducts[i].order <= 0) {
           await prisma.product.update({
             where: { id: catProducts[i].id },
-            data: { order: expectedOrder },
+            data: { order: i + 1 },
           });
         }
       }
@@ -854,6 +858,8 @@ export const clearAllProducts = async (req: Request, res: Response, next: NextFu
   }
 };
 
+import fs from 'fs';
+
 // POST /api/products/upload (Dedicated product image upload endpoint, supporting multiple images)
 export const uploadProductImageHandler = async (req: Request, res: Response): Promise<void> => {
   const files = getUploadedFiles(req);
@@ -863,6 +869,23 @@ export const uploadProductImageHandler = async (req: Request, res: Response): Pr
       message: "No image file provided. Frontend upload field name must be 'images' (or 'image').",
     });
     return;
+  }
+
+  for (const f of files) {
+    try {
+      const fileBuf = fs.readFileSync(f.path);
+      await prisma.media.create({
+        data: {
+          filename: f.filename,
+          mimeType: f.mimetype || 'image/jpeg',
+          size: f.size,
+          data: fileBuf,
+          url: `/uploads/products/${f.filename}`,
+        },
+      });
+    } catch (e) {
+      console.warn('[Product] Note saving to media table:', e);
+    }
   }
 
   const relativePaths = files.map((f) => `/uploads/products/${f.filename}`);

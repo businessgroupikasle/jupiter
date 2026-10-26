@@ -2,6 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
 
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 const uploadsDir = path.join(process.cwd(), 'uploads');
 const ensureUploadsDir = (): void => {
   try {
@@ -22,6 +25,21 @@ export const handleUpload = async (req: Request, res: Response, next: NextFuncti
     // 1. If multipart file was uploaded via multer (field 'image')
     if (req.file) {
       const relativePath = `/uploads/products/${req.file.filename}`;
+      try {
+        const fileBuf = fs.readFileSync(req.file.path);
+        await prisma.media.create({
+          data: {
+            filename: req.file.filename,
+            mimeType: req.file.mimetype || 'image/jpeg',
+            size: req.file.size,
+            data: fileBuf,
+            url: relativePath,
+          },
+        });
+      } catch (err) {
+        console.warn('[Upload] Note saving to media table:', err);
+      }
+
       res.status(201).json({
         success: true,
         message: 'File uploaded successfully',
@@ -82,6 +100,21 @@ export const handleUpload = async (req: Request, res: Response, next: NextFuncti
     fs.writeFileSync(filePath, buffer);
 
     const publicUrl = `/uploads/${targetName}`;
+
+    try {
+      await prisma.media.create({
+        data: {
+          filename: targetName,
+          mimeType: matches ? matches[1] : `image/${ext}`,
+          size: buffer.length,
+          data: buffer as any,
+          url: publicUrl,
+        },
+      });
+    } catch (err) {
+      console.warn('[Upload] Note saving base64 to media table:', err);
+    }
+
     res.status(201).json({
       success: true,
       message: 'File uploaded successfully',

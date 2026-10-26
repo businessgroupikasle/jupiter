@@ -16,6 +16,8 @@ model Enquiry {
   message   String
   status    String   @default("New")
   isRead    Boolean  @default(false)
+  location  String?  @default("Pan India")
+  machine   String?
   createdAt DateTime @default(now())
 
   productId String?
@@ -52,6 +54,7 @@ model Product {
   images         ProductImage[]
   details        ProductDetailItem[]
   enquiries      Enquiry[]
+  media          Media[]
 
   @@index([category])
   @@index([order])
@@ -157,7 +160,30 @@ model Video {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  media       Media[]
+
   @@index([category])
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  filename  String
+  mimeType  String   @default("image/jpeg")
+  size      Int
+  data      Bytes
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  videoId   String?
+  video     Video?   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([videoId])
+  @@index([filename])
 }
 
 model Faq {
