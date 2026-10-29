@@ -221,6 +221,7 @@ model DeliveryLocation {
 model User {
   id        String   @id @default(cuid())
   name      String
+  username  String?  @unique
   email     String   @unique
   role      String   @default("Admin") // Super Admin, Admin, Editor
   avatar    String?
@@ -233,6 +234,7 @@ model User {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  @@index([username])
   @@index([email])
   @@index([resetPasswordToken])
 }
@@ -254,6 +256,7 @@ model Setting {
   address             String?  @db.Text @default("SF No. 345/2, Trichy Road, Coimbatore, Tamil Nadu 641018")
   gstNumber           String?  @default("33AAAAJ1234A1Z5")
   socialLinks         Json?
+  ancillaryEnabledCategories String[] @default(["fly-ash-brick-machine"])
   updatedAt           DateTime @updatedAt
 }
 
@@ -273,3 +276,26 @@ model Review {
 
   @@index([status])
 }
+
+model AncillaryEquipment {
+  id                   String   @id @default(cuid())
+  name                 String
+  categoryBadge        String
+  compatibilityBadge   String
+  image                String
+  layoutType           String   @default("standard")
+  variants             Json?
+  specsTitle           String?  @default("Technical Specifications")
+  specs                Json
+  quoteLabel           String?
+  whatsAppMessage      String?
+  applicableCategories String[] @default(["fly-ash-brick-machine"])
+  order                Int      @default(0)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([order])
+  @@index([isActive])
+}
+

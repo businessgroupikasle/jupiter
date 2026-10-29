@@ -40,12 +40,14 @@ const getIdParam = (req: Request): string => {
  */
 export const ensureDefaultAdminUser = async (): Promise<void> => {
   try {
+    const adminUsername = (env.ADMIN_USERNAME || 'Jupiterindustries').trim();
     const adminEmail = (env.ADMIN_EMAIL || 'admin@jupiter.com').trim().toLowerCase();
-    const adminPassword = env.ADMIN_PASSWORD ? env.ADMIN_PASSWORD.trim() : 'admin123';
+    const adminPassword = (env.ADMIN_PASSWORD || 'Jupiter@2026').trim();
 
     let existingAdmin = await prisma.user.findFirst({
       where: {
         OR: [
+          { username: { equals: adminUsername, mode: 'insensitive' } },
           { email: { equals: adminEmail, mode: 'insensitive' } },
           { role: 'Super Admin' },
         ],
@@ -56,6 +58,7 @@ export const ensureDefaultAdminUser = async (): Promise<void> => {
       existingAdmin = await prisma.user.create({
         data: {
           name: 'Jupiter Admin',
+          username: adminUsername,
           email: adminEmail,
           role: 'Super Admin',
           status: 'Active',
@@ -63,22 +66,18 @@ export const ensureDefaultAdminUser = async (): Promise<void> => {
           password: hashPassword(adminPassword),
         },
       });
-      console.log(`[Auth] Created default Super Admin user: ${existingAdmin.email}`);
+      console.log(`[Auth] Created default Super Admin user: ${existingAdmin.username} (${existingAdmin.email})`);
     } else {
-      // If admin has no password set or is inactive, ensure active and hashed password
-      const needsPasswordUpdate = !existingAdmin.password;
-      const needsActivation = existingAdmin.status !== 'Active';
-
-      if (needsPasswordUpdate || needsActivation) {
-        await prisma.user.update({
-          where: { id: existingAdmin.id },
-          data: {
-            status: 'Active',
-            password: existingAdmin.password || hashPassword(adminPassword),
-          },
-        });
-        console.log(`[Auth] Synchronized admin user credentials for: ${existingAdmin.email}`);
-      }
+      // Ensure username is set to Jupiterindustries, status is Active, and password hash matches
+      await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: {
+          username: adminUsername,
+          status: 'Active',
+          password: hashPassword(adminPassword),
+        },
+      });
+      console.log(`[Auth] Synchronized admin user credentials for: ${adminUsername} (${existingAdmin.email})`);
     }
   } catch (err: any) {
     console.warn('[Auth] Note during admin bootstrap:', err.message);
@@ -95,6 +94,7 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction):
         select: {
           id: true,
           name: true,
+          username: true,
           email: true,
           role: true,
           avatar: true,
@@ -107,11 +107,13 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction):
       });
     } catch (dbErr) {
       console.warn('[Users] Database unavailable for getUsers, returning default admin user');
+      const adminUsername = (env.ADMIN_USERNAME || 'Jupiterindustries').trim();
       const adminEmail = (env.ADMIN_EMAIL || 'admin@jupiter.com').trim().toLowerCase();
       users = [
         {
           id: 'usr-admin-local',
           name: 'Jupiter Admin',
+          username: adminUsername,
           email: adminEmail,
           role: 'Super Admin',
           avatar: null,
@@ -138,6 +140,7 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
       select: {
         id: true,
         name: true,
+        username: true,
         email: true,
         role: true,
         avatar: true,
@@ -173,6 +176,7 @@ export const getMe = async (req: Request, res: Response, next: NextFunction): Pr
       select: {
         id: true,
         name: true,
+        username: true,
         email: true,
         role: true,
         avatar: true,
@@ -192,7 +196,7 @@ export const getMe = async (req: Request, res: Response, next: NextFunction): Pr
 // POST /api/users
 export const createUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { name, email, role, avatar, status, phone, password } = req.body;
+    const { name, username, email, role, avatar, status, phone, password } = req.body;
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       res.status(400).json({ success: false, message: 'Name is required' });
@@ -219,6 +223,18 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
       return;
     }
 
+    let cleanUsername: string | null = null;
+    if (username && typeof username === 'string' && username.trim()) {
+      cleanUsername = username.trim();
+      const existingUsername = await prisma.user.findFirst({
+        where: { username: { equals: cleanUsername, mode: 'insensitive' } },
+      });
+      if (existingUsername) {
+        res.status(409).json({ success: false, message: 'User already exists with this username' });
+        return;
+      }
+    }
+
     const assignedRole = role && VALID_ROLES.includes(role.trim()) ? role.trim() : 'Admin';
     const assignedStatus = status && ['Active', 'Inactive'].includes(status) ? status : 'Active';
     const rawPass = password && typeof password === 'string' && password.trim() ? password.trim() : (env.ADMIN_PASSWORD || 'admin123');
@@ -227,6 +243,7 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
     const user = await prisma.user.create({
       data: {
         name: name.trim(),
+        username: cleanUsername,
         email: cleanEmail,
         role: assignedRole,
         avatar: avatar || null,
@@ -250,7 +267,7 @@ export const createUser = async (req: Request, res: Response, next: NextFunction
 export const updateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = getIdParam(req);
-    const { name, email, role, avatar, status, phone, password } = req.body;
+    const { name, username, email, role, avatar, status, phone, password } = req.body;
 
     const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) {
@@ -260,6 +277,19 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
 
     const updateData: any = {};
     if (name !== undefined) updateData.name = String(name).trim();
+    if (username !== undefined) {
+      const cleanUsername = String(username).trim();
+      if (cleanUsername) {
+        const duplicateUsername = await prisma.user.findFirst({
+          where: { username: { equals: cleanUsername, mode: 'insensitive' }, NOT: { id } },
+        });
+        if (duplicateUsername) {
+          res.status(409).json({ success: false, message: 'Another user already exists with this username' });
+          return;
+        }
+        updateData.username = cleanUsername;
+      }
+    }
     if (email !== undefined) {
       const cleanEmail = String(email).trim().toLowerCase();
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -316,53 +346,71 @@ export const deleteUser = async (req: Request, res: Response, next: NextFunction
 // POST /api/users/login & POST /api/auth/login
 export const loginUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const rawIdentifier = req.body.username || req.body.email || req.body.identifier;
+    const { password } = req.body;
 
-    if (!email || !password) {
-      res.status(400).json({ success: false, message: 'Both email and password are required' });
+    if (!rawIdentifier || !password) {
+      res.status(400).json({ success: false, message: 'Both username/email and password are required' });
       return;
     }
 
-    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanIdentifier = String(rawIdentifier).trim();
+    const cleanEmail = cleanIdentifier.toLowerCase();
+    const configuredAdminUsername = (env.ADMIN_USERNAME || 'Jupiterindustries').trim();
     const configuredAdminEmail = (env.ADMIN_EMAIL || 'admin@jupiter.com').trim().toLowerCase();
-    const configuredAdminPassword = env.ADMIN_PASSWORD ? env.ADMIN_PASSWORD.trim() : 'admin123';
+    const configuredAdminPassword = (env.ADMIN_PASSWORD || 'Jupiter@2026').trim();
 
     let user: any = null;
     let isDbAvailable = true;
 
     try {
       user = await prisma.user.findFirst({
-        where: { email: { equals: cleanEmail, mode: 'insensitive' } },
+        where: {
+          OR: [
+            { username: { equals: cleanIdentifier, mode: 'insensitive' } },
+            { email: { equals: cleanEmail, mode: 'insensitive' } },
+          ],
+        },
       });
 
-      // If user does not exist in DB, check if it matches the configured ADMIN_EMAIL & ADMIN_PASSWORD
+      // If user does not exist in DB, check if it matches the configured ADMIN_USERNAME or ADMIN_EMAIL
       if (!user) {
-        if (cleanEmail === configuredAdminEmail && env.ADMIN_PASSWORD && verifyPassword(password, null)) {
+        const isMatchConfigAdmin =
+          cleanIdentifier.toLowerCase() === configuredAdminUsername.toLowerCase() ||
+          cleanEmail === configuredAdminEmail;
+
+        if (isMatchConfigAdmin && verifyPassword(password, hashPassword(configuredAdminPassword))) {
           user = await prisma.user.create({
             data: {
               name: 'Jupiter Admin',
+              username: configuredAdminUsername,
               email: configuredAdminEmail,
               role: 'Super Admin',
               status: 'Active',
               phone: '+91 93429 19060',
-              password: hashPassword(password),
+              password: hashPassword(configuredAdminPassword),
             },
           });
-          console.log(`[Auth] Auto-bootstrapped configured Super Admin: ${cleanEmail}`);
+          console.log(`[Auth] Auto-bootstrapped configured Super Admin: ${configuredAdminUsername} (${configuredAdminEmail})`);
         }
       }
     } catch (dbError: any) {
       isDbAvailable = false;
       console.warn('[Auth] Database connection note during login:', dbError?.message || dbError);
 
-      // Resilient local fallback: If database is unreachable or credentials mismatch, verify against configured admin
+      const isMatchConfigAdmin =
+        cleanIdentifier.toLowerCase() === configuredAdminUsername.toLowerCase() ||
+        cleanEmail === configuredAdminEmail;
+
+      // Resilient local fallback: If database is unreachable, verify against configured admin
       if (
-        cleanEmail === configuredAdminEmail &&
-        (verifyPassword(password, null) || password === configuredAdminPassword || password === 'admin123')
+        isMatchConfigAdmin &&
+        (verifyPassword(password, hashPassword(configuredAdminPassword)) || password === configuredAdminPassword)
       ) {
         user = {
           id: 'usr-admin-local',
           name: 'Jupiter Admin',
+          username: configuredAdminUsername,
           email: configuredAdminEmail,
           role: 'Super Admin',
           status: 'Active',
@@ -374,7 +422,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     }
 
     if (!user) {
-      res.status(401).json({ success: false, message: 'Invalid email or password' });
+      res.status(401).json({ success: false, message: 'Invalid username/email or password' });
       return;
     }
 
@@ -387,7 +435,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
     if (isDbAvailable && user.password) {
       const validPassword = verifyPassword(password, user.password);
       if (!validPassword) {
-        res.status(401).json({ success: false, message: 'Invalid email or password' });
+        res.status(401).json({ success: false, message: 'Invalid username/email or password' });
         return;
       }
 
@@ -397,6 +445,7 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
           where: { id: user.id },
           data: {
             lastLogin: new Date(),
+            ...(user.role === 'Super Admin' && !user.username ? { username: configuredAdminUsername } : {}),
             password: user.password && /^pbkdf2\$\d+\$/.test(user.password)
               ? user.password
               : hashPassword(password),

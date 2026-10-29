@@ -21,6 +21,7 @@ import authRoutes from './routes/authRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import mediaRoutes from './routes/mediaRoutes';
 import seoRoutes from './routes/seoRoutes';
+import ancillaryEquipmentRoutes from './routes/ancillaryEquipmentRoutes';
 import { errorHandler } from './middleware/errorHandler';
 import { PrismaClient } from '@prisma/client';
 
@@ -92,6 +93,9 @@ export const createApp = (): Application => {
       'Accept',
       'Origin',
       'Cookie',
+      'Cache-Control',
+      'Pragma',
+      'If-None-Match',
       'x-admin-request',
       'x-admin-token',
     ],
@@ -340,6 +344,7 @@ export const createApp = (): Application => {
   app.use('/api', uploadRoutes);
   app.use('/api', mediaRoutes);
   app.use(mediaRoutes);
+  app.use('/api', ancillaryEquipmentRoutes);
 
   // Technical SEO routes (/sitemap.xml, /robots.txt, /api/sitemap.xml, /api/robots.txt)
   app.use(seoRoutes);

@@ -10,8 +10,9 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default('http://localhost:3026'),
   CORS_ORIGINS: z.string().optional().default(''),
   JWT_SECRET: z.string().default('jupiter_auth_jwt_secure_secret_token_2026'),
+  ADMIN_USERNAME: z.string().optional().default('Jupiterindustries'),
   ADMIN_EMAIL: z.string().optional().default('admin@jupiter.com'),
-  ADMIN_PASSWORD: z.string().optional().default('admin123'),
+  ADMIN_PASSWORD: z.string().optional().default('Jupiter@2026'),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

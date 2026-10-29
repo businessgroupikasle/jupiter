@@ -31,14 +31,109 @@ export const mapProductResponse = (p: any): Record<string, any> => {
   const primaryImageUrl = imageList[0] || (p.image && typeof p.image === 'string' && p.image.trim().length > 0 ? p.image.trim() : '');
   const { _count, ...rest } = p;
 
+  const rawSpecs = p.specifications;
+  let specsObj: Record<string, any> = {};
+  if (typeof rawSpecs === 'string') {
+    try {
+      specsObj = JSON.parse(rawSpecs);
+    } catch {
+      specsObj = {};
+    }
+  } else if (typeof rawSpecs === 'object' && rawSpecs !== null) {
+    specsObj = { ...rawSpecs };
+  }
+
+  // Reconstruct missing specification collections from ProductDetailItem if present
+  if (Array.isArray(p.details) && p.details.length > 0) {
+    if (!Array.isArray(specsObj.highlights) || specsObj.highlights.length === 0) {
+      const hItems = p.details.filter((d: any) => d.type === 'Highlight').sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+      if (hItems.length > 0) {
+        specsObj.highlights = hItems.map((d: any) => ({ id: d.id, title: d.title, description: d.description || '' }));
+      }
+    }
+    if (!Array.isArray(specsObj.advantages) || specsObj.advantages.length === 0) {
+      const aItems = p.details.filter((d: any) => d.type === 'Advantage').sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+      if (aItems.length > 0) {
+        specsObj.advantages = aItems.map((d: any) => ({ id: d.id, title: d.title, description: d.description || '' }));
+      }
+    }
+    if (!Array.isArray(specsObj.keyFeatures) || specsObj.keyFeatures.length === 0) {
+      const kfItems = p.details.filter((d: any) => d.type === 'KeyFeature').sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+      if (kfItems.length > 0) {
+        specsObj.keyFeatures = kfItems.map((d: any) => d.title);
+      }
+    }
+    if (!Array.isArray(specsObj.featureBadges) || specsObj.featureBadges.length === 0) {
+      const fbItems = p.details.filter((d: any) => d.type === 'FeatureBadge').sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+      if (fbItems.length > 0) {
+        specsObj.featureBadges = fbItems.map((d: any) => d.title);
+      }
+    }
+    if (!Array.isArray(specsObj.specTableRows) || specsObj.specTableRows.length === 0) {
+      const specItems = p.details.filter((d: any) => d.type === 'Specification').sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+      if (specItems.length > 0) {
+        specsObj.specTableRows = specItems.map((d: any) => {
+          const rowObj: Record<string, string> = {
+            Parameter: d.title,
+            Details: d.value || '',
+          };
+          if (d.description) rowObj.Specification = d.description;
+          return rowObj;
+        });
+      }
+    }
+  }
+
+  const galleryImages = Array.isArray(specsObj.galleryImages)
+    ? specsObj.galleryImages
+    : (Array.isArray(rest.galleryImages) ? rest.galleryImages : imageList.slice(1));
+  const featureBadges = Array.isArray(specsObj.featureBadges)
+    ? specsObj.featureBadges
+    : (Array.isArray(rest.featureBadges) ? rest.featureBadges : []);
+  const highlights = Array.isArray(specsObj.highlights)
+    ? specsObj.highlights
+    : (Array.isArray(rest.highlights) ? rest.highlights : []);
+  const advantages = Array.isArray(specsObj.advantages)
+    ? specsObj.advantages
+    : (Array.isArray(rest.advantages) ? rest.advantages : []);
+  const keyFeatures = Array.isArray(specsObj.keyFeatures)
+    ? specsObj.keyFeatures
+    : (Array.isArray(rest.keyFeatures) ? rest.keyFeatures : []);
+  const specTableColumns = Array.isArray(specsObj.specTableColumns) && specsObj.specTableColumns.length > 0
+    ? specsObj.specTableColumns
+    : (Array.isArray(rest.specTableColumns) && rest.specTableColumns.length > 0 ? rest.specTableColumns : ['Parameter', 'Details', 'Specification']);
+  const specTableRows = Array.isArray(specsObj.specTableRows)
+    ? specsObj.specTableRows
+    : (Array.isArray(rest.specTableRows) ? rest.specTableRows : []);
+
   return {
     ...rest,
+    specifications: specsObj,
+    specs: specsObj,
+    brandTag: specsObj.brandTag ?? rest.brandTag ?? '',
+    capacityLabel: specsObj.capacityLabel || 'Production Capacity',
+    powerLabel: specsObj.powerLabel || 'Total Connected Power',
+    brickSizeLabel: specsObj.brickSizeLabel || 'Brick / Mold Size',
+    brickSize: p.brickSize || specsObj.brickSize || '',
+    galleryImages,
+    featureBadges,
+    highlights,
+    advantages,
+    keyFeatures,
+    specTableColumns,
+    specTableRows,
     imageUrl: primaryImageUrl,
     images: imageList,
     image: primaryImageUrl,
     enquiryCount: realEnquiryCount,
     enquiriesCount: realEnquiryCount,
     status: p.isActive ? 'Active' : 'Inactive',
+    metaTitle: specsObj.metaTitle || specsObj.seoMetaTitle || '',
+    metaDescription: specsObj.metaDescription || specsObj.seoMetaDescription || '',
+    seoMetaTitle: specsObj.seoMetaTitle || specsObj.metaTitle || '',
+    seoMetaDescription: specsObj.seoMetaDescription || specsObj.metaDescription || '',
+    focusKeyword: specsObj.focusKeyword || '',
+    secondaryKeywords: specsObj.secondaryKeywords || '',
   };
 };
 
@@ -49,51 +144,8 @@ export { DEFAULT_PRODUCT_V15B, DEFAULT_CATALOG_PRODUCTS };
  * Ensures all 13 official Jupiter machinery models exist and are up to date in the database.
  */
 export const ensureDefaultProducts = async (): Promise<void> => {
-  try {
-    const totalCount = await prisma.product.count();
-    if (totalCount > 0) {
-      // Products already exist in database — do not override with default catalog
-      return;
-    }
-    for (const prod of DEFAULT_CATALOG_PRODUCTS) {
-      const existing = await prisma.product.findFirst({
-        where: {
-          OR: [{ id: prod.id }, { slug: prod.slug }],
-        },
-      });
-
-      if (!existing) {
-        await prisma.product.create({
-          data: {
-            id: prod.id,
-            name: prod.name,
-            slug: prod.slug,
-            category: prod.category,
-            description: prod.description,
-            capacity: prod.capacity,
-            power: prod.power,
-            brickSize: prod.brickSize,
-            image: prod.image,
-            isActive: prod.isActive,
-            order: prod.order,
-            specifications: prod.specifications,
-            images: {
-              create: [
-                {
-                  url: prod.image,
-                  isPrimary: true,
-                  order: 0,
-                },
-              ],
-            },
-          },
-        });
-        console.log(`[Product] Seeded default machine: ${prod.name}`);
-      }
-    }
-  } catch (err) {
-    console.warn('[Product] Note on ensuring default products:', err);
-  }
+  // DB-only mode: Do not auto-seed default catalogs into database
+  return;
 };
 
 /**
@@ -102,7 +154,6 @@ export const ensureDefaultProducts = async (): Promise<void> => {
  */
 export const normalizeProductOrders = async (): Promise<void> => {
   try {
-    await ensureDefaultProducts();
     const products = await prisma.product.findMany({
       orderBy: [{ category: 'asc' }, { order: 'asc' }, { createdAt: 'asc' }],
     });
@@ -185,15 +236,10 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
     });
 
     const mapped = products.map(mapProductResponse);
-    if (mapped.length === 0) {
-      res.status(200).json({ success: true, count: DEFAULT_CATALOG_PRODUCTS.length, data: DEFAULT_CATALOG_PRODUCTS });
-      return;
-    }
-
     res.status(200).json({ success: true, count: mapped.length, data: mapped });
   } catch (error) {
     console.error('[Product] getProducts error:', error);
-    res.status(200).json({ success: true, count: DEFAULT_CATALOG_PRODUCTS.length, data: DEFAULT_CATALOG_PRODUCTS });
+    res.status(500).json({ success: false, message: 'Failed to fetch products from database' });
   }
 };
 
@@ -221,17 +267,6 @@ export const getProductByIdOrSlug = async (req: Request, res: Response, next: Ne
     });
 
     if (!product) {
-      const match = DEFAULT_CATALOG_PRODUCTS.find(
-        (p) =>
-          p.id === cleanParam ||
-          p.slug === cleanParam ||
-          p.name.toLowerCase() === cleanParam.toLowerCase() ||
-          p.slug.toLowerCase().includes(cleanParam.toLowerCase())
-      );
-      if (match) {
-        res.status(200).json({ success: true, data: match });
-        return;
-      }
       res.status(404).json({ success: false, message: `Product '${cleanParam}' not found` });
       return;
     }
@@ -243,22 +278,10 @@ export const getProductByIdOrSlug = async (req: Request, res: Response, next: Ne
     res.status(200).json({ success: true, data: mapProductResponse(product) });
   } catch (error) {
     console.error('[Product] getProductByIdOrSlug error:', error);
-    const rawParam = (req.params.idOrSlug as string) || '';
-    const cleanParam = rawParam.trim().replace(/\/+$/, '').replace(/\.html$/i, '');
-    const match = DEFAULT_CATALOG_PRODUCTS.find(
-      (p) =>
-        p.id === cleanParam ||
-        p.slug === cleanParam ||
-        p.name.toLowerCase() === cleanParam.toLowerCase() ||
-        p.slug.toLowerCase().includes(cleanParam.toLowerCase())
-    );
-    if (match) {
-      res.status(200).json({ success: true, data: match });
-      return;
-    }
-    res.status(404).json({ success: false, message: 'Product not found or invalid query parameter' });
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
 
 // POST /api/products
 export const createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -307,27 +330,45 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
     const uploadedFiles = getUploadedFiles(req);
     const uploadedImagePaths = uploadedFiles.map((f) => `/uploads/products/${f.filename}`);
 
-    // Resolve images sent in request body if any
+    // Persist uploaded files into Media table for durable database storage
+    for (const f of uploadedFiles) {
+      try {
+        const fileBuf = fs.readFileSync(f.path);
+        await prisma.media.create({
+          data: {
+            filename: f.filename,
+            mimeType: f.mimetype || 'image/jpeg',
+            size: f.size,
+            data: fileBuf,
+            url: `/uploads/products/${f.filename}`,
+          },
+        });
+      } catch (err) {
+        console.warn('[Product] Note saving uploaded file to media table:', err);
+      }
+    }
+
+    // Resolve images sent in request body if any (excluding temporary blob URLs)
     let bodyImages: string[] = [];
     if (Array.isArray(images)) {
-      bodyImages = images.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
+      bodyImages = images.filter((img: any) => typeof img === 'string' && img.trim().length > 0 && !img.startsWith('blob:'));
     } else if (typeof images === 'string' && images.trim().length > 0) {
       try {
         const parsed = JSON.parse(images);
         if (Array.isArray(parsed)) {
-          bodyImages = parsed.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
-        } else {
+          bodyImages = parsed.filter((img: any) => typeof img === 'string' && img.trim().length > 0 && !img.startsWith('blob:'));
+        } else if (!images.startsWith('blob:')) {
           bodyImages = [images.trim()];
         }
       } catch {
-        bodyImages = images.split(',').map((s: string) => s.trim()).filter(Boolean);
+        bodyImages = images.split(',').map((s: string) => s.trim()).filter((s: string) => Boolean(s) && !s.startsWith('blob:'));
       }
     }
 
     if (bodyImages.length === 0) {
-      if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim()) {
+      if (imageUrl && typeof imageUrl === 'string' && imageUrl.trim() && !imageUrl.startsWith('blob:')) {
         bodyImages.push(imageUrl.trim());
-      } else if (image && typeof image === 'string' && image.trim()) {
+      } else if (image && typeof image === 'string' && image.trim() && !image.startsWith('blob:')) {
         bodyImages.push(image.trim());
       }
     }
@@ -345,7 +386,7 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
         } catch {
           parsedSpecs = {};
         }
-      } else if (typeof specifications === 'object') {
+      } else if (typeof specifications === 'object' && specifications !== null) {
         parsedSpecs = specifications;
       }
     }
@@ -367,17 +408,20 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
 
     const specsPayload: Record<string, any> = {
       ...parsedSpecs,
-      brandTag: brandTag || parsedSpecs.brandTag || 'JUPITER',
+      brandTag: brandTag !== undefined ? brandTag : (parsedSpecs.brandTag || ''),
       brickSize: resolvedBrickSize,
       capacity: resolvedCapacity,
       power: resolvedPower,
-      ...(galleryImages ? { galleryImages: parseJsonField(galleryImages) } : {}),
-      ...(featureBadges ? { featureBadges: parseJsonField(featureBadges) } : {}),
-      ...(specTableColumns ? { specTableColumns: parseJsonField(specTableColumns) } : {}),
-      ...(specTableRows ? { specTableRows: parseJsonField(specTableRows) } : {}),
-      ...(highlights ? { highlights: parseJsonField(highlights) } : {}),
-      ...(advantages ? { advantages: parseJsonField(advantages) } : {}),
-      ...(keyFeatures ? { keyFeatures: parseJsonField(keyFeatures) } : {}),
+      capacityLabel: parsedSpecs.capacityLabel || 'Production Capacity',
+      powerLabel: parsedSpecs.powerLabel || 'Total Connected Power',
+      brickSizeLabel: parsedSpecs.brickSizeLabel || 'Brick / Mold Size',
+      galleryImages: galleryImages !== undefined ? parseJsonField(galleryImages) : (parsedSpecs.galleryImages || []),
+      featureBadges: featureBadges !== undefined ? parseJsonField(featureBadges) : (parsedSpecs.featureBadges || []),
+      specTableColumns: specTableColumns !== undefined ? parseJsonField(specTableColumns) : (parsedSpecs.specTableColumns || ['Parameter', 'Details', 'Specification']),
+      specTableRows: specTableRows !== undefined ? parseJsonField(specTableRows) : (parsedSpecs.specTableRows || []),
+      highlights: highlights !== undefined ? parseJsonField(highlights) : (parsedSpecs.highlights || []),
+      advantages: advantages !== undefined ? parseJsonField(advantages) : (parsedSpecs.advantages || []),
+      keyFeatures: keyFeatures !== undefined ? parseJsonField(keyFeatures) : (parsedSpecs.keyFeatures || []),
     };
 
     const isActive =
@@ -397,41 +441,121 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
       order = (maxOrderProd?.order ?? 0) + 1;
     }
 
-    const product = await prisma.product.create({
-      data: {
-        name: baseName,
-        slug: finalSlug,
-        category: category || 'Fly Ash Brick Machine',
-        description: description || '',
-        capacity: resolvedCapacity,
-        power: resolvedPower,
-        brickSize: resolvedBrickSize,
-        image: coverImage,
-        specifications: specsPayload,
-        isActive,
-        order,
-        ...(finalImagesList.length > 0
-          ? {
-              images: {
-                create: finalImagesList.map((url, idx) => ({
-                  url,
-                  isPrimary: idx === 0,
-                  order: idx,
-                })),
-              },
-            }
-          : {}),
-      },
-      include: {
-        images: { orderBy: { order: 'asc' } },
-        details: { orderBy: { order: 'asc' } },
-      },
+    const createdProduct = await prisma.$transaction(async (tx) => {
+      const prod = await tx.product.create({
+        data: {
+          name: baseName,
+          slug: finalSlug,
+          category: category || 'Fly Ash Brick Machine',
+          description: description || '',
+          capacity: resolvedCapacity,
+          power: resolvedPower,
+          brickSize: resolvedBrickSize,
+          image: coverImage,
+          specifications: specsPayload,
+          isActive,
+          order,
+          ...(finalImagesList.length > 0
+            ? {
+                images: {
+                  create: finalImagesList.map((url, idx) => ({
+                    url,
+                    isPrimary: idx === 0,
+                    order: idx,
+                  })),
+                },
+              }
+            : {}),
+        },
+      });
+
+      // Synchronize relational ProductDetailItem table
+      const detailItemsToCreate: any[] = [];
+      const highlightsArr = Array.isArray(specsPayload.highlights) ? specsPayload.highlights : [];
+      highlightsArr.forEach((h: any, idx: number) => {
+        if (h && h.title) {
+          detailItemsToCreate.push({
+            productId: prod.id,
+            type: 'Highlight',
+            title: String(h.title).trim(),
+            description: h.description ? String(h.description).trim() : '',
+            order: idx,
+          });
+        }
+      });
+      const advantagesArr = Array.isArray(specsPayload.advantages) ? specsPayload.advantages : [];
+      advantagesArr.forEach((a: any, idx: number) => {
+        if (a && a.title) {
+          detailItemsToCreate.push({
+            productId: prod.id,
+            type: 'Advantage',
+            title: String(a.title).trim(),
+            description: a.description ? String(a.description).trim() : '',
+            order: idx,
+          });
+        }
+      });
+      const keyFeaturesArr = Array.isArray(specsPayload.keyFeatures) ? specsPayload.keyFeatures : [];
+      keyFeaturesArr.forEach((kf: any, idx: number) => {
+        if (kf && String(kf).trim()) {
+          detailItemsToCreate.push({
+            productId: prod.id,
+            type: 'KeyFeature',
+            title: String(kf).trim(),
+            order: idx,
+          });
+        }
+      });
+      const featureBadgesArr = Array.isArray(specsPayload.featureBadges) ? specsPayload.featureBadges : [];
+      featureBadgesArr.forEach((fb: any, idx: number) => {
+        if (fb && String(fb).trim()) {
+          detailItemsToCreate.push({
+            productId: prod.id,
+            type: 'FeatureBadge',
+            title: String(fb).trim(),
+            order: idx,
+          });
+        }
+      });
+      const specTableRowsArr = Array.isArray(specsPayload.specTableRows) ? specsPayload.specTableRows : [];
+      specTableRowsArr.forEach((r: any, idx: number) => {
+        if (r && typeof r === 'object') {
+          const param = r.Parameter || Object.keys(r)[0] || `Spec ${idx + 1}`;
+          const detail = r.Details || r[Object.keys(r)[1]] || '';
+          const spec = r.Specification || r[Object.keys(r)[2]] || '';
+          detailItemsToCreate.push({
+            productId: prod.id,
+            type: 'Specification',
+            title: String(param),
+            value: String(detail),
+            description: String(spec),
+            order: idx,
+          });
+        }
+      });
+
+      if (detailItemsToCreate.length > 0) {
+        await tx.productDetailItem.createMany({
+          data: detailItemsToCreate,
+        });
+      }
+
+      return tx.product.findUnique({
+        where: { id: prod.id },
+        include: {
+          images: { orderBy: { order: 'asc' } },
+          details: { orderBy: { order: 'asc' } },
+          _count: {
+            select: { enquiries: true },
+          },
+        },
+      });
     });
 
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data: mapProductResponse(product),
+      data: mapProductResponse(createdProduct),
     });
   } catch (error) {
     next(error);
@@ -443,37 +567,40 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
   try {
     const id = req.params.id as string;
 
-    const nameToMatch = req.body.name ? String(req.body.name).trim() : '';
-    const slugToMatch = req.body.slug
-      ? String(req.body.slug).trim()
-      : nameToMatch
-      ? nameToMatch
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '')
-      : '';
-
-    // Find product by id, slug, or case-insensitive name so frontend updates always update the actual database row
-    const existing = await prisma.product.findFirst({
-      where: {
-        OR: [
-          { id },
-          { slug: id },
-          ...(slugToMatch ? [{ slug: slugToMatch }] : []),
-          ...(nameToMatch ? [{ name: { equals: nameToMatch, mode: 'insensitive' as const } }] : []),
-        ],
-      },
+    // Strict lookup: match by primary id first, then slug, ensuring separate machinery records never overwrite one another
+    let existing = await prisma.product.findUnique({
+      where: { id },
       include: {
         images: { orderBy: { order: 'asc' } },
         details: { orderBy: { order: 'asc' } },
       },
     });
 
+    if (!existing) {
+      existing = await prisma.product.findFirst({
+        where: {
+          OR: [
+            { slug: id },
+            { slug: { equals: id, mode: 'insensitive' } },
+          ],
+        },
+        include: {
+          images: { orderBy: { order: 'asc' } },
+          details: { orderBy: { order: 'asc' } },
+        },
+      });
+    }
+
+    if (!existing) {
+      res.status(404).json({ success: false, message: `Product '${id}' not found in database` });
+      return;
+    }
+
     // Whitelist only Prisma schema Product fields to prevent "Unknown argument" errors
     const allowedData: any = {};
-    if (req.body.name !== undefined) allowedData.name = req.body.name;
-    if (req.body.slug !== undefined) allowedData.slug = req.body.slug;
-    if (req.body.category !== undefined) allowedData.category = req.body.category;
+    if (req.body.name !== undefined) allowedData.name = String(req.body.name).trim();
+    if (req.body.slug !== undefined) allowedData.slug = String(req.body.slug).trim();
+    if (req.body.category !== undefined) allowedData.category = String(req.body.category).trim();
     if (req.body.description !== undefined) allowedData.description = req.body.description;
     if (req.body.capacity !== undefined) allowedData.capacity = req.body.capacity && String(req.body.capacity).trim() ? String(req.body.capacity).trim() : '';
     if (req.body.power !== undefined) allowedData.power = req.body.power && String(req.body.power).trim() ? String(req.body.power).trim() : '';
@@ -483,6 +610,26 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
     // "Product update without new images must preserve existing images."
     const uploadedFiles = getUploadedFiles(req);
     const hasUploadedFiles = uploadedFiles.length > 0;
+
+    // Persist uploaded files into Media table
+    for (const f of uploadedFiles) {
+      try {
+        const fileBuf = fs.readFileSync(f.path);
+        await prisma.media.create({
+          data: {
+            filename: f.filename,
+            mimeType: f.mimetype || 'image/jpeg',
+            size: f.size,
+            data: fileBuf,
+            url: `/uploads/products/${f.filename}`,
+            productId: existing.id,
+          },
+        });
+      } catch (err) {
+        console.warn('[Product] Note saving uploaded file to media table:', err);
+      }
+    }
+
     const hasBodyImages =
       (req.body.images !== undefined && req.body.images !== '') ||
       (req.body.imageUrl !== undefined && req.body.imageUrl !== '') ||
@@ -494,24 +641,24 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
     } else if (hasBodyImages) {
       let parsedList: string[] = [];
       if (Array.isArray(req.body.images)) {
-        parsedList = req.body.images.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
+        parsedList = req.body.images.filter((img: any) => typeof img === 'string' && img.trim().length > 0 && !img.startsWith('blob:'));
       } else if (typeof req.body.images === 'string' && req.body.images.trim().length > 0) {
         try {
           const parsed = JSON.parse(req.body.images);
           if (Array.isArray(parsed)) {
-            parsedList = parsed.filter((img: any) => typeof img === 'string' && img.trim().length > 0);
-          } else {
+            parsedList = parsed.filter((img: any) => typeof img === 'string' && img.trim().length > 0 && !img.startsWith('blob:'));
+          } else if (!req.body.images.startsWith('blob:')) {
             parsedList = [req.body.images.trim()];
           }
         } catch {
-          parsedList = req.body.images.split(',').map((s: string) => s.trim()).filter(Boolean);
+          parsedList = req.body.images.split(',').map((s: string) => s.trim()).filter((s: string) => Boolean(s) && !s.startsWith('blob:'));
         }
       }
 
       if (parsedList.length === 0) {
-        if (req.body.imageUrl && typeof req.body.imageUrl === 'string' && req.body.imageUrl.trim()) {
+        if (req.body.imageUrl && typeof req.body.imageUrl === 'string' && req.body.imageUrl.trim() && !req.body.imageUrl.startsWith('blob:')) {
           parsedList.push(req.body.imageUrl.trim());
-        } else if (req.body.image && typeof req.body.image === 'string' && req.body.image.trim()) {
+        } else if (req.body.image && typeof req.body.image === 'string' && req.body.image.trim() && !req.body.image.startsWith('blob:')) {
           parsedList.push(req.body.image.trim());
         }
       }
@@ -535,7 +682,7 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
     if (req.body.order !== undefined) allowedData.order = Math.max(0, parseInt(req.body.order, 10));
 
     // Merge specifications
-    const currentSpecs = (existing?.specifications as Record<string, any>) || {};
+    const currentSpecs = (existing.specifications as Record<string, any>) || {};
     let newSpecs: Record<string, any> = {};
     if (req.body.specifications) {
       if (typeof req.body.specifications === 'string') {
@@ -544,7 +691,7 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
         } catch {
           newSpecs = {};
         }
-      } else if (typeof req.body.specifications === 'object') {
+      } else if (typeof req.body.specifications === 'object' && req.body.specifications !== null) {
         newSpecs = req.body.specifications;
       }
     }
@@ -563,6 +710,8 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
     const extraFields = [
       'brandTag',
       'brickSize',
+      'capacity',
+      'power',
       'capacityLabel',
       'powerLabel',
       'brickSizeLabel',
@@ -579,20 +728,52 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
         newSpecs[f] = parseJsonField(req.body[f]);
       }
     }
+
+    // Keep top-level fields aligned with specifications
+    if (allowedData.brickSize === undefined && newSpecs.brickSize !== undefined) {
+      allowedData.brickSize = newSpecs.brickSize;
+    }
+    if (allowedData.capacity === undefined && newSpecs.capacity !== undefined) {
+      allowedData.capacity = newSpecs.capacity;
+    }
+    if (allowedData.power === undefined && newSpecs.power !== undefined) {
+      allowedData.power = newSpecs.power;
+    }
+
     allowedData.specifications = { ...currentSpecs, ...newSpecs };
 
-    let product;
-    if (existing) {
-      product = await prisma.product.update({
+    // Atomically execute product update and child table synchronization via transaction
+    const finalProduct = await prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({
         where: { id: existing.id },
         data: allowedData,
       });
 
-      // Update ProductImage table only if new images were sent
+      // Update ProductImage table if new images or gallery images were sent
+      const resolvedGalleryImages = Array.isArray(allowedData.specifications?.galleryImages)
+        ? allowedData.specifications.galleryImages.filter((img: any) => typeof img === 'string' && img.trim() && !img.startsWith('blob:'))
+        : [];
+
       if (newImagesList && newImagesList.length > 0) {
-        await prisma.productImage.deleteMany({ where: { productId: existing.id } });
-        await prisma.productImage.createMany({
-          data: newImagesList.map((url, idx) => ({
+        await tx.productImage.deleteMany({ where: { productId: existing.id } });
+        const allImages = [
+          newImagesList[0],
+          ...resolvedGalleryImages.filter((img: string) => img !== newImagesList![0])
+        ];
+        await tx.productImage.createMany({
+          data: allImages.map((url, idx) => ({
+            productId: existing.id,
+            url,
+            isPrimary: idx === 0,
+            order: idx,
+          })),
+        });
+      } else if (resolvedGalleryImages.length > 0) {
+        const cover = updated.image || existing.image;
+        const allImages = [cover, ...resolvedGalleryImages.filter((img: string) => img !== cover)];
+        await tx.productImage.deleteMany({ where: { productId: existing.id } });
+        await tx.productImage.createMany({
+          data: allImages.map((url, idx) => ({
             productId: existing.id,
             url,
             isPrimary: idx === 0,
@@ -600,62 +781,100 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
           })),
         });
       }
-    } else {
-      // If product doesn't exist yet in DB, create it with a guaranteed unique slug
-      const baseName = req.body.name || 'New Machinery';
-      let candidateSlug = (req.body.slug || baseName)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      if (!candidateSlug) candidateSlug = `product-${Date.now()}`;
 
-      let finalSlug = candidateSlug;
-      let counter = 1;
-      while (await prisma.product.findUnique({ where: { slug: finalSlug } })) {
-        finalSlug = `${candidateSlug}-${counter}`;
-        counter++;
+      // Synchronize ProductDetailItem table
+      await tx.productDetailItem.deleteMany({ where: { productId: existing.id } });
+      const detailItemsToCreate: any[] = [];
+
+      const highlightsArr = Array.isArray(allowedData.specifications?.highlights) ? allowedData.specifications.highlights : [];
+      highlightsArr.forEach((h: any, idx: number) => {
+        if (h && h.title) {
+          detailItemsToCreate.push({
+            productId: existing.id,
+            type: 'Highlight',
+            title: String(h.title).trim(),
+            description: h.description ? String(h.description).trim() : '',
+            order: idx,
+          });
+        }
+      });
+
+      const advantagesArr = Array.isArray(allowedData.specifications?.advantages) ? allowedData.specifications.advantages : [];
+      advantagesArr.forEach((a: any, idx: number) => {
+        if (a && a.title) {
+          detailItemsToCreate.push({
+            productId: existing.id,
+            type: 'Advantage',
+            title: String(a.title).trim(),
+            description: a.description ? String(a.description).trim() : '',
+            order: idx,
+          });
+        }
+      });
+
+      const keyFeaturesArr = Array.isArray(allowedData.specifications?.keyFeatures) ? allowedData.specifications.keyFeatures : [];
+      keyFeaturesArr.forEach((kf: any, idx: number) => {
+        if (kf && String(kf).trim()) {
+          detailItemsToCreate.push({
+            productId: existing.id,
+            type: 'KeyFeature',
+            title: String(kf).trim(),
+            order: idx,
+          });
+        }
+      });
+
+      const featureBadgesArr = Array.isArray(allowedData.specifications?.featureBadges) ? allowedData.specifications.featureBadges : [];
+      featureBadgesArr.forEach((fb: any, idx: number) => {
+        if (fb && String(fb).trim()) {
+          detailItemsToCreate.push({
+            productId: existing.id,
+            type: 'FeatureBadge',
+            title: String(fb).trim(),
+            order: idx,
+          });
+        }
+      });
+
+      const specTableRowsArr = Array.isArray(allowedData.specifications?.specTableRows) ? allowedData.specifications.specTableRows : [];
+      specTableRowsArr.forEach((r: any, idx: number) => {
+        if (r && typeof r === 'object') {
+          const param = r.Parameter || Object.keys(r)[0] || `Spec ${idx + 1}`;
+          const detail = r.Details || r[Object.keys(r)[1]] || '';
+          const spec = r.Specification || r[Object.keys(r)[2]] || '';
+          detailItemsToCreate.push({
+            productId: existing.id,
+            type: 'Specification',
+            title: String(param),
+            value: String(detail),
+            description: String(spec),
+            order: idx,
+          });
+        }
+      });
+
+      if (detailItemsToCreate.length > 0) {
+        await tx.productDetailItem.createMany({
+          data: detailItemsToCreate,
+        });
       }
 
-      const initialImages = newImagesList || ['/uploads/products/default.jpg'];
-      product = await prisma.product.create({
-        data: {
-          name: baseName,
-          slug: finalSlug,
-          category: req.body.category || 'Fly Ash Brick Machine',
-          description: req.body.description || '',
-          capacity: req.body.capacity && String(req.body.capacity).trim() ? String(req.body.capacity).trim() : '',
-          power: req.body.power && String(req.body.power).trim() ? String(req.body.power).trim() : '',
-          brickSize: req.body.brickSize && String(req.body.brickSize).trim() ? String(req.body.brickSize).trim() : (allowedData.specifications?.brickSize ?? null),
-          image: allowedData.image || initialImages[0],
-          specifications: allowedData.specifications,
-          isActive: allowedData.isActive !== undefined ? allowedData.isActive : true,
-          order: req.body.order !== undefined ? Math.max(0, parseInt(req.body.order, 10)) : 0,
-          images: {
-            create: initialImages.map((url, idx) => ({
-              url,
-              isPrimary: idx === 0,
-              order: idx,
-            })),
+      return tx.product.findUnique({
+        where: { id: existing.id },
+        include: {
+          images: { orderBy: { order: 'asc' } },
+          details: { orderBy: { order: 'asc' } },
+          _count: {
+            select: { enquiries: true },
           },
         },
       });
-    }
-
-    const finalProduct = await prisma.product.findUnique({
-      where: { id: product.id },
-      include: {
-        images: { orderBy: { order: 'asc' } },
-        details: { orderBy: { order: 'asc' } },
-        _count: {
-          select: { enquiries: true },
-        },
-      },
     });
 
     res.status(200).json({
       success: true,
-      message: 'Product updated successfully',
-      data: mapProductResponse(finalProduct || product),
+      message: 'Product updated successfully in permanent database',
+      data: mapProductResponse(finalProduct || existing),
     });
   } catch (error) {
     next(error);
