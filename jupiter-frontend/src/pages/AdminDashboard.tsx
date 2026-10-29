@@ -46,8 +46,7 @@ import {
   Camera,
   Wrench,
   Menu,
-  Layers,
-  RotateCw
+  Layers
 } from 'lucide-react';
 import { IMAGES } from '../assets/images/images';
 import '../styles/admin.css';
@@ -106,8 +105,7 @@ import {
   clearAllProducts,
   reorderProduct,
   toggleProductStatus,
-  CATEGORY_NAME_TO_SLUG_MAP,
-  DEFAULT_PRODUCT_V15B
+  CATEGORY_NAME_TO_SLUG_MAP
 } from '../services/productService';
 import { BulkUploadModal } from '../components/BulkUploadModal';
 import { ProductCardImage } from '../components/ProductCardImage';
@@ -117,15 +115,12 @@ import {
   AncillaryVariantItem,
   ALL_MACHINE_CATEGORIES,
   getStoredAncillaryEquipment,
+  fetchAncillaryEquipment,
   addAncillaryEquipment,
   updateAncillaryEquipment,
   deleteAncillaryEquipment,
   toggleAncillaryEquipmentStatus,
-  reorderAncillaryEquipment,
-  resetAncillaryEquipmentToDefault,
-  getAncillaryEnabledCategories,
-  saveAncillaryEnabledCategories,
-  toggleAncillaryCategory
+  reorderAncillaryEquipment
 } from '../services/ancillaryEquipmentService';
 
 import {
@@ -568,7 +563,6 @@ interface SeoSettings {
 
   // Related Machinery & Ancillary Equipment State
   const [ancillaryEquipment, setAncillaryEquipment] = useState<AncillaryEquipmentItem[]>(() => getStoredAncillaryEquipment());
-  const [ancillaryEnabledCategories, setAncillaryEnabledCategories] = useState<string[]>(() => getAncillaryEnabledCategories());
   const [ancillaryFilter, setAncillaryFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
   const [ancillarySearch, setAncillarySearch] = useState('');
   const [isAddAncillaryOpen, setIsAddAncillaryOpen] = useState(false);
@@ -579,7 +573,7 @@ interface SeoSettings {
     categoryBadge: string;
     compatibilityBadge: string;
     image: string;
-    layoutType: 'standard' | 'dual_variant';
+    layoutType: 'standard' | 'dual_variant' | 'triple_variant';
     variants: AncillaryVariantItem[];
     specsTitle: string;
     specs: AncillarySpecItem[];
@@ -596,6 +590,7 @@ interface SeoSettings {
     variants: [
       { id: 'var-1', name: 'Type 1 • Manual', image: '', description: '' },
       { id: 'var-2', name: 'Type 2 • Hydraulic', image: '', description: '' },
+      { id: 'var-3', name: 'Configuration 3', image: '', description: '' },
     ],
     specsTitle: 'Technical Specifications',
     specs: [
@@ -608,17 +603,26 @@ interface SeoSettings {
     isActive: true,
   });
 
-  // Sync ancillary equipment updates
+  // Sync ancillary equipment updates exclusively from backend database
   useEffect(() => {
-    const handleAncillarySync = () => {
-      setAncillaryEquipment(getStoredAncillaryEquipment());
-      setAncillaryEnabledCategories(getAncillaryEnabledCategories());
+    fetchAncillaryEquipment(true)
+      .then((items) => {
+        if (Array.isArray(items)) setAncillaryEquipment(items);
+      })
+      .catch(() => {});
+
+    const handleAncillarySync = (e?: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (Array.isArray(detail)) {
+        setAncillaryEquipment(detail);
+      } else {
+        setAncillaryEquipment(getStoredAncillaryEquipment());
+      }
     };
+
     window.addEventListener('jupiter_ancillary_updated', handleAncillarySync);
-    window.addEventListener('storage', handleAncillarySync);
     return () => {
       window.removeEventListener('jupiter_ancillary_updated', handleAncillarySync);
-      window.removeEventListener('storage', handleAncillarySync);
     };
   }, []);
 
@@ -633,6 +637,7 @@ interface SeoSettings {
       variants: [
         { id: 'var-1', name: 'Type 1 • Manual', image: '', description: '' },
         { id: 'var-2', name: 'Type 2 • Hydraulic', image: '', description: '' },
+        { id: 'var-3', name: 'Configuration 3', image: '', description: '' },
       ],
       specsTitle: 'Technical Specifications',
       specs: [
@@ -656,13 +661,12 @@ interface SeoSettings {
       categoryBadge: item.categoryBadge,
       compatibilityBadge: item.compatibilityBadge,
       image: item.image,
-      layoutType: item.layoutType,
-      variants: (item.variants && item.variants.length >= 2)
-        ? item.variants.map(v => ({ ...v }))
-        : [
-            item.variants?.[0] ? { ...item.variants[0] } : { id: 'var-1', name: 'Type 1 • Manual', image: item.image || '', description: '' },
-            item.variants?.[1] ? { ...item.variants[1] } : { id: 'var-2', name: 'Type 2 • Hydraulic', image: '', description: '' },
-          ],
+      layoutType: item.layoutType || 'standard',
+      variants: [
+        item.variants?.[0] ? { ...item.variants[0] } : { id: 'var-1', name: 'Type 1 • Manual', image: item.image || '', description: '' },
+        item.variants?.[1] ? { ...item.variants[1] } : { id: 'var-2', name: 'Type 2 • Hydraulic', image: '', description: '' },
+        item.variants?.[2] ? { ...item.variants[2] } : { id: 'var-3', name: 'Configuration 3', image: '', description: '' },
+      ],
       specsTitle: item.specsTitle || 'Technical Specifications',
       specs: item.specs && item.specs.length > 0 ? item.specs.map(s => ({ ...s })) : [
         { label: 'Capacity', value: '', isPillList: false },
@@ -677,7 +681,7 @@ interface SeoSettings {
     setIsAddAncillaryOpen(true);
   };
 
-  const handleSaveAncillary = (e: React.FormEvent) => {
+  const handleSaveAncillary = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ancillaryForm.name.trim()) {
       alert('Please enter Equipment Name');
@@ -686,65 +690,91 @@ interface SeoSettings {
 
     const cleanedSpecs = ancillaryForm.specs.filter(s => s.label.trim() && s.value.trim());
 
-    const finalVariants = ancillaryForm.layoutType === 'dual_variant'
-      ? [
-          {
-            id: ancillaryForm.variants[0]?.id || 'var-1',
-            name: ancillaryForm.variants[0]?.name?.trim() || 'Type 1 • Manual',
-            image: ancillaryForm.variants[0]?.image?.trim() || ancillaryForm.image || '/images/catalogue/pallet-truck-type1.png',
-            description: ancillaryForm.variants[0]?.description?.trim() || '',
-            imageClass: ancillaryForm.variants[0]?.imageClass || 'pdp-pallet-img-type1',
-          },
-          {
-            id: ancillaryForm.variants[1]?.id || 'var-2',
-            name: ancillaryForm.variants[1]?.name?.trim() || 'Type 2 • Hydraulic',
-            image: ancillaryForm.variants[1]?.image?.trim() || '/images/catalogue/pallet-truck-type2.png',
-            description: ancillaryForm.variants[1]?.description?.trim() || '',
-          },
-        ]
-      : undefined;
-
-    const finalImage = ancillaryForm.layoutType === 'dual_variant'
-      ? (finalVariants?.[0]?.image || ancillaryForm.image || '/images/catalogue/pallet-truck-type1.png')
-      : (ancillaryForm.image.trim() || '/images/catalogue/pan-mixer.png');
-
-    if (editingAncillaryItem) {
-      updateAncillaryEquipment(editingAncillaryItem.id, {
-        name: ancillaryForm.name.trim(),
-        categoryBadge: ancillaryForm.categoryBadge.trim() || 'Auxiliary Equipment',
-        compatibilityBadge: ancillaryForm.compatibilityBadge.trim() || 'OEM Standard',
-        image: finalImage,
-        layoutType: ancillaryForm.layoutType,
-        variants: finalVariants,
-        specsTitle: ancillaryForm.specsTitle.trim() || 'Technical Specifications',
-        specs: cleanedSpecs,
-        quoteLabel: ancillaryForm.quoteLabel.trim() || `Get ${ancillaryForm.name.trim()} Quote`,
-        whatsAppMessage: ancillaryForm.whatsAppMessage.trim() || `Hello Jupiter, I am interested in the ${ancillaryForm.name.trim()} specifications and pricing.`,
-        applicableCategories: ancillaryForm.applicableCategories,
-        isActive: ancillaryForm.isActive,
-      });
-      triggerToast(`Equipment "${ancillaryForm.name}" updated successfully!`);
-    } else {
-      addAncillaryEquipment({
-        name: ancillaryForm.name.trim(),
-        categoryBadge: ancillaryForm.categoryBadge.trim() || 'Auxiliary Equipment',
-        compatibilityBadge: ancillaryForm.compatibilityBadge.trim() || 'OEM Standard',
-        image: finalImage,
-        layoutType: ancillaryForm.layoutType,
-        variants: finalVariants,
-        specsTitle: ancillaryForm.specsTitle.trim() || 'Technical Specifications',
-        specs: cleanedSpecs,
-        quoteLabel: ancillaryForm.quoteLabel.trim() || `Get ${ancillaryForm.name.trim()} Quote`,
-        whatsAppMessage: ancillaryForm.whatsAppMessage.trim() || `Hello Jupiter, I am interested in the ${ancillaryForm.name.trim()} specifications and pricing.`,
-        applicableCategories: ancillaryForm.applicableCategories,
-        isActive: ancillaryForm.isActive,
-      });
-      triggerToast(`Equipment "${ancillaryForm.name}" added successfully!`);
+    let finalVariants: AncillaryVariantItem[] | null = null;
+    if (ancillaryForm.layoutType === 'dual_variant') {
+      finalVariants = [
+        {
+          id: ancillaryForm.variants[0]?.id || 'var-1',
+          name: ancillaryForm.variants[0]?.name?.trim() || 'Type 1 • Manual',
+          image: ancillaryForm.variants[0]?.image?.trim() || ancillaryForm.image || '/images/catalogue/pallet-truck-type1.png',
+          description: ancillaryForm.variants[0]?.description?.trim() || '',
+          imageClass: ancillaryForm.variants[0]?.imageClass || 'pdp-pallet-img-type1',
+        },
+        {
+          id: ancillaryForm.variants[1]?.id || 'var-2',
+          name: ancillaryForm.variants[1]?.name?.trim() || 'Type 2 • Hydraulic',
+          image: ancillaryForm.variants[1]?.image?.trim() || '/images/catalogue/pallet-truck-type2.png',
+          description: ancillaryForm.variants[1]?.description?.trim() || '',
+        },
+      ];
+    } else if (ancillaryForm.layoutType === 'triple_variant') {
+      finalVariants = [
+        {
+          id: ancillaryForm.variants[0]?.id || 'var-1',
+          name: ancillaryForm.variants[0]?.name?.trim() || 'Configuration 1',
+          image: ancillaryForm.variants[0]?.image?.trim() || ancillaryForm.image || '',
+          description: ancillaryForm.variants[0]?.description?.trim() || '',
+        },
+        {
+          id: ancillaryForm.variants[1]?.id || 'var-2',
+          name: ancillaryForm.variants[1]?.name?.trim() || 'Configuration 2',
+          image: ancillaryForm.variants[1]?.image?.trim() || '',
+          description: ancillaryForm.variants[1]?.description?.trim() || '',
+        },
+        {
+          id: ancillaryForm.variants[2]?.id || 'var-3',
+          name: ancillaryForm.variants[2]?.name?.trim() || 'Configuration 3',
+          image: ancillaryForm.variants[2]?.image?.trim() || '',
+          description: ancillaryForm.variants[2]?.description?.trim() || '',
+        },
+      ];
     }
 
-    setAncillaryEquipment(getStoredAncillaryEquipment());
-    setIsAddAncillaryOpen(false);
-    setEditingAncillaryItem(null);
+    const finalImage = (ancillaryForm.layoutType === 'dual_variant' || ancillaryForm.layoutType === 'triple_variant')
+      ? (finalVariants?.[0]?.image || ancillaryForm.image || '/images/catalogue/pan-mixer.png')
+      : (ancillaryForm.image.trim() || '/images/catalogue/pan-mixer.png');
+
+    try {
+      if (editingAncillaryItem) {
+        await updateAncillaryEquipment(editingAncillaryItem.id, {
+          name: ancillaryForm.name.trim(),
+          categoryBadge: ancillaryForm.categoryBadge.trim() || 'Auxiliary Equipment',
+          compatibilityBadge: ancillaryForm.compatibilityBadge.trim() || 'OEM Standard',
+          image: finalImage,
+          layoutType: ancillaryForm.layoutType,
+          variants: finalVariants ? finalVariants : (null as any),
+          specsTitle: ancillaryForm.specsTitle.trim() || 'Technical Specifications',
+          specs: cleanedSpecs,
+          quoteLabel: ancillaryForm.quoteLabel.trim() || `Get ${ancillaryForm.name.trim()} Quote`,
+          whatsAppMessage: ancillaryForm.whatsAppMessage.trim() || `Hello Jupiter, I am interested in the ${ancillaryForm.name.trim()} specifications and pricing.`,
+          applicableCategories: ancillaryForm.applicableCategories,
+          isActive: ancillaryForm.isActive,
+        });
+        triggerToast(`Equipment "${ancillaryForm.name}" updated successfully in database!`);
+      } else {
+        await addAncillaryEquipment({
+          name: ancillaryForm.name.trim(),
+          categoryBadge: ancillaryForm.categoryBadge.trim() || 'Auxiliary Equipment',
+          compatibilityBadge: ancillaryForm.compatibilityBadge.trim() || 'OEM Standard',
+          image: finalImage,
+          layoutType: ancillaryForm.layoutType,
+          variants: finalVariants ? finalVariants : undefined,
+          specsTitle: ancillaryForm.specsTitle.trim() || 'Technical Specifications',
+          specs: cleanedSpecs,
+          quoteLabel: ancillaryForm.quoteLabel.trim() || `Get ${ancillaryForm.name.trim()} Quote`,
+          whatsAppMessage: ancillaryForm.whatsAppMessage.trim() || `Hello Jupiter, I am interested in the ${ancillaryForm.name.trim()} specifications and pricing.`,
+          applicableCategories: ancillaryForm.applicableCategories,
+          isActive: ancillaryForm.isActive,
+        });
+        triggerToast(`Equipment "${ancillaryForm.name}" added and saved to database!`);
+      }
+
+      setAncillaryEquipment(getStoredAncillaryEquipment());
+      setIsAddAncillaryOpen(false);
+      setEditingAncillaryItem(null);
+    } catch (err: any) {
+      alert(`Save Error: ${err.message || 'Failed to save to database'}`);
+    }
   };
 
   // Custom Confirmation Dialog State
@@ -808,7 +838,9 @@ interface SeoSettings {
     'Inter Block Making Machine',
     'Paver Block Machine',
     'Batching Plant',
+    'Concrete Mixer Machine',
     'Storage Silo',
+    'Hammer Crusher / Material Processing Equipment',
     'Machine Spares'
   ];
 
@@ -1275,7 +1307,7 @@ interface SeoSettings {
       id: `usr-${Date.now()}`,
       name: newUser.name.trim(),
       email: cleanEmail,
-      passwordHash: newUser.password || 'admin123',
+      passwordHash: '',
       role: newUser.role,
       createdAt: new Date().toISOString()
     };
@@ -1498,8 +1530,14 @@ interface SeoSettings {
     if (cLow.includes('batching') || cLow.includes('patching')) {
       return pCat.includes('batching') || pCat.includes('patching') || pSlug.includes('batching') || pSlug.includes('patching');
     }
+    if (cLow.includes('mixer')) {
+      return pCat.includes('mixer') || pSlug.includes('mixer');
+    }
     if (cLow.includes('silo')) {
       return pCat.includes('silo') || pSlug.includes('silo');
+    }
+    if (cLow.includes('crusher') || cLow.includes('hammer')) {
+      return pCat.includes('crusher') || pCat.includes('hammer') || pSlug.includes('crusher') || pSlug.includes('hammer');
     }
     if (cLow.includes('spares')) {
       return pCat.includes('spares') || pSlug.includes('spares');
@@ -3857,27 +3895,6 @@ interface SeoSettings {
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <button
                     type="button"
-                    onClick={() => {
-                      requestConfirm({
-                        title: 'Reset to Factory Defaults',
-                        message: 'This will restore the 4 default equipment items (Pan Mixer, Conveyor, Pallet Truck, Wheel Barrow). Custom items will be reset.',
-                        confirmText: 'Reset to Defaults',
-                        variant: 'warning',
-                        onConfirm: () => {
-                          const res = resetAncillaryEquipmentToDefault();
-                          setAncillaryEquipment(res);
-                          triggerToast('Reset to default equipment successfully!');
-                        }
-                      });
-                    }}
-                    className="btn"
-                    style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #CBD5E1' }}
-                  >
-                    <RotateCw size={15} />
-                    <span>Reset Defaults</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={handleOpenAddAncillary}
                     className="btn btn-orange"
                   >
@@ -3887,135 +3904,7 @@ interface SeoSettings {
                 </div>
               </div>
 
-              {/* Category Visibility Control Banner */}
-              <div style={{
-                background: '#FFFFFF',
-                borderRadius: '14px',
-                border: '1.5px solid #E2E8F0',
-                padding: '18px 20px',
-                marginBottom: '22px',
-                boxShadow: '0 2px 10px rgba(0, 35, 61, 0.04)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{
-                        background: '#00233D',
-                        color: '#FF9200',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>
-                        Display Filter
-                      </span>
-                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#00233D', margin: 0 }}>
-                        Show Related Machinery On Selected Machine Pages
-                      </h3>
-                    </div>
-                    <p style={{ fontSize: '0.82rem', color: '#64748B', margin: 0 }}>
-                      Only checked machine categories will display the "Related Machinery & Equipment" catalog section. Unchecked machine categories will automatically hide it.
-                    </p>
-                  </div>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allSlugs = ALL_MACHINE_CATEGORIES.map(c => c.slug);
-                        saveAncillaryEnabledCategories(allSlugs);
-                        setAncillaryEnabledCategories(allSlugs);
-                        triggerToast('Related Machinery enabled on ALL machine pages');
-                      }}
-                      className="btn"
-                      style={{ fontSize: '0.74rem', padding: '5px 12px', background: '#F1F5F9', color: '#00233D', border: '1px solid #CBD5E1' }}
-                    >
-                      Show On All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const flyAshOnly = ['fly-ash-brick-machine'];
-                        saveAncillaryEnabledCategories(flyAshOnly);
-                        setAncillaryEnabledCategories(flyAshOnly);
-                        triggerToast('Related Machinery shown ONLY on Fly Ash Brick Machine');
-                      }}
-                      className="btn"
-                      style={{ fontSize: '0.74rem', padding: '5px 12px', background: '#FFF7ED', color: '#C2410C', border: '1px solid #FFEDD5' }}
-                    >
-                      Fly Ash Only
-                    </button>
-                  </div>
-                </div>
-
-                {/* 7 Category Toggles */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-                  gap: '10px'
-                }}>
-                  {ALL_MACHINE_CATEGORIES.map((cat) => {
-                    const isChecked = ancillaryEnabledCategories.some(s => s.toLowerCase() === cat.slug.toLowerCase());
-                    return (
-                      <div
-                        key={cat.slug}
-                        onClick={() => {
-                          const updated = toggleAncillaryCategory(cat.slug);
-                          setAncillaryEnabledCategories(updated);
-                          triggerToast(`${cat.name}: Related Machinery set to ${!isChecked ? 'Visible' : 'Hidden'}`);
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '10px 14px',
-                          borderRadius: '10px',
-                          border: isChecked ? '1.5px solid #FF9200' : '1px solid #E2E8F0',
-                          background: isChecked ? '#FFF7ED' : '#F8FAFC',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          userSelect: 'none'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {}}
-                            style={{
-                              width: '16px',
-                              height: '16px',
-                              accentColor: '#FF9200',
-                              cursor: 'pointer'
-                            }}
-                          />
-                          <span style={{
-                            fontSize: '0.84rem',
-                            fontWeight: isChecked ? 700 : 600,
-                            color: isChecked ? '#00233D' : '#64748B'
-                          }}>
-                            {cat.name}
-                          </span>
-                        </div>
-                        <span style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 800,
-                          padding: '2px 8px',
-                          borderRadius: '9999px',
-                          background: isChecked ? '#FF9200' : '#E2E8F0',
-                          color: isChecked ? '#FFFFFF' : '#64748B',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.4px'
-                        }}>
-                          {isChecked ? 'Visible' : 'Hidden'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Status Filter & Search Row */}
               <div className="admin-filter-bar-row" style={{ marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -4092,8 +3981,8 @@ interface SeoSettings {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <button
                               type="button"
-                              onClick={() => {
-                                const newStatus = toggleAncillaryEquipmentStatus(item.id);
+                              onClick={async () => {
+                                const newStatus = await toggleAncillaryEquipmentStatus(item.id);
                                 setAncillaryEquipment(getStoredAncillaryEquipment());
                                 triggerToast(`"${item.name}" set to ${newStatus ? 'Active' : 'Inactive'}`);
                               }}
@@ -4105,8 +3994,8 @@ interface SeoSettings {
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                reorderAncillaryEquipment(item.id, 'up');
+                              onClick={async () => {
+                                await reorderAncillaryEquipment(item.id, 'up');
                                 setAncillaryEquipment(getStoredAncillaryEquipment());
                               }}
                               disabled={idx === 0}
@@ -4118,8 +4007,8 @@ interface SeoSettings {
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                reorderAncillaryEquipment(item.id, 'down');
+                              onClick={async () => {
+                                await reorderAncillaryEquipment(item.id, 'down');
                                 setAncillaryEquipment(getStoredAncillaryEquipment());
                               }}
                               disabled={idx === filtered.length - 1}
@@ -4134,7 +4023,23 @@ interface SeoSettings {
 
                         {/* Title & Image Preview */}
                         <div style={{ display: 'flex', gap: '14px', alignItems: 'center', marginBottom: '14px' }}>
-                          {item.layoutType === 'dual_variant' && item.variants && item.variants.length >= 2 ? (
+                          {item.layoutType === 'triple_variant' && item.variants && item.variants.length >= 3 ? (
+                            <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                              {item.variants.slice(0, 3).map((v, vIdx) => (
+                                <div key={v.id || vIdx} style={{ width: '48px', height: '62px', borderRadius: '8px', background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '3px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} title={v.name}>
+                                  <img
+                                    src={v.image || '/images/catalogue/pan-mixer.png'}
+                                    alt={v.name}
+                                    style={{ maxWidth: '100%', maxHeight: '38px', objectFit: 'contain' }}
+                                    onError={handleImageError}
+                                  />
+                                  <span style={{ fontSize: '0.55rem', fontWeight: 800, color: vIdx === 0 ? '#FF9200' : '#00233D', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '42px' }}>
+                                    Img {vIdx + 1}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : item.layoutType === 'dual_variant' && item.variants && item.variants.length >= 2 ? (
                             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                               <div style={{ width: '56px', height: '68px', borderRadius: '8px', background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} title={item.variants[0].name}>
                                 <img
@@ -4174,7 +4079,7 @@ interface SeoSettings {
                               {item.name}
                             </h3>
                             <span style={{ fontSize: '0.74rem', color: '#64748B', display: 'block', marginTop: '2px' }}>
-                              Layout: <strong>{item.layoutType === 'dual_variant' ? 'Dual Configurations (2 Images)' : 'Standard (1 Image + Specs)'}</strong>
+                              Layout: <strong>{item.layoutType === 'triple_variant' ? 'Triple Configurations (3 Images)' : item.layoutType === 'dual_variant' ? 'Dual Configurations (2 Images)' : 'Single Machine (1 Image)'}</strong>
                             </span>
                             <span style={{ fontSize: '0.74rem', color: '#FF9200', fontWeight: 700 }}>
                               {item.specs.length} Specifications defined
@@ -4248,10 +4153,14 @@ interface SeoSettings {
                                 itemName: item.name,
                                 confirmText: 'Delete Equipment',
                                 variant: 'danger',
-                                onConfirm: () => {
-                                  deleteAncillaryEquipment(item.id);
-                                  setAncillaryEquipment(getStoredAncillaryEquipment());
-                                  triggerToast(`Deleted "${item.name}"`);
+                                onConfirm: async () => {
+                                  try {
+                                    await deleteAncillaryEquipment(item.id);
+                                    setAncillaryEquipment(getStoredAncillaryEquipment());
+                                    triggerToast(`Deleted "${item.name}" from database`);
+                                  } catch (err: any) {
+                                    alert(`Failed to delete equipment: ${err.message || 'Error deleting from database'}`);
+                                  }
                                 }
                               });
                             }}
@@ -5885,11 +5794,14 @@ interface SeoSettings {
                     onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
                   >
                     <option value="Fly Ash Brick Machine">Fly Ash Brick Machine</option>
+                    <option value="Hollow & Solid Block Machine">Hollow & Solid Block Machine</option>
                     <option value="Hollow and Solid Block Machine">Hollow and Solid Block Machine</option>
                     <option value="Inter Block Making Machine">Inter Block Making Machine</option>
                     <option value="Paver Block Machine">Paver Block Machine</option>
                     <option value="Batching Plant">Batching Plant</option>
+                    <option value="Concrete Mixer Machine">Concrete Mixer Machine</option>
                     <option value="Storage Silo">Storage Silo</option>
+                    <option value="Hammer Crusher / Material Processing Equipment">Hammer Crusher / Material Processing Equipment</option>
                     <option value="Machine Spares">Machine Spares</option>
                   </select>
                 </div>
@@ -6759,10 +6671,10 @@ interface SeoSettings {
               {specModalTab === 'highlights' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ background: '#F8FAFC', padding: '16px 20px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '0.92rem', color: '#1E293B', lineHeight: 1.6 }}>
-                    <strong style={{ color: '#00233D' }}>Overview:</strong> {selectedProductForSpec.description || DEFAULT_PRODUCT_V15B.description}
+                    <strong style={{ color: '#00233D' }}>Overview:</strong> {selectedProductForSpec.description || 'No description provided.'}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
-                    {(selectedProductForSpec.highlights && selectedProductForSpec.highlights.length > 0 ? selectedProductForSpec.highlights : DEFAULT_PRODUCT_V15B.highlights || []).map((hl, idx) => (
+                    {(selectedProductForSpec.highlights || []).map((hl, idx) => (
                       <div key={idx} style={{ background: '#FFFFFF', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                         <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: '#00233D', marginBottom: '6px' }}>{hl.title}</h4>
                         <p style={{ fontSize: '0.86rem', color: '#475569', lineHeight: 1.5, margin: 0 }}>{hl.description}</p>
@@ -6777,7 +6689,7 @@ interface SeoSettings {
                 <div style={{ overflowX: 'auto', border: '1px solid #CBD5E1', borderRadius: '8px' }}>
                   {(() => {
                     const cols = selectedProductForSpec.specTableColumns && selectedProductForSpec.specTableColumns.length > 1 ? selectedProductForSpec.specTableColumns : ['Parameter', 'Details', 'Specification'];
-                    const rows = selectedProductForSpec.specTableRows && selectedProductForSpec.specTableRows.length > 0 ? selectedProductForSpec.specTableRows : DEFAULT_PRODUCT_V15B.specTableRows || [];
+                    const rows = selectedProductForSpec.specTableRows || [];
                     return (
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem' }}>
                         <thead>
@@ -6821,7 +6733,7 @@ interface SeoSettings {
               {specModalTab === 'features' && (
                 <div style={{ background: '#F8FAFC', padding: '20px 24px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {(selectedProductForSpec.keyFeatures && selectedProductForSpec.keyFeatures.length > 0 ? selectedProductForSpec.keyFeatures : DEFAULT_PRODUCT_V15B.keyFeatures || []).map((feat, fIdx) => (
+                    {(selectedProductForSpec.keyFeatures || []).map((feat, fIdx) => (
                       <li key={fIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                         <span style={{ color: '#FF9200', fontWeight: 900, fontSize: '1.1rem', lineHeight: 1 }}>✓</span>
                         <span style={{ fontSize: '0.94rem', color: '#1E293B', fontWeight: 500 }}>{feat}</span>
@@ -6834,7 +6746,7 @@ interface SeoSettings {
               {/* TAB 4: APPLICATIONS / ADVANTAGES (4 CARDS) */}
               {specModalTab === 'advantages' && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
-                  {(selectedProductForSpec.advantages && selectedProductForSpec.advantages.length > 0 ? selectedProductForSpec.advantages : DEFAULT_PRODUCT_V15B.advantages || []).map((adv, idx) => (
+                  {(selectedProductForSpec.advantages || []).map((adv, idx) => (
                     <div key={idx} style={{ background: '#FFFFFF', padding: '16px', borderRadius: '8px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                       <h4 style={{ fontSize: '0.96rem', fontWeight: 800, color: '#00233D', marginBottom: '6px' }}>{adv.title}</h4>
                       <p style={{ fontSize: '0.86rem', color: '#475569', lineHeight: 1.5, margin: 0 }}>{adv.description}</p>
@@ -6972,7 +6884,7 @@ interface SeoSettings {
                 try {
                   const updated = await updateProduct(editingProduct.id, {
                     name: editingProduct.name.trim(),
-                    brandTag: editingProduct.brandTag || 'JUPITER EQUIPMENTS',
+                    brandTag: editingProduct.brandTag !== undefined ? editingProduct.brandTag : '',
                     category: editingProduct.category,
                     capacity: editingProduct.capacity,
                     capacityLabel: editingProduct.capacityLabel || 'Production Capacity',
@@ -7057,11 +6969,14 @@ interface SeoSettings {
                         onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
                       >
                         <option value="Fly Ash Brick Machine">Fly Ash Brick Machine</option>
+                        <option value="Hollow & Solid Block Machine">Hollow & Solid Block Machine</option>
                         <option value="Hollow and Solid Block Machine">Hollow and Solid Block Machine</option>
                         <option value="Inter Block Making Machine">Inter Block Making Machine</option>
                         <option value="Paver Block Machine">Paver Block Machine</option>
                         <option value="Batching Plant">Batching Plant</option>
+                        <option value="Concrete Mixer Machine">Concrete Mixer Machine</option>
                         <option value="Storage Silo">Storage Silo</option>
+                        <option value="Hammer Crusher / Material Processing Equipment">Hammer Crusher / Material Processing Equipment</option>
                         <option value="Machine Spares">Machine Spares</option>
                       </select>
                     </div>
@@ -8409,51 +8324,193 @@ interface SeoSettings {
                 </p>
 
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                  display: 'flex',
+                  flexDirection: 'column',
                   gap: '8px'
                 }}>
                   {ALL_MACHINE_CATEGORIES.map((cat) => {
-                    const isSelected = (ancillaryForm.applicableCategories || []).some(
-                      s => s.toLowerCase() === cat.slug.toLowerCase()
-                    );
+                    const normCat = cat.slug.toLowerCase();
+                    const catProducts = products.filter(p => {
+                      if (p.status === 'Inactive') return false;
+                      const pSlug = (p.categorySlug || '').toLowerCase();
+                      const pCat = (p.category || '').toLowerCase();
+                      if (normCat === 'fly-ash-brick-machine') return pSlug.includes('fly-ash') || pCat.includes('fly ash');
+                      if (normCat === 'hollow-and-solid-block-machine') return pSlug.includes('block') || pCat.includes('block') || pCat.includes('hollow');
+                      if (normCat === 'inter-block-making-machine') return pSlug.includes('inter') || pCat.includes('inter');
+                      if (normCat === 'paver-block-machine') return pSlug.includes('paver') || pCat.includes('paver');
+                      if (normCat === 'batching-plant') return pSlug.includes('batch') || pCat.includes('batch') || pCat.includes('patch');
+                      if (normCat === 'storage-silo') return pSlug.includes('silo') || pCat.includes('silo');
+                      if (normCat === 'machine-spares') return pSlug.includes('spare') || pCat.includes('spare');
+                      return pSlug === normCat || pCat.includes(normCat);
+                    });
+
+                    const currentAppCats = ancillaryForm.applicableCategories || [];
+                    const isAllCategory = currentAppCats.some(s => s.toLowerCase() === normCat);
+                    const specificRules = currentAppCats.filter(s => s.toLowerCase().startsWith(normCat + ':'));
+                    const isCatChecked = isAllCategory || specificRules.length > 0;
+
+                    const getShortModel = (name: string) => {
+                      if (!name) return '';
+                      const vMatch = name.match(/Jupiter\s+V\s*\d+\s*[A-Z]?/i);
+                      if (vMatch) return vMatch[0];
+                      if (name.includes('–')) return name.split('–')[0].trim();
+                      if (name.includes('-')) return name.split('-')[0].trim();
+                      return name.length > 25 ? name.slice(0, 23) + '...' : name;
+                    };
+
                     return (
-                      <label
+                      <div
                         key={cat.slug}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '8px 10px',
                           borderRadius: '8px',
-                          border: isSelected ? '1.5px solid #FF9200' : '1px solid #E2E8F0',
-                          background: isSelected ? '#FFF7ED' : '#FFFFFF',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                          userSelect: 'none'
+                          border: isCatChecked ? '1.5px solid #FF9200' : '1px solid #E2E8F0',
+                          background: isCatChecked ? '#FFF7ED' : '#FFFFFF',
+                          padding: '10px 12px',
+                          transition: 'all 0.15s ease'
                         }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            const current = ancillaryForm.applicableCategories || [];
-                            const updated = e.target.checked
-                              ? [...current, cat.slug]
-                              : current.filter(s => s.toLowerCase() !== cat.slug.toLowerCase());
-                            setAncillaryForm({ ...ancillaryForm, applicableCategories: updated });
-                          }}
-                          style={{ accentColor: '#FF9200', width: '16px', height: '16px', cursor: 'pointer' }}
-                        />
-                        <span style={{
-                          fontSize: '0.8rem',
-                          fontWeight: isSelected ? 700 : 500,
-                          color: isSelected ? '#9A3412' : '#334155',
-                          lineHeight: 1.2
-                        }}>
-                          {cat.name}
-                        </span>
-                      </label>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                          <label
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              margin: 0
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isCatChecked}
+                              onChange={(e) => {
+                                let updated = currentAppCats.filter(
+                                  s => s.toLowerCase() !== normCat && !s.toLowerCase().startsWith(normCat + ':')
+                                );
+                                if (e.target.checked) {
+                                  updated.push(cat.slug);
+                                }
+                                setAncillaryForm({ ...ancillaryForm, applicableCategories: updated });
+                              }}
+                              style={{ accentColor: '#FF9200', width: '16px', height: '16px', cursor: 'pointer' }}
+                            />
+                            <span style={{
+                              fontSize: '0.84rem',
+                              fontWeight: isCatChecked ? 700 : 500,
+                              color: isCatChecked ? '#9A3412' : '#334155'
+                            }}>
+                              {cat.name}
+                            </span>
+                          </label>
+
+                          {/* Sub-model selector toggle when category is checked and has multiple models */}
+                          {isCatChecked && catProducts.length > 1 && (
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = currentAppCats.filter(s => !s.toLowerCase().startsWith(normCat + ':'));
+                                  if (!updated.some(s => s.toLowerCase() === normCat)) {
+                                    updated.push(cat.slug);
+                                  }
+                                  setAncillaryForm({ ...ancillaryForm, applicableCategories: updated });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '0.7rem',
+                                  borderRadius: '4px',
+                                  border: isAllCategory ? '1px solid #FF9200' : '1px solid #CBD5E1',
+                                  background: isAllCategory ? '#FF9200' : '#FFFFFF',
+                                  color: isAllCategory ? '#FFFFFF' : '#64748B',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                All Models
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = currentAppCats.filter(s => s.toLowerCase() !== normCat);
+                                  if (updated.filter(s => s.toLowerCase().startsWith(normCat + ':')).length === 0 && catProducts[0]) {
+                                    updated.push(`${cat.slug}:${catProducts[0].slug}`);
+                                  }
+                                  setAncillaryForm({ ...ancillaryForm, applicableCategories: updated });
+                                }}
+                                style={{
+                                  padding: '2px 8px',
+                                  fontSize: '0.7rem',
+                                  borderRadius: '4px',
+                                  border: !isAllCategory ? '1px solid #FF9200' : '1px solid #CBD5E1',
+                                  background: !isAllCategory ? '#FF9200' : '#FFFFFF',
+                                  color: !isAllCategory ? '#FFFFFF' : '#64748B',
+                                  fontWeight: 700,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Specific Models ({specificRules.length})
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Individual model checkboxes when Specific Models is chosen */}
+                        {isCatChecked && !isAllCategory && catProducts.length > 1 && (
+                          <div style={{
+                            marginTop: '8px',
+                            paddingTop: '8px',
+                            borderTop: '1px dashed #FFD8A8',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                            gap: '6px'
+                          }}>
+                            {catProducts.map((prod) => {
+                              const ruleKey = `${cat.slug}:${prod.slug}`;
+                              const isModelChecked = currentAppCats.some(s => s.toLowerCase() === ruleKey.toLowerCase());
+                              return (
+                                <label
+                                  key={prod.id}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '4px 8px',
+                                    background: isModelChecked ? '#FED7AA' : '#FFFFFF',
+                                    borderRadius: '6px',
+                                    border: isModelChecked ? '1px solid #F97316' : '1px solid #E2E8F0',
+                                    cursor: 'pointer',
+                                    userSelect: 'none'
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isModelChecked}
+                                    onChange={(e) => {
+                                      let updated = [...currentAppCats];
+                                      if (e.target.checked) {
+                                        if (!updated.some(s => s.toLowerCase() === ruleKey.toLowerCase())) {
+                                          updated.push(ruleKey);
+                                        }
+                                      } else {
+                                        updated = updated.filter(s => s.toLowerCase() !== ruleKey.toLowerCase());
+                                      }
+                                      setAncillaryForm({ ...ancillaryForm, applicableCategories: updated });
+                                    }}
+                                    style={{ accentColor: '#FF9200', width: '14px', height: '14px', cursor: 'pointer' }}
+                                  />
+                                  <span style={{
+                                    fontSize: '0.74rem',
+                                    fontWeight: isModelChecked ? 700 : 500,
+                                    color: isModelChecked ? '#7C2D12' : '#334155'
+                                  }}>
+                                    {getShortModel(prod.name)}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -8464,12 +8521,12 @@ interface SeoSettings {
                 )}
               </div>
 
-              {/* Layout Type Selection (Single Image vs 2 Separate Images) */}
+              {/* Layout Type Selection (Single Image vs 2 Images vs 3 Images) */}
               <div className="form-group-item" style={{ marginBottom: '16px' }}>
                 <label className="form-field-label">
                   Equipment Presentation Layout <span className="text-orange">*</span>
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                   <button
                     type="button"
                     onClick={() => setAncillaryForm({ ...ancillaryForm, layoutType: 'standard' })}
@@ -8515,10 +8572,33 @@ interface SeoSettings {
                     </div>
                     <div style={{ fontSize: '0.74rem', fontWeight: 500, color: '#64748B' }}>2 Separate Images side-by-side (Type 1 Manual & Type 2 Hydraulic)</div>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAncillaryForm({ ...ancillaryForm, layoutType: 'triple_variant' })}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      border: ancillaryForm.layoutType === 'triple_variant' ? '2px solid #FF9200' : '1px solid #CBD5E1',
+                      background: ancillaryForm.layoutType === 'triple_variant' ? '#FFF7ED' : '#FFFFFF',
+                      color: ancillaryForm.layoutType === 'triple_variant' ? '#00233D' : '#475569',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontSize: '0.86rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: ancillaryForm.layoutType === 'triple_variant' ? '#FF9200' : '#CBD5E1' }}></span>
+                      <strong>Triple Configurations (3 Images)</strong>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 500, color: '#64748B' }}>3 Separate Images & Descriptions in responsive arrangement</div>
+                  </button>
                 </div>
               </div>
 
-              {/* Dynamic Image Upload: Single Image OR 2 Separate Images */}
+              {/* Dynamic Image Upload: Single Image OR Dual OR Triple */}
               {ancillaryForm.layoutType === 'standard' ? (
                 /* Standard 1 Image Upload */
                 <div style={{ marginBottom: '16px' }}>
@@ -8529,7 +8609,7 @@ interface SeoSettings {
                     helperText="Recommended: PNG or WebP with transparent or white background"
                   />
                 </div>
-              ) : (
+              ) : ancillaryForm.layoutType === 'dual_variant' ? (
                 /* Dual 2 Separate Images Configuration Section */
                 <div style={{ background: '#F8FAFC', border: '1.5px solid #FED7AA', borderRadius: '12px', padding: '16px', marginBottom: '18px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
@@ -8661,6 +8741,92 @@ interface SeoSettings {
                       type="text"
                       className="form-input-field"
                       placeholder="e.g. Type 2 Technical Specifications"
+                      value={ancillaryForm.specsTitle}
+                      onChange={(e) => setAncillaryForm({ ...ancillaryForm, specsTitle: e.target.value })}
+                      style={{ fontSize: '0.82rem', padding: '7px 10px' }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                /* Triple 3 Separate Images Configuration Section */
+                <div style={{ background: '#F8FAFC', border: '1.5px solid #93C5FD', borderRadius: '12px', padding: '16px', marginBottom: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ background: '#1E3A8A', color: '#93C5FD', fontSize: '0.72rem', fontWeight: 800, padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                        3 Images Configuration
+                      </span>
+                      <strong style={{ fontSize: '0.88rem', color: '#00233D' }}>
+                        Upload 3 Separate Images & Descriptions
+                      </strong>
+                    </div>
+                    <span style={{ fontSize: '0.74rem', color: '#64748B' }}>
+                      Renders in responsive 3-column layout on product page
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+                    {[0, 1, 2].map((idx) => (
+                      <div key={idx} style={{ background: '#FFFFFF', border: '1.5px solid #E2E8F0', borderRadius: '10px', padding: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid #F1F5F9' }}>
+                          <span style={{ background: idx === 0 ? '#FF9200' : idx === 1 ? '#00233D' : '#2563EB', color: '#FFFFFF', fontSize: '0.7rem', fontWeight: 900, width: '22px', height: '22px', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {idx + 1}
+                          </span>
+                          <strong style={{ fontSize: '0.88rem', color: '#00233D' }}>Image {idx + 1} Configuration</strong>
+                        </div>
+
+                        <div className="form-group-item" style={{ marginBottom: '10px' }}>
+                          <label className="form-field-label" style={{ fontSize: '0.75rem' }}>Image {idx + 1} Label / Model Name</label>
+                          <input
+                            type="text"
+                            className="form-input-field"
+                            placeholder={`e.g. Configuration ${idx + 1}`}
+                            value={ancillaryForm.variants[idx]?.name || ''}
+                            onChange={(e) => {
+                              const next = [...ancillaryForm.variants];
+                              next[idx] = { ...next[idx], name: e.target.value };
+                              setAncillaryForm({ ...ancillaryForm, variants: next });
+                            }}
+                            style={{ fontSize: '0.82rem', padding: '7px 10px' }}
+                          />
+                        </div>
+
+                        <ImageUploadField
+                          label={`Image ${idx + 1} File / URL`}
+                          value={ancillaryForm.variants[idx]?.image || ''}
+                          onChange={(val) => {
+                            const next = [...ancillaryForm.variants];
+                            next[idx] = { ...next[idx], image: val };
+                            setAncillaryForm({ ...ancillaryForm, variants: next, ...(idx === 0 ? { image: val } : {}) });
+                          }}
+                          helperText={`Equipment image for configuration ${idx + 1}`}
+                        />
+
+                        <div className="form-group-item" style={{ marginTop: '10px' }}>
+                          <label className="form-field-label" style={{ fontSize: '0.75rem' }}>Image {idx + 1} Caption / Description</label>
+                          <textarea
+                            className="form-input-field"
+                            rows={2}
+                            placeholder="Enter configuration description or specification summary"
+                            value={ancillaryForm.variants[idx]?.description || ''}
+                            onChange={(e) => {
+                              const next = [...ancillaryForm.variants];
+                              next[idx] = { ...next[idx], description: e.target.value };
+                              setAncillaryForm({ ...ancillaryForm, variants: next });
+                            }}
+                            style={{ fontSize: '0.8rem', padding: '7px 10px', resize: 'vertical' }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Specifications Section Title for Triple Variant */}
+                  <div className="form-group-item">
+                    <label className="form-field-label" style={{ fontSize: '0.75rem' }}>Specifications Sub-Title</label>
+                    <input
+                      type="text"
+                      className="form-input-field"
+                      placeholder="e.g. Technical Specifications"
                       value={ancillaryForm.specsTitle}
                       onChange={(e) => setAncillaryForm({ ...ancillaryForm, specsTitle: e.target.value })}
                       style={{ fontSize: '0.82rem', padding: '7px 10px' }}

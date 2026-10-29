@@ -74,6 +74,7 @@ export const ProductsPage: React.FC = () => {
     { id: 'paver-block-machine', name: 'Paver Block', slug: 'paver-block-machine', catName: 'Paver Block Machine' },
     { id: 'batching-plant', name: 'Batching Plant', slug: 'batching-plant', catName: 'Batching Plant' },
     { id: 'storage-silo', name: 'Storage Silo', slug: 'storage-silo', catName: 'Storage Silo' },
+    { id: 'hammer-crusher', name: 'Hammer Crusher', slug: 'hammer-crusher', catName: 'Hammer Crusher / Material Processing Equipment' },
     { id: 'machine-spares', name: 'Machine Spares', slug: 'machine-spares', catName: 'Machine Spares' },
   ];
 
@@ -112,6 +113,9 @@ export const ProductsPage: React.FC = () => {
     }
     if (targetSlug === 'storage-silo') {
       return pSlug === 'storage-silo' || pCat.includes('silo');
+    }
+    if (targetSlug === 'hammer-crusher') {
+      return pSlug === 'hammer-crusher' || pCat.includes('crush') || pCat.includes('hammer');
     }
     if (targetSlug === 'machine-spares') {
       return pSlug === 'machine-spares' || isSpare;

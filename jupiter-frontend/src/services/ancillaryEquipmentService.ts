@@ -1,3 +1,5 @@
+import { apiClient, extractApiErrorMessage } from './api';
+
 export interface AncillarySpecItem {
   label: string;
   value: string;
@@ -18,7 +20,7 @@ export interface AncillaryEquipmentItem {
   categoryBadge: string;
   compatibilityBadge: string;
   image: string;
-  layoutType: 'standard' | 'dual_variant';
+  layoutType: 'standard' | 'dual_variant' | 'triple_variant';
   variants?: AncillaryVariantItem[];
   specsTitle?: string;
   specs: AncillarySpecItem[];
@@ -28,6 +30,7 @@ export interface AncillaryEquipmentItem {
   order: number;
   isActive: boolean;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface MachineCategoryOption {
@@ -47,30 +50,124 @@ export const ALL_MACHINE_CATEGORIES: MachineCategoryOption[] = [
 
 export const ANCILLARY_STORAGE_KEY = 'jupiter_ancillary_equipment';
 export const ANCILLARY_CATEGORIES_STORAGE_KEY = 'jupiter_ancillary_enabled_categories';
+export const DEFAULT_ENABLED_CATEGORIES = ['fly-ash-brick-machine', 'paver-block-machine'];
 
-// By default, enable on Fly Ash Brick Machine (as requested by user)
-export const DEFAULT_ENABLED_CATEGORIES = ['fly-ash-brick-machine'];
+// Empty default - no mock data or hardcoded machinery content
+export const DEFAULT_ANCILLARY_EQUIPMENT: AncillaryEquipmentItem[] = [];
 
-export const getAncillaryEnabledCategories = (): string[] => {
+// Clean legacy localStorage keys so no old browser-cached data ever overrides the database
+if (typeof window !== 'undefined') {
   try {
-    const raw = localStorage.getItem(ANCILLARY_CATEGORIES_STORAGE_KEY);
-    if (!raw) return DEFAULT_ENABLED_CATEGORIES;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_ENABLED_CATEGORIES;
-  } catch (err) {
-    return DEFAULT_ENABLED_CATEGORIES;
+    localStorage.removeItem('jupiter_ancillary_equipment');
+    localStorage.removeItem('jupiter_ancillary_equipment_v2');
+    localStorage.removeItem('jupiter_ancillary_enabled_categories');
+  } catch (_) {}
+}
+
+// In-memory runtime state populated strictly from backend database
+let _cachedEquipment: AncillaryEquipmentItem[] | null = null;
+let _cachedCategories: string[] | null = null;
+let _fetchPromise: Promise<AncillaryEquipmentItem[]> | null = null;
+let _categoriesPromise: Promise<string[]> | null = null;
+
+// ─────────────────────────────────────────────────────────
+// API DATA ACCESSORS (EXCLUSIVELY POSTGRES DATABASE)
+// ─────────────────────────────────────────────────────────
+
+export const fetchAncillaryEquipment = async (forceRefresh: boolean = false): Promise<AncillaryEquipmentItem[]> => {
+  if (!forceRefresh && _fetchPromise) {
+    return _fetchPromise;
   }
+
+  _fetchPromise = (async () => {
+    try {
+      let data: any = null;
+      try {
+        const response = await apiClient.get('/ancillary-equipment', { timeout: 15000 });
+        data = response.data?.data || response.data;
+      } catch (clientErr) {
+        // Fallback to Vite dev / live proxy
+        const res = await fetch('/api/ancillary-equipment');
+        const json = await res.json();
+        data = json.data || json;
+      }
+
+      if (Array.isArray(data)) {
+        const sorted = data.map((item: any) => ({
+          ...item,
+          applicableCategories: Array.isArray(item.applicableCategories) ? item.applicableCategories : [],
+        })).sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+
+        _cachedEquipment = sorted;
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('jupiter_ancillary_updated', { detail: sorted }));
+        }
+        return sorted;
+      }
+      return [];
+    } catch (err) {
+      console.error('Failed to fetch ancillary equipment from backend database API:', err);
+      return _cachedEquipment || [];
+    } finally {
+      _fetchPromise = null;
+    }
+  })();
+
+  return _fetchPromise;
 };
 
-export const saveAncillaryEnabledCategories = (categories: string[]): void => {
-  try {
-    localStorage.setItem(ANCILLARY_CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('jupiter_ancillary_updated'));
-    }
-  } catch (err) {
-    console.error('Failed to save ancillary enabled categories', err);
+export const fetchAncillaryEnabledCategories = async (forceRefresh: boolean = false): Promise<string[]> => {
+  if (!forceRefresh && _categoriesPromise) {
+    return _categoriesPromise;
   }
+
+  _categoriesPromise = (async () => {
+    try {
+      let data: any = null;
+      try {
+        const response = await apiClient.get('/ancillary-equipment/categories', { timeout: 15000 });
+        data = response.data?.data || response.data;
+      } catch (clientErr) {
+        const res = await fetch('/api/ancillary-equipment/categories');
+        const json = await res.json();
+        data = json.data || json;
+      }
+
+      if (Array.isArray(data)) {
+        _cachedCategories = data;
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('jupiter_ancillary_updated'));
+        }
+        return data;
+      }
+      return DEFAULT_ENABLED_CATEGORIES;
+    } catch (err) {
+      console.error('Failed to fetch ancillary categories from backend database API:', err);
+      return _cachedCategories || DEFAULT_ENABLED_CATEGORIES;
+    } finally {
+      _categoriesPromise = null;
+    }
+  })();
+
+  return _categoriesPromise;
+};
+
+// Synchronous getters reading from in-memory state fetched directly from backend database
+export const getStoredAncillaryEquipment = (): AncillaryEquipmentItem[] => {
+  if (_cachedEquipment !== null) {
+    return _cachedEquipment;
+  }
+  // Immediate trigger if cache empty
+  fetchAncillaryEquipment(true).catch(() => {});
+  return [];
+};
+
+export const getAncillaryEnabledCategories = (): string[] => {
+  if (_cachedCategories !== null) {
+    return _cachedCategories;
+  }
+  fetchAncillaryEnabledCategories(true).catch(() => {});
+  return DEFAULT_ENABLED_CATEGORIES;
 };
 
 export const isAncillaryEnabledForCategory = (categorySlug: string): boolean => {
@@ -79,7 +176,121 @@ export const isAncillaryEnabledForCategory = (categorySlug: string): boolean => 
   return enabled.some(s => s.toLowerCase() === slug);
 };
 
-export const toggleAncillaryCategory = (categorySlug: string): string[] => {
+export const saveStoredAncillaryEquipment = (items: AncillaryEquipmentItem[]): void => {
+  _cachedEquipment = items;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('jupiter_ancillary_updated', { detail: items }));
+  }
+};
+
+// ─────────────────────────────────────────────────────────
+// MUTATIONS (PERSISTED DIRECTLY TO POSTGRES DATABASE)
+// ─────────────────────────────────────────────────────────
+
+export const addAncillaryEquipment = async (
+  itemData: Omit<AncillaryEquipmentItem, 'id' | 'order' | 'createdAt'> & { order?: number }
+): Promise<AncillaryEquipmentItem> => {
+  const current = _cachedEquipment || [];
+  const order = itemData.order ?? (current.length > 0 ? Math.max(...current.map(i => i.order || 0)) + 1 : 1);
+
+  const payload = {
+    ...itemData,
+    order,
+  };
+
+  try {
+    const res = await apiClient.post('/ancillary-equipment', payload, { timeout: 15000 });
+    const created: AncillaryEquipmentItem = res.data?.data || res.data;
+    if (created && created.id) {
+      // Re-fetch all items directly from database
+      const fresh = await fetchAncillaryEquipment(true);
+      return fresh.find(i => i.id === created.id) || created;
+    }
+    throw new Error('Invalid response from server when creating equipment in database');
+  } catch (err) {
+    console.error('Failed to save ancillary equipment to backend database:', err);
+    const msg = extractApiErrorMessage(err, 'Failed to save equipment to database');
+    throw new Error(msg);
+  }
+};
+
+export const updateAncillaryEquipment = async (
+  id: string,
+  updates: Partial<AncillaryEquipmentItem>
+): Promise<AncillaryEquipmentItem> => {
+  try {
+    const res = await apiClient.put(`/ancillary-equipment/${encodeURIComponent(id)}`, updates, { timeout: 15000 });
+    const updated: AncillaryEquipmentItem = res.data?.data || res.data;
+    if (updated && updated.id) {
+      // Re-fetch all items directly from database
+      const fresh = await fetchAncillaryEquipment(true);
+      return fresh.find(i => i.id === id) || updated;
+    }
+    throw new Error('Invalid response from server when updating equipment in database');
+  } catch (err) {
+    console.error(`Failed to update ancillary equipment ${id} in backend database:`, err);
+    const msg = extractApiErrorMessage(err, 'Failed to update equipment in database');
+    throw new Error(msg);
+  }
+};
+
+export const deleteAncillaryEquipment = async (id: string): Promise<boolean> => {
+  try {
+    await apiClient.delete(`/ancillary-equipment/${encodeURIComponent(id)}`, { timeout: 15000 });
+    // Re-fetch latest records directly from database
+    await fetchAncillaryEquipment(true);
+    return true;
+  } catch (err) {
+    console.error(`Failed to delete ancillary equipment ${id} from database:`, err);
+    const msg = extractApiErrorMessage(err, 'Failed to delete equipment from database');
+    throw new Error(msg);
+  }
+};
+
+export const toggleAncillaryEquipmentStatus = async (id: string): Promise<boolean> => {
+  try {
+    const res = await apiClient.patch(`/ancillary-equipment/${encodeURIComponent(id)}/toggle`, {}, { timeout: 15000 });
+    const updated: AncillaryEquipmentItem = res.data?.data || res.data;
+    await fetchAncillaryEquipment(true);
+    return updated?.isActive ?? true;
+  } catch (err) {
+    console.error(`Failed to toggle status for ancillary equipment ${id}:`, err);
+    throw err;
+  }
+};
+
+export const reorderAncillaryEquipment = async (id: string, direction: 'up' | 'down'): Promise<AncillaryEquipmentItem[]> => {
+  try {
+    const res = await apiClient.put('/ancillary-equipment/reorder', { id, direction }, { timeout: 15000 });
+    const updatedList = res.data?.data;
+    if (Array.isArray(updatedList)) {
+      _cachedEquipment = updatedList;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('jupiter_ancillary_updated', { detail: updatedList }));
+      }
+      return updatedList;
+    }
+  } catch (err) {
+    console.error('Failed to persist equipment reordering to database:', err);
+  }
+  return fetchAncillaryEquipment(true);
+};
+
+export const saveAncillaryEnabledCategories = async (categories: string[]): Promise<void> => {
+  try {
+    const res = await apiClient.put('/ancillary-equipment/categories', { categories }, { timeout: 15000 });
+    const updated = res.data?.data;
+    _cachedCategories = Array.isArray(updated) ? updated : categories;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('jupiter_ancillary_updated'));
+    }
+  } catch (err) {
+    console.error('Failed to save ancillary categories to database:', err);
+    throw err;
+  }
+};
+
+export const toggleAncillaryCategory = async (categorySlug: string): Promise<string[]> => {
   const current = getAncillaryEnabledCategories();
   const slug = categorySlug.toLowerCase();
   let updated: string[];
@@ -88,265 +299,29 @@ export const toggleAncillaryCategory = (categorySlug: string): string[] => {
   } else {
     updated = [...current, slug];
   }
-  saveAncillaryEnabledCategories(updated);
+  await saveAncillaryEnabledCategories(updated);
   return updated;
 };
 
-export const DEFAULT_ANCILLARY_EQUIPMENT: AncillaryEquipmentItem[] = [
-  {
-    id: 'ancillary-pan-mixer',
-    name: 'Pan Mixer',
-    categoryBadge: 'Planetary Mixing System',
-    compatibilityBadge: 'OEM Standard',
-    image: '/images/catalogue/pan-mixer.png',
-    layoutType: 'standard',
-    specs: [
-      {
-        label: 'Capacity',
-        value: '1000 kg, 750 kg, 500 kg, 350 kg, 250 kg',
-        isPillList: true,
-      },
-      {
-        label: 'Power Required',
-        value: '30 HP, 25 HP, 20 HP, 15 HP, 10 HP',
-        isPillList: true,
-      },
-      {
-        label: 'Gear Box',
-        value: 'V10, V9, V8, V7, V6',
-        isPillList: false,
-      },
-      {
-        label: 'Method Of Mixing',
-        value: 'Heavy Rollers With Hard Faced Scrappers',
-        isPillList: false,
-      },
-    ],
-    quoteLabel: 'Get Pan Mixer Quote',
-    whatsAppMessage: 'Hello Jupiter, I am interested in the Pan Mixer specifications and pricing.',
-    applicableCategories: ['fly-ash-brick-machine'],
-    order: 1,
-    isActive: true,
-    createdAt: '2026-10-26T00:00:00.000Z',
-  },
-  {
-    id: 'ancillary-conveyor',
-    name: 'Belt Conveyor',
-    categoryBadge: 'Continuous Material Feed',
-    compatibilityBadge: 'OEM Standard',
-    image: '/images/catalogue/conveyor.png',
-    layoutType: 'standard',
-    specs: [
-      {
-        label: 'Capacity',
-        value: '2 Tons',
-        isPillList: false,
-      },
-      {
-        label: 'Power Required',
-        value: '3 HP',
-        isPillList: false,
-      },
-      {
-        label: 'Gear Box',
-        value: '337/40:1',
-        isPillList: false,
-      },
-      {
-        label: 'Storage Mode',
-        value: 'Thro Intermittent Bins',
-        isPillList: false,
-      },
-    ],
-    quoteLabel: 'Get Conveyor Quote',
-    whatsAppMessage: 'Hello Jupiter, I am interested in the Conveyor system pricing.',
-    applicableCategories: ['fly-ash-brick-machine'],
-    order: 2,
-    isActive: true,
-    createdAt: '2026-10-26T00:00:00.000Z',
-  },
-  {
-    id: 'ancillary-pallet-truck',
-    name: 'Pallet Truck Systems',
-    categoryBadge: 'Material Handling & Transport',
-    compatibilityBadge: 'Dual Configurations',
-    image: '/images/catalogue/pallet-truck-type1.png',
-    layoutType: 'dual_variant',
-    variants: [
-      {
-        id: 'var-type1',
-        name: 'Type 1 • Manual',
-        image: '/images/catalogue/pallet-truck-type1.png',
-        description: 'Hand Pallet Truck 250 kg Capacity with Wheels and 550 mm Fork Width',
-        imageClass: 'pdp-pallet-img-type1',
-      },
-      {
-        id: 'var-type2',
-        name: 'Type 2 • Hydraulic',
-        image: '/images/catalogue/pallet-truck-type2.png',
-        description: 'Heavy-Duty Hydraulic Tri-Wheel Lifting Vehicle for Stacked Brick Pallets',
-      },
-    ],
-    specsTitle: 'Type 2 Technical Specifications',
-    specs: [
-      {
-        label: 'Capacity',
-        value: 'Hand Pallet Truck\n500 kg',
-        isPillList: false,
-      },
-      {
-        label: 'Wheels',
-        value: '3 Wheels',
-        isPillList: false,
-      },
-      {
-        label: 'System',
-        value: 'Hydraulic Lifting Vehicles',
-        isPillList: false,
-      },
-    ],
-    quoteLabel: 'Get Pallet Truck Quote',
-    whatsAppMessage: 'Hello Jupiter, I am interested in the Pallet Truck pricing.',
-    applicableCategories: ['fly-ash-brick-machine'],
-    order: 3,
-    isActive: true,
-    createdAt: '2026-10-26T00:00:00.000Z',
-  },
-  {
-    id: 'ancillary-wheel-barrow',
-    name: 'Wheel Barrows',
-    categoryBadge: 'On-Site Raw Material Hauling',
-    compatibilityBadge: 'Heavy-Duty Tub',
-    image: '/images/catalogue/wheel-barrow.png',
-    layoutType: 'standard',
-    specs: [
-      {
-        label: 'Capacity',
-        value: '( 50 kg )',
-        isPillList: false,
-      },
-      {
-        label: 'Wheels',
-        value: '2 Wheels',
-        isPillList: false,
-      },
-    ],
-    quoteLabel: 'Get Wheel Barrow Quote',
-    whatsAppMessage: 'Hello Jupiter, I am interested in the Wheel Barrow specifications and pricing.',
-    applicableCategories: ['fly-ash-brick-machine'],
-    order: 4,
-    isActive: true,
-    createdAt: '2026-10-26T00:00:00.000Z',
-  },
-];
-
-export const getStoredAncillaryEquipment = (): AncillaryEquipmentItem[] => {
+export const resetAncillaryEquipmentToDefault = async (): Promise<AncillaryEquipmentItem[]> => {
   try {
-    const raw = localStorage.getItem(ANCILLARY_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed
-          .map((item) => ({
-            ...item,
-            applicableCategories: (item.applicableCategories && item.applicableCategories.length > 0)
-              ? item.applicableCategories
-              : ['fly-ash-brick-machine'],
-          }))
-          .sort((a, b) => (a.order || 0) - (b.order || 0));
+    const res = await apiClient.post('/ancillary-equipment/reset', {}, { timeout: 20000 });
+    const data = res.data?.data || res.data;
+    if (Array.isArray(data)) {
+      _cachedEquipment = data;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('jupiter_ancillary_updated', { detail: data }));
       }
+      return data;
     }
   } catch (err) {
-    console.error('Error loading ancillary equipment from storage:', err);
+    console.error('Failed to reset ancillary equipment in database:', err);
   }
-  return DEFAULT_ANCILLARY_EQUIPMENT;
+  return fetchAncillaryEquipment(true);
 };
 
-export const saveStoredAncillaryEquipment = (items: AncillaryEquipmentItem[]): void => {
-  try {
-    localStorage.setItem(ANCILLARY_STORAGE_KEY, JSON.stringify(items));
-    window.dispatchEvent(new Event('jupiter_ancillary_updated'));
-  } catch (err) {
-    console.error('Error saving ancillary equipment to storage:', err);
-  }
-};
-
-export const addAncillaryEquipment = (
-  itemData: Omit<AncillaryEquipmentItem, 'id' | 'order' | 'createdAt'> & { order?: number }
-): AncillaryEquipmentItem => {
-  const current = getStoredAncillaryEquipment();
-  const newId = `ancillary-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  const newItem: AncillaryEquipmentItem = {
-    ...itemData,
-    id: newId,
-    order: itemData.order ?? current.length + 1,
-    createdAt: new Date().toISOString(),
-  };
-
-  const updated = [...current, newItem];
-  saveStoredAncillaryEquipment(updated);
-  return newItem;
-};
-
-export const updateAncillaryEquipment = (
-  id: string,
-  updates: Partial<AncillaryEquipmentItem>
-): AncillaryEquipmentItem | null => {
-  const current = getStoredAncillaryEquipment();
-  const index = current.findIndex((item) => item.id === id);
-  if (index === -1) return null;
-
-  const updatedItem: AncillaryEquipmentItem = {
-    ...current[index],
-    ...updates,
-  };
-  current[index] = updatedItem;
-  saveStoredAncillaryEquipment(current);
-  return updatedItem;
-};
-
-export const deleteAncillaryEquipment = (id: string): boolean => {
-  const current = getStoredAncillaryEquipment();
-  const filtered = current.filter((item) => item.id !== id);
-  if (filtered.length === current.length) return false;
-
-  saveStoredAncillaryEquipment(filtered);
-  return true;
-};
-
-export const toggleAncillaryEquipmentStatus = (id: string): boolean => {
-  const current = getStoredAncillaryEquipment();
-  const item = current.find((i) => i.id === id);
-  if (!item) return false;
-
-  item.isActive = !item.isActive;
-  saveStoredAncillaryEquipment(current);
-  return item.isActive;
-};
-
-export const reorderAncillaryEquipment = (id: string, direction: 'up' | 'down'): AncillaryEquipmentItem[] => {
-  const current = [...getStoredAncillaryEquipment()].sort((a, b) => (a.order || 0) - (b.order || 0));
-  const index = current.findIndex((i) => i.id === id);
-  if (index === -1) return current;
-
-  const targetIndex = direction === 'up' ? index - 1 : index + 1;
-  if (targetIndex < 0 || targetIndex >= current.length) return current;
-
-  // Swap items
-  const temp = current[index];
-  current[index] = current[targetIndex];
-  current[targetIndex] = temp;
-
-  // Re-assign 1-based order
-  current.forEach((item, idx) => {
-    item.order = idx + 1;
-  });
-
-  saveStoredAncillaryEquipment(current);
-  return current;
-};
-
-export const resetAncillaryEquipmentToDefault = (): AncillaryEquipmentItem[] => {
-  saveStoredAncillaryEquipment(DEFAULT_ANCILLARY_EQUIPMENT);
-  return DEFAULT_ANCILLARY_EQUIPMENT;
-};
+// Immediate background fetch from database at module load
+if (typeof window !== 'undefined') {
+  fetchAncillaryEquipment(true).catch(() => {});
+  fetchAncillaryEnabledCategories(true).catch(() => {});
+}

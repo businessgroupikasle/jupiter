@@ -52,27 +52,72 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenQuoteModal }) => {
       subItems: [
         {
           name: 'Jupiter V 10 B Model – High Speed Fly Ash Brick Making Machine',
-          path: '/products/fly-ash-brick-machine?model=jupiter-v-10-b-model-high-speed-fly-ash-brick-making-machine',
+          path: '/products/fly-ash-brick-machine?model=jupiter-v-10-b-fly-ash-brick-making-machine',
           shortCode: 'V 10 B',
           tag: 'High-Speed Planetary Compaction'
         },
         {
           name: 'Jupiter V 12 B Model – High Speed Fly Ash Brick Making Machine',
-          path: '/products/fly-ash-brick-machine?model=jupiter-v-12-b-model-high-speed-fly-ash-brick-making-machine',
+          path: '/products/fly-ash-brick-machine?model=jupiter-v-12-b-fly-ash-brick-making-machine',
           shortCode: 'V 12 B',
           tag: 'High-Speed Automated Press'
         },
         {
           name: 'Jupiter V 15 B Model – High Speed Fly Ash Brick Making Machine',
-          path: '/products/fly-ash-brick-machine?model=jupiter-v-15-b-model-high-speed-fly-ash-brick-making-machine',
+          path: '/products/fly-ash-brick-machine?model=jupiter-v-15-b-fly-ash-brick-making-machine',
           shortCode: 'V 15 B',
           tag: 'Heavy-Duty 120 Ton Double Cylinder'
         },
       ]
     },
-    { name: 'Hollow and Solid Block Machine', path: '/products/hollow-and-solid-block-machine' },
-    { name: 'Inter Block Making Machine', path: '/products/inter-block-making-machine' },
-    { name: 'Paver Block Machine', path: '/products/paver-block-machine' },
+    { 
+      name: 'Hollow and Solid Block Machine', 
+      path: '/products/hollow-and-solid-block-machine',
+      subItems: [
+        {
+          name: 'Jupiter HDM 800 – Hollow & Solid Block Making Machine',
+          path: '/products/hollow-and-solid-block-machine?model=jupiter-hdm-800-hollow-solid-block-making-machine',
+          shortCode: 'HDM 800',
+          tag: 'High-Frequency 6000 VPM Vibration'
+        },
+        {
+          name: 'Hollow & Solid Block Making Machine – Double & Triple Vibrator',
+          path: '/products/hollow-and-solid-block-machine?model=double-triple-vibrator-hollow-solid-block-making-machine',
+          shortCode: 'Double & Triple Vibrator',
+          tag: '140 kg/cm² Hydraulic Press'
+        },
+      ]
+    },
+    { 
+      name: 'Inter Block Making Machine', 
+      path: '/products/inter-block-making-machine',
+      subItems: [
+        {
+          name: 'Manual Interlock Block Making Machine – 30 Ton Hydraulic Pressing System',
+          path: '/products/inter-block-making-machine?model=manual-interlock-block-making-machine',
+          shortCode: 'Manual 30 Ton',
+          tag: '30 Ton Bottom Pressing (150–200 Blocks/Hr)'
+        },
+        {
+          name: 'Automatic Interlock Block Making Machine – Vertical Twin Station Model',
+          path: '/products/inter-block-making-machine?model=automatic-interlock-block-making-machine',
+          shortCode: 'Automatic Twin Station',
+          tag: 'Vertical Twin Station (200–250 Blocks/Hr)'
+        },
+      ]
+    },
+    { 
+      name: 'Paver Block Machine', 
+      path: '/products/paver-block-machine',
+      subItems: [
+        {
+          name: 'Jupiter JE PBT2 – Paver Block Making Machine',
+          path: '/products/paver-block-machine?model=je-pbt2-paver-block-making-machine',
+          shortCode: 'JE PBT2',
+          tag: 'Vibrating Table System (2,000 Sq. Ft./Shift)'
+        },
+      ]
+    },
     { name: 'Batching Plant', path: '/products/batching-plant' },
     { name: 'Storage Silo', path: '/products/storage-silo' },
     { name: 'Machine Spares', path: '/products/machine-spares' },

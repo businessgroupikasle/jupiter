@@ -112,6 +112,7 @@ export const normalizeCanonicalUrl = (rawUrl?: string): string => {
       '/batching-plant',
       '/patching-plant',
       '/storage-silo',
+      '/hammer-crusher',
       '/machine-spares',
       '/spares'
     ].includes(path)
@@ -127,6 +128,7 @@ export const normalizeCanonicalUrl = (rawUrl?: string): string => {
       '/batching-plant': '/products/batching-plant',
       '/patching-plant': '/products/batching-plant',
       '/storage-silo': '/products/storage-silo',
+      '/hammer-crusher': '/products/hammer-crusher',
       '/machine-spares': '/products/machine-spares',
       '/spares': '/products/machine-spares'
     };

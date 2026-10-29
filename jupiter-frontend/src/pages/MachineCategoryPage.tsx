@@ -23,10 +23,15 @@ import {
   CircleDot,
   Truck,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  DoorOpen
 } from 'lucide-react';
 import { getCategoryBySlug, SubMachineItem, fetchProducts } from '../services/productService';
-import { getStoredAncillaryEquipment, AncillaryEquipmentItem, getAncillaryEnabledCategories } from '../services/ancillaryEquipmentService';
+import {
+  getStoredAncillaryEquipment,
+  AncillaryEquipmentItem,
+  fetchAncillaryEquipment
+} from '../services/ancillaryEquipmentService';
 import { submitEnquiry } from '../services/api';
 import { PageBanner } from '../components/PageBanner';
 import { getProductImageUrl, handleImageError } from '../utils/imageUrl';
@@ -36,21 +41,6 @@ import { PhoneInputWithCountry } from '../components/PhoneInputWithCountry';
 import { validateName, validatePhone, validateEmail } from '../utils/validation';
 import { NotFoundPage } from './NotFoundPage';
 
-export const DEFAULT_BADGES = ['Durable Construction', 'Consistent Dimensions', 'Lower Water Absorption', 'Cost-Effective Solution'];
-
-export const DEFAULT_HIGHLIGHTS = [
-  { title: 'High Compaction Density', description: 'Delivers sharp block corners, zero internal air voids, and high early compressive strength.' },
-  { title: 'Siemens / Delta PLC Automation', description: 'Fully automated cycle management with simple one-touch touchscreen control and safety interlocks.' },
-  { title: 'CNC Hardened Alloy Steel Moulds', description: 'Wear-resistant dies machined to exact tolerances ensuring hundreds of thousands of cycles.' },
-  { title: 'Heavy-Duty Fabricated Chassis', description: 'Stress-relieved solid steel frame engineered to dampen vibration and withstand continuous 24/7 duty.' },
-];
-
-export const DEFAULT_ADVANTAGES = [
-  { title: 'Reduced Cement Consumption', description: 'Optimum particle packing and vibration density reduces cement ratio by up to 25-30% while retaining strength.' },
-  { title: 'Zero Plant Downtime', description: 'Backed by Coimbatore OEM spare parts stock and emergency 24-hour service dispatch across India.' },
-  { title: 'Uniform Dimensions & Smooth Finish', description: 'Eliminates thick plastering mortar requirements, cutting masonry installation labor costs.' },
-  { title: 'Faster Return on Investment', description: 'High production speed with minimal labor dependency ensures early project break-even and profitability.' },
-];
 
 interface SpareItemCardProps {
   spare: SubMachineItem;
@@ -203,7 +193,7 @@ const SpareItemCard: React.FC<SpareItemCardProps> = ({ spare, onOpenQuote, onZoo
 
 export const MachineCategoryPage: React.FC = () => {
   const { categorySlug } = useParams<{ categorySlug: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const [updateTrigger, setUpdateTrigger] = useState(0);
 
@@ -248,18 +238,27 @@ export const MachineCategoryPage: React.FC = () => {
 
   // Ancillary / Related Machinery list synced live with Admin Panel
   const [ancillaryEquipmentList, setAncillaryEquipmentList] = useState<AncillaryEquipmentItem[]>(() => getStoredAncillaryEquipment());
-  const [ancillaryEnabledCategories, setAncillaryEnabledCategories] = useState<string[]>(() => getAncillaryEnabledCategories());
+  const [expandedMixerTable, setExpandedMixerTable] = useState(false);
 
   useEffect(() => {
-    const handleAncillaryUpdate = () => {
-      setAncillaryEquipmentList(getStoredAncillaryEquipment());
-      setAncillaryEnabledCategories(getAncillaryEnabledCategories());
+    fetchAncillaryEquipment(true)
+      .then((items) => {
+        if (Array.isArray(items)) setAncillaryEquipmentList(items);
+      })
+      .catch(() => {});
+
+    const handleAncillaryUpdate = (e?: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (Array.isArray(detail)) {
+        setAncillaryEquipmentList(detail);
+      } else {
+        setAncillaryEquipmentList(getStoredAncillaryEquipment());
+      }
     };
+
     window.addEventListener('jupiter_ancillary_updated', handleAncillaryUpdate);
-    window.addEventListener('storage', handleAncillaryUpdate);
     return () => {
       window.removeEventListener('jupiter_ancillary_updated', handleAncillaryUpdate);
-      window.removeEventListener('storage', handleAncillaryUpdate);
     };
   }, []);
 
@@ -288,11 +287,7 @@ export const MachineCategoryPage: React.FC = () => {
 
   const isSparesCategory = currentSlug === 'machine-spares' || currentSlug === 'spares' || (categoryData && categoryData.slug === 'machine-spares');
 
-  const isAncillaryVisibleOnThisCategory = useMemo(() => {
-    if (isSparesCategory) return false;
-    const slug = (currentSlug || '').toLowerCase();
-    return ancillaryEnabledCategories.some(s => s.toLowerCase() === slug);
-  }, [currentSlug, isSparesCategory, ancillaryEnabledCategories]);
+
 
   const canonicalPath = categoryData ? `https://jupitergroups.in/products/${categoryData.slug}` : `https://jupitergroups.in/products/${currentSlug}`;
 
@@ -364,16 +359,68 @@ export const MachineCategoryPage: React.FC = () => {
     );
   }, [categoryData, isSparesCategory, sparesSearch]);
 
-  // Handle URL query param for model pre-selection (?model= or ?product=)
+  // Helper to extract a clean friendly short name for model pills
+  const getModelShortName = (name: string): string => {
+    if (!name) return '';
+    const vMatch = name.match(/Jupiter\s+V\s*\d+\s*[A-Z]?/i);
+    if (vMatch) return vMatch[0];
+    if (name.includes('–')) {
+      const parts = name.split('–').map(s => s.trim());
+      if (parts[0].length <= 25) return parts[0];
+      if (parts[1] && parts[1].length <= 25) return parts[1];
+      return parts[0];
+    }
+    if (name.includes('-')) {
+      const parts = name.split('-').map(s => s.trim());
+      if (parts[0].length <= 25) return parts[0];
+      return parts[0];
+    }
+    return name.length > 25 ? name.slice(0, 23) + '...' : name;
+  };
+
+  // Resilient model matching helper for URL query parameters (by ID, exact slug, partial slug, model code, or name)
+  const matchMachine = (m: SubMachineItem, param: string): boolean => {
+    if (!param) return false;
+    const p = param.trim().toLowerCase();
+    const mId = (m.id || '').toLowerCase();
+    const mSlug = (m.slug || '').toLowerCase();
+    const mName = (m.name || '').toLowerCase();
+
+    // 1. Exact match on id or slug
+    if (mId === p || mSlug === p) return true;
+
+    // 2. Direct inclusion
+    if (mName.includes(p) || p.includes(mSlug) || (mSlug.length > 5 && p.includes(mSlug.slice(0, 15)))) return true;
+
+    // 3. Normalized alphanumeric comparison
+    const cleanParam = p.replace(/[^a-z0-9]/g, '');
+    const cleanSlug = mSlug.replace(/[^a-z0-9]/g, '');
+    const cleanName = mName.replace(/[^a-z0-9]/g, '');
+    const cleanId = mId.replace(/[^a-z0-9]/g, '');
+
+    if (cleanSlug === cleanParam || cleanId === cleanParam) return true;
+    if (cleanName.includes(cleanParam) || cleanParam.includes(cleanSlug)) return true;
+
+    // 4. Model codes: v10b, v12b, v15b
+    if (cleanParam.includes('v10b') || cleanParam.includes('v10')) {
+      if (cleanSlug.includes('v10') || cleanName.includes('v10') || cleanName.includes('v 10')) return true;
+    }
+    if (cleanParam.includes('v12b') || cleanParam.includes('v12')) {
+      if (cleanSlug.includes('v12') || cleanName.includes('v12') || cleanName.includes('v 12')) return true;
+    }
+    if (cleanParam.includes('v15b') || cleanParam.includes('v15')) {
+      if (cleanSlug.includes('v15') || cleanName.includes('v15') || cleanName.includes('v 15')) return true;
+    }
+
+    return false;
+  };
+
+  // Handle URL query param for model pre-selection (?model= or ?product= or ?id=)
   useEffect(() => {
     if (categoryData && categoryData.subMachines.length > 0) {
       const modelParam = searchParams.get('model') || searchParams.get('product') || searchParams.get('id');
       if (modelParam) {
-        const foundIdx = categoryData.subMachines.findIndex(
-          m => m.id.toLowerCase() === modelParam.toLowerCase() ||
-               (m.slug && m.slug.toLowerCase() === modelParam.toLowerCase()) ||
-               m.name.toLowerCase().includes(modelParam.toLowerCase())
-        );
+        const foundIdx = categoryData.subMachines.findIndex(m => matchMachine(m, modelParam));
         if (foundIdx !== -1) {
           setSelectedModelIdx(foundIdx);
           setSelectedImageIdx(0);
@@ -388,6 +435,49 @@ export const MachineCategoryPage: React.FC = () => {
 
   // Active Machine Model
   const activeMachine: SubMachineItem | undefined = categoryData.subMachines[selectedModelIdx] || categoryData.subMachines[0];
+
+  // Dynamically filter Related Machinery for this category page and currently active machine model
+  const activeEquipment = useMemo(() => {
+    if (isSparesCategory) return [];
+    const cSlug = (currentSlug || '').toLowerCase();
+    const mSlug = (activeMachine?.slug || '').toLowerCase();
+    const mId = (activeMachine?.id || '').toLowerCase();
+    const mName = (activeMachine?.name || '').toLowerCase();
+
+    return ancillaryEquipmentList.filter(item => {
+      if (!item.isActive) return false;
+      if (!item.applicableCategories || item.applicableCategories.length === 0) return false;
+
+      const appCats = item.applicableCategories.map(s => s.toLowerCase());
+
+      // 1. Check if this item has specific model assignments for this category (e.g. "fly-ash-brick-machine:v10")
+      const specificModelRulesForThisCat = appCats.filter(s => s.startsWith(cSlug + ':'));
+      if (specificModelRulesForThisCat.length > 0) {
+        return specificModelRulesForThisCat.some(rule => {
+          const target = rule.slice(cSlug.length + 1).trim();
+          return (
+            (mSlug && target === mSlug) ||
+            (mId && target === mId) ||
+            (mName && mName.includes(target)) ||
+            (mSlug && mSlug.includes(target))
+          );
+        });
+      }
+
+      // 2. Direct model rule (e.g. "model:slug" or exact slug/id)
+      const directModelMatch = appCats.some(s => {
+        if (s.startsWith('model:')) {
+          const target = s.slice(6).trim();
+          return target === mSlug || target === mId;
+        }
+        return (mSlug && s === mSlug) || (mId && s === mId);
+      });
+      if (directModelMatch) return true;
+
+      // 3. General category match (applies to all models in category)
+      return appCats.includes(cSlug);
+    });
+  }, [ancillaryEquipmentList, isSparesCategory, currentSlug, activeMachine]);
 
   // Prepare images gallery - only show additional thumbnails if user actually added them
   const galleryImages: string[] = useMemo(() => {
@@ -680,6 +770,37 @@ export const MachineCategoryPage: React.FC = () => {
             /* STANDARD MACHINERY VIEW (WITH TABS) */
             <>
 
+              {/* Model Switcher Pills (when category has multiple models) */}
+              {categoryData.subMachines.length > 1 && (
+                <div className="pdp-model-switcher" role="tablist" aria-label="Machine models">
+                  <span className="pdp-model-label">Select Model:</span>
+                  {categoryData.subMachines.map((m, idx) => {
+                    const isActive = selectedModelIdx === idx;
+                    const pillName = getModelShortName(m.name);
+                    return (
+                      <button
+                        key={m.id || idx}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={`pdp-model-pill ${isActive ? 'active' : ''}`}
+                        onClick={() => {
+                          setSelectedModelIdx(idx);
+                          setSelectedImageIdx(0);
+                          if (m.slug || m.id) {
+                            const next = new URLSearchParams(searchParams);
+                            next.set('model', m.slug || m.id);
+                            setSearchParams(next, { replace: true });
+                          }
+                        }}
+                      >
+                        {pillName}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* TOP SHOWCASE: 2-COLUMN GRID (Gallery on Left, Details on Right) */}
               <div className="pdp-showcase-grid">
                 {/* Left Column: Product Image Gallery */}
@@ -764,11 +885,11 @@ export const MachineCategoryPage: React.FC = () => {
                       `${categoryData.name} manufactured and supplied by Jupiter Industries in Coimbatore. Engineered with heavy-duty structural steel and advanced hydraulic compaction for residential, commercial and industrial construction projects across India.`}
                   </p>
 
-                  {/* 4 Feature Badges in 2x2 Grid */}
+                  {/* Feature Badges in 2x2 Grid */}
                   <div className="pdp-features-grid">
                     {(activeMachine?.featureBadges && activeMachine.featureBadges.filter(Boolean).length > 0
                       ? activeMachine.featureBadges.filter(Boolean)
-                      : DEFAULT_BADGES
+                      : []
                     ).map((badge, bIdx) => {
                       const icons = [Hexagon, Scan, Droplets, Coins];
                       const IconComp = icons[bIdx % icons.length];
@@ -912,60 +1033,63 @@ export const MachineCategoryPage: React.FC = () => {
                   {/* TAB 3: PRODUCT HIGHLIGHTS */}
                   {activeTab === 'highlights' && (
                     <div className="pdp-cards-grid">
-                      {(activeMachine?.highlights && activeMachine.highlights.length > 0
-                        ? activeMachine.highlights
-                        : DEFAULT_HIGHLIGHTS
-                      ).map((hl, idx) => (
-                        <div key={idx} className="pdp-feature-card">
-                          <h5>{hl.title}</h5>
-                          <p>{hl.description}</p>
+                      {activeMachine?.highlights && activeMachine.highlights.length > 0 ? (
+                        activeMachine.highlights.map((hl, idx) => (
+                          <div key={idx} className="pdp-feature-card">
+                            <h5>{hl.title}</h5>
+                            <p>{hl.description}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ color: '#64748B', fontStyle: 'italic', padding: '20px', gridColumn: '1 / -1' }}>
+                          No product highlights listed for this model.
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
 
                   {/* FEATURES TAB */}
                   {activeTab === 'features' && (
                     <div className="pdp-text-panel">
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        {(activeMachine?.keyFeatures && activeMachine.keyFeatures.length > 0
-                          ? activeMachine.keyFeatures
-                          : [
-                              'Heavy-Duty Hydraulic Power Pack with foreign-brand proportional valves',
-                              'Synchronized high-frequency bottom & top directional vibration systems',
-                              'Automatic pallet feeding and stacked discharge mechanism',
-                              'Modular interchangeable mould design for pavers, solid blocks & bricks',
-                              'Low power consumption with high-efficiency IE3 electric motors'
-                            ]
-                        ).map((feat, fIdx) => (
-                          <li key={fIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                            <Check size={18} style={{ color: '#FF6B00', flexShrink: 0, marginTop: '3px' }} />
-                            <span>{feat}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      {activeMachine?.keyFeatures && activeMachine.keyFeatures.length > 0 ? (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          {activeMachine.keyFeatures.map((feat, fIdx) => (
+                            <li key={fIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                              <Check size={18} style={{ color: '#FF6B00', flexShrink: 0, marginTop: '3px' }} />
+                              <span>{feat}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div style={{ color: '#64748B', fontStyle: 'italic', padding: '20px' }}>
+                          No key features listed for this model.
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* ADVANTAGES TAB */}
                   {activeTab === 'advantages' && (
                     <div className="pdp-cards-grid">
-                      {(activeMachine?.advantages && activeMachine.advantages.length > 0
-                        ? activeMachine.advantages
-                        : DEFAULT_ADVANTAGES
-                      ).map((adv, idx) => (
-                        <div key={idx} className="pdp-feature-card">
-                          <h5>{adv.title}</h5>
-                          <p>{adv.description}</p>
+                      {activeMachine?.advantages && activeMachine.advantages.length > 0 ? (
+                        activeMachine.advantages.map((adv, idx) => (
+                          <div key={idx} className="pdp-feature-card">
+                            <h5>{adv.title}</h5>
+                            <p>{adv.description}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ color: '#64748B', fontStyle: 'italic', padding: '20px', gridColumn: '1 / -1' }}>
+                          No applications or advantages listed for this model.
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* CREATIVE ANCILLARY MACHINERY & EQUIPMENT SECTION (VISIBLE ONLY ON ALLOWED CATEGORIES) */}
-              {isAncillaryVisibleOnThisCategory && (
+              {/* CREATIVE ANCILLARY MACHINERY & EQUIPMENT SECTION */}
+              {activeEquipment.length > 0 && (
                 <div className="pdp-creative-ancillary-section">
                 <style>{`
                   .pdp-creative-ancillary-section {
@@ -1379,6 +1503,20 @@ export const MachineCategoryPage: React.FC = () => {
                     }
                   }
 
+                  /* Triple Configurations Showcase */
+                  .pdp-triple-grid {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 14px;
+                    padding: 20px 24px 14px;
+                  }
+
+                  @media (max-width: 850px) {
+                    .pdp-triple-grid {
+                      grid-template-columns: 1fr;
+                    }
+                  }
+
                   .pdp-pallet-subcard {
                     background: radial-gradient(circle at center, #FFFFFF 0%, #F8FAFC 85%);
                     border: 1px solid #E2E8F0;
@@ -1462,6 +1600,221 @@ export const MachineCategoryPage: React.FC = () => {
                       grid-template-columns: 1fr;
                     }
                   }
+
+                  /* Reference Grid Card Styling */
+                  .pdp-card-title-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                  }
+
+                  .pdp-card-title-tech-spec {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    background: #F1F5F9;
+                    border: 1px solid #CBD5E1;
+                    color: #00233D;
+                    font-size: 0.72rem;
+                    font-weight: 800;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    padding: 3px 8px;
+                    border-radius: 6px;
+                  }
+
+                  .pdp-ref-spec-box {
+                    background: linear-gradient(145deg, #FFFFFF 0%, #F8FAFC 100%);
+                    border: 1.5px solid #00233D;
+                    border-radius: 12px;
+                    padding: 12px 10px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    text-align: center;
+                    justify-content: center;
+                    transition: all 0.25s ease;
+                    box-sizing: border-box;
+                    min-height: 100px;
+                  }
+
+                  .pdp-ref-spec-box:hover {
+                    background: #FFFFFF;
+                    border-color: #FF9200;
+                    box-shadow: 0 4px 14px rgba(0, 35, 61, 0.12);
+                    transform: translateY(-2px);
+                  }
+
+                  .pdp-ref-icon-badge {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    background: linear-gradient(135deg, #FF9200 0%, #E05300 100%);
+                    color: #FFFFFF;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: 6px;
+                    box-shadow: 0 3px 8px rgba(255, 146, 0, 0.3);
+                    flex-shrink: 0;
+                  }
+
+                  .pdp-ref-spec-label {
+                    color: #00233D;
+                    font-size: 0.68rem;
+                    font-weight: 800;
+                    letter-spacing: 0.4px;
+                    text-transform: uppercase;
+                    margin-bottom: 4px;
+                  }
+
+                  .pdp-ref-spec-val {
+                    color: #00233D;
+                    font-size: 0.78rem;
+                    font-weight: 700;
+                    line-height: 1.35;
+                    word-break: break-word;
+                  }
+
+                  /* Equipment 1: Pan Mixer 2-Row Layout */
+                  .pdp-pan-mixer-body {
+                    padding: 20px 24px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                  }
+
+                  .pdp-pan-mixer-row1 {
+                    display: grid;
+                    grid-template-columns: 1.2fr 1fr 1fr;
+                    gap: 12px;
+                  }
+
+                  .pdp-pan-mixer-row2 {
+                    display: grid;
+                    grid-template-columns: repeat(3, 1fr);
+                    gap: 12px;
+                  }
+
+                  .pdp-pan-mixer-img-box {
+                    background: radial-gradient(circle at center, #FFFFFF 0%, #F8FAFC 85%);
+                    border: 1.5px solid #00233D;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 10px;
+                    position: relative;
+                    cursor: pointer;
+                    overflow: hidden;
+                    min-height: 100px;
+                    transition: all 0.3s ease;
+                  }
+
+                  .pdp-pan-mixer-img-box:hover {
+                    border-color: #FF9200;
+                    box-shadow: 0 6px 16px rgba(255, 146, 0, 0.15);
+                  }
+
+                  .pdp-pan-mixer-img {
+                    max-width: 100%;
+                    max-height: 90px;
+                    object-fit: contain;
+                    filter: drop-shadow(0 6px 12px rgba(0, 35, 61, 0.1));
+                    transition: transform 0.35s ease;
+                  }
+
+                  .pdp-pan-mixer-img-box:hover .pdp-pan-mixer-img {
+                    transform: scale(1.06);
+                  }
+
+                  .pdp-pan-mixer-img-box:hover .pdp-img-zoom-chip {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+
+                  @media (max-width: 680px) {
+                    .pdp-pan-mixer-row1 {
+                      grid-template-columns: 1fr;
+                    }
+                    .pdp-pan-mixer-row2 {
+                      grid-template-columns: 1fr;
+                    }
+                  }
+
+                  /* Equipment 2: Pallet Truck Split Layout */
+                  .pdp-pallet-single-body {
+                    padding: 20px 24px;
+                    display: grid;
+                    grid-template-columns: 1fr 1.3fr;
+                    gap: 16px;
+                    align-items: stretch;
+                  }
+
+                  .pdp-pallet-large-img-box {
+                    background: radial-gradient(circle at center, #FFFFFF 0%, #F8FAFC 85%);
+                    border: 1.5px solid #00233D;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 16px;
+                    position: relative;
+                    cursor: pointer;
+                    overflow: hidden;
+                    transition: all 0.3s ease;
+                    min-height: 160px;
+                  }
+
+                  .pdp-pallet-large-img-box:hover {
+                    border-color: #FF9200;
+                    box-shadow: 0 6px 16px rgba(255, 146, 0, 0.15);
+                  }
+
+                  .pdp-pallet-large-img {
+                    max-width: 100%;
+                    max-height: 160px;
+                    object-fit: contain;
+                    filter: drop-shadow(0 8px 14px rgba(0, 35, 61, 0.1));
+                    transition: transform 0.35s ease;
+                  }
+
+                  .pdp-pallet-large-img-box:hover .pdp-pallet-large-img {
+                    transform: scale(1.06);
+                  }
+
+                  .pdp-pallet-large-img-box:hover .pdp-img-zoom-chip {
+                    opacity: 1;
+                    transform: translateY(0);
+                  }
+
+                  .pdp-pallet-right-col {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    justify-content: space-between;
+                  }
+
+                  .pdp-pallet-upper-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                  }
+
+                  .pdp-pallet-wide-box {
+                    width: 100%;
+                  }
+
+                  @media (max-width: 680px) {
+                    .pdp-pallet-single-body {
+                      grid-template-columns: 1fr;
+                      padding: 16px;
+                    }
+                    .pdp-pallet-upper-row {
+                      grid-template-columns: 1fr;
+                    }
+                  }
                 `}</style>
 
                 {/* Section Header */}
@@ -1484,13 +1837,6 @@ export const MachineCategoryPage: React.FC = () => {
 
                 {/* 2-Column Responsive Dynamic Grid */}
                 {(() => {
-                  const activeEquipment = ancillaryEquipmentList.filter(item => {
-                    if (!item.isActive) return false;
-                    if (item.applicableCategories === undefined) {
-                      return (currentSlug || '').toLowerCase() === 'fly-ash-brick-machine';
-                    }
-                    return item.applicableCategories.map(s => s.toLowerCase()).includes((currentSlug || '').toLowerCase());
-                  });
                   if (activeEquipment.length === 0) return null;
 
                   const leftColumnItems = activeEquipment.filter((_, idx) => idx % 2 === 0);
@@ -1498,12 +1844,17 @@ export const MachineCategoryPage: React.FC = () => {
 
                   const renderSpecIcon = (label: string) => {
                     const l = label.toLowerCase();
-                    if (l.includes('capacity')) return <Maximize2 size={16} />;
+                    if (l.includes('capacity') || l.includes('volume') || l.includes('dimension') || l.includes('size')) return <Maximize2 size={16} />;
+                    if (l.includes('model') || l.includes('option')) return <Sparkles size={16} />;
                     if (l.includes('power')) return <Zap size={16} />;
-                    if (l.includes('gear')) return <Settings size={16} />;
+                    if (l.includes('gear') || l.includes('drive') || l.includes('operat') || l.includes('system')) return <Settings size={16} />;
                     if (l.includes('wheel')) return <CircleDot size={16} />;
-                    if (l.includes('system') || l.includes('transport') || l.includes('truck')) return <Truck size={16} />;
+                    if (l.includes('weight')) return <Coins size={16} />;
+                    if (l.includes('handling') || l.includes('transport') || l.includes('truck')) return <Truck size={16} />;
                     if (l.includes('storage') || l.includes('feed') || l.includes('mode')) return <RotateCw size={16} />;
+                    if (l.includes('discharg') || l.includes('door')) return <DoorOpen size={16} />;
+                    if (l.includes('raw') || l.includes('material')) return <Layers size={16} />;
+                    if (l.includes('method') || l.includes('mixing')) return <RotateCw size={16} />;
                     return <Layers size={16} />;
                   };
 
@@ -1517,6 +1868,240 @@ export const MachineCategoryPage: React.FC = () => {
                   };
 
                   const renderEquipmentCard = (eq: AncillaryEquipmentItem) => {
+                    // Equipment 1: Pan Mixer 2-Row Layout Variant
+                    const isPanMixerGridVariant =
+                      eq.id === 'ancillary-pan-mixer-500-350' ||
+                      (eq.name.toLowerCase() === 'pan mixer' && eq.specs && eq.specs.length === 5);
+
+                    if (isPanMixerGridVariant) {
+                      const capacitySpec = eq.specs.find(s => s.label.toLowerCase().includes('capacity')) || eq.specs[0] || { label: 'Capacity', value: '500 kg, 350 kg' };
+                      const powerSpec = eq.specs.find(s => s.label.toLowerCase().includes('power')) || eq.specs[1] || { label: 'Power Required', value: '20 HP, 10 HP' };
+                      const dischargeSpec = eq.specs.find(s => s.label.toLowerCase().includes('discharg')) || eq.specs[2] || { label: 'Discharging Point', value: 'By Opening Bottom Door Manually' };
+                      const rawMaterialSpec = eq.specs.find(s => s.label.toLowerCase().includes('raw')) || eq.specs[3] || { label: 'Raw Material', value: 'Mixing Of Raw Material Of Flyash Bricks Or Second Layer Of Paver Blocks' };
+                      const methodSpec = eq.specs.find(s => s.label.toLowerCase().includes('method')) || eq.specs[4] || { label: 'Method Of Mixing', value: 'By Using Heavy Rollers With Hard Faced Scrappers' };
+
+                      return (
+                        <div key={eq.id} className="pdp-equipment-card pdp-pan-mixer-variant-card">
+                          <div className="pdp-card-accent-bar"></div>
+                          <div className="pdp-card-header">
+                            <div className="pdp-card-header-left">
+                              <span className="pdp-card-cat-badge">
+                                {renderCategoryIcon(eq.categoryBadge)}
+                                <span>{eq.categoryBadge}</span>
+                              </span>
+                              <div className="pdp-card-title-row">
+                                <h4 className="pdp-card-title">{eq.name}</h4>
+                                <span className="pdp-card-title-tech-spec">
+                                  <Settings size={13} style={{ color: '#FF9200' }} />
+                                  <span>Technical Specifications</span>
+                                </span>
+                              </div>
+                            </div>
+                            <div className="pdp-card-compat-badge">
+                              <span className="pdp-card-compat-dot"></span>
+                              <span>{eq.compatibilityBadge}</span>
+                            </div>
+                          </div>
+
+                          <div className="pdp-pan-mixer-body">
+                            {/* First row: Pan Mixer image, Capacity and Power Required */}
+                            <div className="pdp-pan-mixer-row1">
+                              <div
+                                className="pdp-pan-mixer-img-box"
+                                onClick={() => {
+                                  setLightboxImage(eq.image);
+                                  setLightboxOpen(true);
+                                }}
+                                title="Click to zoom Pan Mixer"
+                              >
+                                <img
+                                  src={eq.image}
+                                  alt={`Jupiter ${eq.name}`}
+                                  className="pdp-pan-mixer-img"
+                                  onError={handleImageError}
+                                />
+                                <div className="pdp-img-zoom-chip">
+                                  <Maximize2 size={12} />
+                                  <span>Inspect</span>
+                                </div>
+                              </div>
+
+                              <div className="pdp-ref-spec-box">
+                                <div className="pdp-ref-icon-badge">
+                                  <Maximize2 size={16} />
+                                </div>
+                                <span className="pdp-ref-spec-label">{capacitySpec.label}</span>
+                                <span className="pdp-ref-spec-val">{capacitySpec.value}</span>
+                              </div>
+
+                              <div className="pdp-ref-spec-box">
+                                <div className="pdp-ref-icon-badge">
+                                  <Zap size={16} />
+                                </div>
+                                <span className="pdp-ref-spec-label">{powerSpec.label}</span>
+                                <span className="pdp-ref-spec-val">{powerSpec.value}</span>
+                              </div>
+                            </div>
+
+                            {/* Second row: Discharging Point, Raw Material and Method Of Mixing */}
+                            <div className="pdp-pan-mixer-row2">
+                              <div className="pdp-ref-spec-box">
+                                <div className="pdp-ref-icon-badge">
+                                  <DoorOpen size={16} />
+                                </div>
+                                <span className="pdp-ref-spec-label">{dischargeSpec.label}</span>
+                                <span className="pdp-ref-spec-val">{dischargeSpec.value}</span>
+                              </div>
+
+                              <div className="pdp-ref-spec-box">
+                                <div className="pdp-ref-icon-badge">
+                                  <Layers size={16} />
+                                </div>
+                                <span className="pdp-ref-spec-label">{rawMaterialSpec.label}</span>
+                                <span className="pdp-ref-spec-val">{rawMaterialSpec.value}</span>
+                              </div>
+
+                              <div className="pdp-ref-spec-box">
+                                <div className="pdp-ref-icon-badge">
+                                  <RotateCw size={16} />
+                                </div>
+                                <span className="pdp-ref-spec-label">{methodSpec.label}</span>
+                                <span className="pdp-ref-spec-val">{methodSpec.value}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pdp-card-footer">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenQuote(eq.name)}
+                              className="pdp-card-btn-quote"
+                            >
+                              <span>{eq.quoteLabel || `Get ${eq.name} Quote`}</span>
+                              <ArrowRight size={14} />
+                            </button>
+                            <a
+                              href={`https://wa.me/919342919060?text=${encodeURIComponent(eq.whatsAppMessage || `Hello Jupiter, I am interested in the ${eq.name} specifications and pricing.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="pdp-card-btn-wa"
+                            >
+                              <WhatsAppIcon size={16} />
+                              <span>Enquire on WhatsApp</span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Equipment 2: Pallet Truck Single Variant Layout
+                    const isPalletTruckSingleVariant =
+                      eq.id === 'ancillary-pallet-truck-05ton' ||
+                      (eq.name.toLowerCase() === 'pallet truck' && eq.specs && eq.specs.length === 3 && eq.layoutType === 'standard');
+
+                    if (isPalletTruckSingleVariant) {
+                      const capacitySpec = eq.specs.find(s => s.label.toLowerCase().includes('capacity')) || eq.specs[0] || { label: 'Capacity', value: '0.5 Ton (500 kg)' };
+                      const wheelsSpec = eq.specs.find(s => s.label.toLowerCase().includes('wheel')) || eq.specs[1] || { label: 'Wheels', value: '3 Wheels' };
+                      const systemSpec = eq.specs.find(s => s.label.toLowerCase().includes('system')) || eq.specs[2] || { label: 'System', value: 'Hydraulic Lifting by Hand Pumping' };
+
+                      return (
+                        <div key={eq.id} className="pdp-equipment-card pdp-pallet-variant-card">
+                          <div className="pdp-card-accent-bar"></div>
+                          <div className="pdp-card-header">
+                            <div className="pdp-card-header-left">
+                              <span className="pdp-card-cat-badge">
+                                {renderCategoryIcon(eq.categoryBadge)}
+                                <span>{eq.categoryBadge}</span>
+                              </span>
+                              <div className="pdp-card-title-row">
+                                <h4 className="pdp-card-title">{eq.name}</h4>
+                                <span className="pdp-card-title-tech-spec">
+                                  <Settings size={13} style={{ color: '#FF9200' }} />
+                                  <span>Technical Specifications</span>
+                                </span>
+                              </div>
+                            </div>
+                            <div className="pdp-card-compat-badge">
+                              <span className="pdp-card-compat-dot"></span>
+                              <span>{eq.compatibilityBadge}</span>
+                            </div>
+                          </div>
+
+                          <div className="pdp-pallet-single-body">
+                            {/* Show the large Pallet Truck image on the left */}
+                            <div
+                              className="pdp-pallet-large-img-box"
+                              onClick={() => {
+                                setLightboxImage(eq.image);
+                                setLightboxOpen(true);
+                              }}
+                              title="Click to zoom Pallet Truck"
+                            >
+                              <img
+                                src={eq.image}
+                                alt={`Jupiter ${eq.name}`}
+                                className="pdp-pallet-large-img"
+                                onError={handleImageError}
+                              />
+                              <div className="pdp-img-zoom-chip">
+                                <Maximize2 size={12} />
+                                <span>Inspect</span>
+                              </div>
+                            </div>
+
+                            {/* Display Capacity and Wheels on upper right, System as one wider box below */}
+                            <div className="pdp-pallet-right-col">
+                              <div className="pdp-pallet-upper-row">
+                                <div className="pdp-ref-spec-box">
+                                  <div className="pdp-ref-icon-badge">
+                                    <Maximize2 size={16} />
+                                  </div>
+                                  <span className="pdp-ref-spec-label">{capacitySpec.label}</span>
+                                  <span className="pdp-ref-spec-val">{capacitySpec.value}</span>
+                                </div>
+
+                                <div className="pdp-ref-spec-box">
+                                  <div className="pdp-ref-icon-badge">
+                                    <CircleDot size={16} />
+                                  </div>
+                                  <span className="pdp-ref-spec-label">{wheelsSpec.label}</span>
+                                  <span className="pdp-ref-spec-val">{wheelsSpec.value}</span>
+                                </div>
+                              </div>
+
+                              <div className="pdp-ref-spec-box pdp-pallet-wide-box">
+                                <div className="pdp-ref-icon-badge">
+                                  <Truck size={16} />
+                                </div>
+                                <span className="pdp-ref-spec-label">{systemSpec.label}</span>
+                                <span className="pdp-ref-spec-val">{systemSpec.value}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pdp-card-footer">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenQuote(eq.name)}
+                              className="pdp-card-btn-quote"
+                            >
+                              <span>{eq.quoteLabel || `Get ${eq.name} Quote`}</span>
+                              <ArrowRight size={14} />
+                            </button>
+                            <a
+                              href={`https://wa.me/919342919060?text=${encodeURIComponent(eq.whatsAppMessage || `Hello Jupiter, I am interested in the ${eq.name} specifications and pricing.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="pdp-card-btn-wa"
+                            >
+                              <WhatsAppIcon size={16} />
+                              <span>Enquire on WhatsApp</span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     if (eq.layoutType === 'dual_variant' && eq.variants && eq.variants.length > 0) {
                       return (
                         <div key={eq.id} className="pdp-equipment-card">
@@ -1538,6 +2123,97 @@ export const MachineCategoryPage: React.FC = () => {
                           {/* Dual Configurations Grid */}
                           <div className="pdp-pallet-dual-grid">
                             {eq.variants.map((v) => (
+                              <div
+                                key={v.id}
+                                className="pdp-pallet-subcard"
+                                onClick={() => {
+                                  setLightboxImage(v.image);
+                                  setLightboxOpen(true);
+                                }}
+                              >
+                                <span className="pdp-subcard-tag">{v.name}</span>
+                                <img
+                                  src={v.image}
+                                  alt={v.name}
+                                  className={`pdp-pallet-img ${v.imageClass || ''}`}
+                                  onError={handleImageError}
+                                />
+                                <p className="pdp-pallet-subcard-text">
+                                  {v.description}
+                                </p>
+                                <div className="pdp-img-zoom-chip" style={{ bottom: '8px' }}>
+                                  <Maximize2 size={12} />
+                                  <span>Inspect</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Variant Specs */}
+                          {eq.specs && eq.specs.length > 0 && (
+                            <div className="pdp-pallet-type2-specs-wrap">
+                              <div className="pdp-type2-specs-title">
+                                <Settings size={14} />
+                                <span>{eq.specsTitle || 'Technical Specifications'}</span>
+                              </div>
+                              <div className="pdp-pallet-specs-3col">
+                                {eq.specs.map((s, sIdx) => (
+                                  <div key={sIdx} className="pdp-spec-tile">
+                                    <div className="pdp-tile-icon-badge">
+                                      {renderSpecIcon(s.label)}
+                                    </div>
+                                    <span className="pdp-tile-label">{s.label}</span>
+                                    <span className="pdp-tile-val" style={{ whiteSpace: 'pre-line' }}>{s.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="pdp-card-footer">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenQuote(eq.name)}
+                              className="pdp-card-btn-quote"
+                            >
+                              <span>{eq.quoteLabel || `Get ${eq.name} Quote`}</span>
+                              <ArrowRight size={14} />
+                            </button>
+                            <a
+                              href={`https://wa.me/919342919060?text=${encodeURIComponent(eq.whatsAppMessage || `Hello Jupiter, I am interested in the ${eq.name} specifications and pricing.`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="pdp-card-btn-wa"
+                            >
+                              <WhatsAppIcon size={16} />
+                              <span>Enquire on WhatsApp</span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (eq.layoutType === 'triple_variant' && eq.variants && eq.variants.length > 0) {
+                      return (
+                        <div key={eq.id} className="pdp-equipment-card">
+                          <div className="pdp-card-accent-bar"></div>
+                          <div className="pdp-card-header">
+                            <div className="pdp-card-header-left">
+                              <span className="pdp-card-cat-badge">
+                                {renderCategoryIcon(eq.categoryBadge)}
+                                <span>{eq.categoryBadge}</span>
+                              </span>
+                              <h4 className="pdp-card-title">{eq.name}</h4>
+                            </div>
+                            <div className="pdp-card-compat-badge">
+                              <span className="pdp-card-compat-dot"></span>
+                              <span>{eq.compatibilityBadge}</span>
+                            </div>
+                          </div>
+
+                          {/* Triple Configurations Grid */}
+                          <div className="pdp-triple-grid">
+                            {eq.variants.slice(0, 3).map((v) => (
                               <div
                                 key={v.id}
                                 className="pdp-pallet-subcard"
@@ -1691,6 +2367,98 @@ export const MachineCategoryPage: React.FC = () => {
                             </div>
                           </div>
                         </div>
+
+                        {/* If Reversible Concrete Mixer, display 3-Model Comparison Table Expander */}
+                        {eq.id === 'ancillary-reversible-concrete-mixer' && (
+                          <div style={{ padding: '0 16px 14px 16px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedMixerTable(!expandedMixerTable)}
+                              className="pdp-compare-models-btn"
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                padding: '8px 12px',
+                                background: expandedMixerTable ? '#00233D' : '#F8FAFC',
+                                color: expandedMixerTable ? '#FFFFFF' : '#00233D',
+                                border: '1px solid #CBD5E1',
+                                borderRadius: '8px',
+                                fontSize: '0.76rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                              }}
+                            >
+                              <FileText size={13} style={{ color: '#FF9200' }} />
+                              <span>{expandedMixerTable ? 'Hide RM 800 / RM 1050 / RM 1500 Comparison' : 'View RM 800 / RM 1050 / RM 1500 Technical Comparison'}</span>
+                            </button>
+
+                            {expandedMixerTable && (
+                              <div style={{ marginTop: '10px', overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem', textAlign: 'center' }}>
+                                  <thead>
+                                    <tr style={{ background: '#00233D', color: '#FFFFFF' }}>
+                                      <th style={{ padding: '7px 8px', textAlign: 'left' }}>Specification</th>
+                                      <th style={{ padding: '7px 8px' }}>RM 800</th>
+                                      <th style={{ padding: '7px 8px' }}>RM 1050</th>
+                                      <th style={{ padding: '7px 8px' }}>RM 1500</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>Mixing Volume</td>
+                                      <td style={{ padding: '6px 8px' }}>0.3 Cu. Mtr</td>
+                                      <td style={{ padding: '6px 8px' }}>0.4 Cu. Mtr</td>
+                                      <td style={{ padding: '6px 8px' }}>0.6 Cu. Mtr</td>
+                                    </tr>
+                                    <tr style={{ background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>Output Volume*</td>
+                                      <td style={{ padding: '6px 8px' }}>6.3 cub mtr</td>
+                                      <td style={{ padding: '6px 8px' }}>9.72 cub mtr</td>
+                                      <td style={{ padding: '6px 8px' }}>12.18 cub mtr</td>
+                                    </tr>
+                                    <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>Power Required</td>
+                                      <td style={{ padding: '6px 8px' }}>10 HP</td>
+                                      <td style={{ padding: '6px 8px' }}>12 HP</td>
+                                      <td style={{ padding: '6px 8px' }}>17 HP</td>
+                                    </tr>
+                                    <tr style={{ background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>Drive System</td>
+                                      <td style={{ padding: '6px 8px' }}>Gear Box</td>
+                                      <td style={{ padding: '6px 8px' }}>Gear Box</td>
+                                      <td style={{ padding: '6px 8px' }}>Gear Box</td>
+                                    </tr>
+                                    <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>Operating System</td>
+                                      <td style={{ padding: '6px 8px' }}>Hydraulically</td>
+                                      <td style={{ padding: '6px 8px' }}>Hydraulically</td>
+                                      <td style={{ padding: '6px 8px' }}>Hydraulically</td>
+                                    </tr>
+                                    <tr style={{ background: '#FFFFFF', borderBottom: '1px solid #E2E8F0' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>Dimension</td>
+                                      <td style={{ padding: '6px 8px' }}>1300 mm</td>
+                                      <td style={{ padding: '6px 8px' }}>1300 mm</td>
+                                      <td style={{ padding: '6px 8px' }}>1300 mm</td>
+                                    </tr>
+                                    <tr style={{ background: '#F8FAFC' }}>
+                                      <td style={{ padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>Machine Weight</td>
+                                      <td style={{ padding: '6px 8px' }}>2900 kg</td>
+                                      <td style={{ padding: '6px 8px' }}>3100 kg</td>
+                                      <td style={{ padding: '6px 8px' }}>3500 kg</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                                <div style={{ padding: '5px 8px', background: '#FFFBEB', borderTop: '1px solid #FEF3C7', fontSize: '0.66rem', color: '#92400E', fontStyle: 'italic' }}>
+                                  *Note: Output volume figures represent hourly discharge capacity in cu. mtr. Drum/clearance dimension is 1300 mm.
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         <div className="pdp-card-footer">
                           <button

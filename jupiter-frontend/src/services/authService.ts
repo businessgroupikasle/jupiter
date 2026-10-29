@@ -6,8 +6,9 @@ export type SystemRole = 'Super Admin' | 'Admin' | 'Editor' | string;
 export interface AdminUser {
   id: string;
   name: string;
+  username?: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   role: SystemRole;
   createdAt: string;
   avatar?: string;
@@ -69,8 +70,9 @@ const DEFAULT_USERS: AdminUser[] = [
   {
     id: 'usr-1',
     name: 'Jupiter Admin',
+    username: 'Jupiterindustries',
     email: 'admin@jupiter.com',
-    passwordHash: 'admin123',
+    passwordHash: '',
     role: 'Super Admin',
     createdAt: new Date().toISOString(),
   },
@@ -128,10 +130,10 @@ export const setCurrentUser = (user: AdminUser | null): void => {
 };
 
 export const loginAdmin = async (
-  email: string,
+  identifier: string,
   password: string
 ): Promise<{ success: boolean; user?: AdminUser; error?: string }> => {
-  const cleanEmail = email.trim().toLowerCase();
+  const cleanIdentifier = identifier.trim();
 
   try {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -141,7 +143,12 @@ export const loginAdmin = async (
         'Accept': 'application/json',
       },
       credentials: 'include',
-      body: JSON.stringify({ email: cleanEmail, password }),
+      body: JSON.stringify({
+        username: cleanIdentifier,
+        email: cleanIdentifier,
+        identifier: cleanIdentifier,
+        password,
+      }),
     });
 
     const data = await res.json().catch(() => null);
@@ -154,6 +161,7 @@ export const loginAdmin = async (
       const adminUser: AdminUser = {
         id: data.user.id,
         name: data.user.name,
+        username: data.user.username || undefined,
         email: data.user.email,
         passwordHash: '',
         role: data.user.role || 'Super Admin',
@@ -169,7 +177,7 @@ export const loginAdmin = async (
     if (res.status === 401) {
       return {
         success: false,
-        error: data?.message || 'Invalid email or password. Please verify your credentials.',
+        error: data?.message || 'Invalid username or password. Please verify your credentials.',
       };
     }
 
@@ -183,29 +191,11 @@ export const loginAdmin = async (
     if (res.status === 400) {
       return {
         success: false,
-        error: data?.message || 'Please provide both email and password.',
+        error: data?.message || 'Please provide both username and password.',
       };
     }
 
     if (res.status >= 500) {
-      const storedUsers = getStoredUsers();
-      const localMatch = storedUsers.find((u) => u.email.toLowerCase() === cleanEmail);
-      if (
-        (cleanEmail === 'admin@jupiter.com' && (password === 'admin123' || !localMatch)) ||
-        (localMatch && (!localMatch.passwordHash || localMatch.passwordHash === password || localMatch.passwordHash === 'admin123'))
-      ) {
-        const fallbackAdminUser: AdminUser = localMatch || {
-          id: 'usr-1',
-          name: 'Jupiter Admin',
-          email: 'admin@jupiter.com',
-          role: 'Super Admin',
-          passwordHash: '',
-          createdAt: new Date().toISOString(),
-        };
-        setCurrentUser(fallbackAdminUser);
-        return { success: true, user: fallbackAdminUser };
-      }
-
       return {
         success: false,
         error: data?.message || `Server error (${res.status}). The server encountered an issue, please try again shortly.`,
@@ -225,24 +215,6 @@ export const loginAdmin = async (
     };
   } catch (err: any) {
     console.error('Backend login network error:', err);
-
-    const storedUsers = getStoredUsers();
-    const localMatch = storedUsers.find((u) => u.email.toLowerCase() === cleanEmail);
-    if (
-      (cleanEmail === 'admin@jupiter.com' && (password === 'admin123' || !localMatch)) ||
-      (localMatch && (!localMatch.passwordHash || localMatch.passwordHash === password || localMatch.passwordHash === 'admin123'))
-    ) {
-      const fallbackAdminUser: AdminUser = localMatch || {
-        id: 'usr-1',
-        name: 'Jupiter Admin',
-        email: 'admin@jupiter.com',
-        role: 'Super Admin',
-        passwordHash: '',
-        createdAt: new Date().toISOString(),
-      };
-      setCurrentUser(fallbackAdminUser);
-      return { success: true, user: fallbackAdminUser };
-    }
 
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
     if (isOffline) {
@@ -304,8 +276,9 @@ export const updateCurrentAdminProfile = (updates: Partial<AdminUser>): AdminUse
     current = users[0] || {
       id: 'usr-default',
       name: 'Jupiter Admin',
+      username: 'Jupiterindustries',
       email: 'admin@jupiter.com',
-      passwordHash: 'admin123',
+      passwordHash: '',
       role: 'Super Admin',
       avatar: '/favicon.png',
       createdAt: new Date().toISOString()

@@ -167,14 +167,30 @@ const AppContent: React.FC = () => {
         <Route path="/machines/:categorySlug" element={<Navigate to="/products/:categorySlug" replace />} />
         <Route path="/fly-ash-brick-machine" element={<Navigate to="/products/fly-ash-brick-machine" replace />} />
         <Route path="/fly-ash-making-machine" element={<Navigate to="/products/fly-ash-brick-machine" replace />} />
+        <Route path="/30-ton-rotary-fly-ash-brick-making-machine" element={<Navigate to="/products/fly-ash-brick-machine?model=30-ton-rotary-fly-ash-brick-making-machine" replace />} />
+        <Route path="/30-40-ton-rotary-fly-ash-brick-making-machine" element={<Navigate to="/products/fly-ash-brick-machine?model=30-ton-rotary-fly-ash-brick-making-machine" replace />} />
         <Route path="/hollow-and-solid-block-machine" element={<Navigate to="/products/hollow-and-solid-block-machine" replace />} />
         <Route path="/hollow-and-solid-block-making-machine" element={<Navigate to="/products/hollow-and-solid-block-machine" replace />} />
+        <Route path="/jupiter-hdm-800-hollow-solid-block-making-machine" element={<Navigate to="/products/hollow-and-solid-block-machine?model=jupiter-hdm-800-hollow-solid-block-making-machine" replace />} />
+        <Route path="/double-triple-vibrator-hollow-solid-block-making-machine" element={<Navigate to="/products/hollow-and-solid-block-machine?model=double-triple-vibrator-hollow-solid-block-making-machine" replace />} />
         <Route path="/inter-block-making-machine" element={<Navigate to="/products/inter-block-making-machine" replace />} />
         <Route path="/inter-locking-brick-making-machine" element={<Navigate to="/products/inter-block-making-machine" replace />} />
+        <Route path="/interlocking-block-making-machine" element={<Navigate to="/products/inter-block-making-machine" replace />} />
+        <Route path="/interlocking-block-machine" element={<Navigate to="/products/inter-block-making-machine" replace />} />
+        <Route path="/manual-interlock-block-making-machine" element={<Navigate to="/products/inter-block-making-machine?model=manual-interlock-block-making-machine" replace />} />
+        <Route path="/automatic-interlock-block-making-machine" element={<Navigate to="/products/inter-block-making-machine?model=automatic-interlock-block-making-machine" replace />} />
         <Route path="/paver-block-machine" element={<Navigate to="/products/paver-block-machine" replace />} />
+        <Route path="/paver-block-making-machine" element={<Navigate to="/products/paver-block-machine" replace />} />
+        <Route path="/je-pbt2-paver-block-making-machine" element={<Navigate to="/products/paver-block-machine?model=je-pbt2-paver-block-making-machine" replace />} />
         <Route path="/batching-plant" element={<Navigate to="/products/batching-plant" replace />} />
         <Route path="/patching-plant" element={<Navigate to="/products/batching-plant" replace />} />
+        <Route path="/3-4-bin-batching-plant" element={<Navigate to="/products/batching-plant?model=3-4-bin-batching-plant" replace />} />
+        <Route path="/cement-concrete-mixer-350-500-kg" element={<Navigate to="/products/batching-plant?model=cement-concrete-mixer-350-500-kg" replace />} />
+        <Route path="/concrete-mixer-machine" element={<Navigate to="/products/batching-plant?model=cement-concrete-mixer-350-500-kg" replace />} />
         <Route path="/storage-silo" element={<Navigate to="/products/storage-silo" replace />} />
+        <Route path="/fly-ash-cement-silo-60-100-ton" element={<Navigate to="/products/storage-silo?model=fly-ash-cement-silo-60-100-ton" replace />} />
+        <Route path="/hammer-crusher" element={<Navigate to="/products/hammer-crusher" replace />} />
+        <Route path="/ji-hammer-crusher-machine" element={<Navigate to="/products/hammer-crusher?model=ji-hammer-crusher-machine" replace />} />
         <Route path="/machine-spares" element={<Navigate to="/products/machine-spares" replace />} />
         <Route path="/spares" element={<Navigate to="/products/machine-spares" replace />} />
 

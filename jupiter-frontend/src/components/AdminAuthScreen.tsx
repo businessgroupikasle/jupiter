@@ -11,7 +11,7 @@ interface AdminAuthScreenProps {
 
 export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess, initialError }) => {
   // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
@@ -39,21 +39,15 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
     setErrorMsg('');
     setSuccessMsg('');
 
-    const cleanEmail = loginEmail.trim();
-    if (!cleanEmail || !loginPassword) {
-      setErrorMsg('Please enter both email and password.');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      setErrorMsg('Please enter a valid email address.');
+    const cleanIdentifier = loginIdentifier.trim();
+    if (!cleanIdentifier || !loginPassword) {
+      setErrorMsg('Please enter both username and password.');
       return;
     }
 
     setIsLoading(true);
     try {
-      const res = await loginAdmin(cleanEmail, loginPassword);
+      const res = await loginAdmin(cleanIdentifier, loginPassword);
       setIsLoading(false);
 
       if (res.success && res.user) {
@@ -276,7 +270,7 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
 
         {/* Login Form */}
         <form onSubmit={handleLoginSubmit}>
-          {/* Admin Email */}
+          {/* Admin Username */}
           <div style={{ marginBottom: '18px' }}>
             <label style={{
               display: 'block',
@@ -285,13 +279,14 @@ export const AdminAuthScreen: React.FC<AdminAuthScreenProps> = ({ onLoginSuccess
               fontWeight: 600,
               marginBottom: '7px'
             }}>
-              Admin Email
+              Admin Username
             </label>
             <input
-              type="email"
-              placeholder="admin@jupiter.com"
-              value={loginEmail}
-              onChange={(e) => setLoginEmail(e.target.value)}
+              type="text"
+              placeholder="Jupiterindustries"
+              value={loginIdentifier}
+              onChange={(e) => setLoginIdentifier(e.target.value)}
+              autoComplete="username"
               required
               style={{
                 width: '100%',

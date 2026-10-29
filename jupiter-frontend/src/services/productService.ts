@@ -32,6 +32,12 @@ export interface SubMachineItem {
   advantages?: Array<{ title: string; description: string }>;
   order?: number;
   status?: 'Active' | 'Draft' | 'Inactive';
+  metaTitle?: string;
+  metaDescription?: string;
+  seoMetaTitle?: string;
+  seoMetaDescription?: string;
+  focusKeyword?: string;
+  secondaryKeywords?: string;
 }
 
 export interface MachineCategoryData {
@@ -67,10 +73,17 @@ export interface ProductItem {
   featureBadges?: string[];
   keyFeatures?: string[];
   specs?: Record<string, any>;
+  specifications?: Record<string, any>;
   specTableColumns?: string[];
   specTableRows?: Array<Record<string, any>>;
   highlights?: Array<{ title: string; description: string }>;
   advantages?: Array<{ title: string; description: string }>;
+  metaTitle?: string;
+  metaDescription?: string;
+  seoMetaTitle?: string;
+  seoMetaDescription?: string;
+  focusKeyword?: string;
+  secondaryKeywords?: string;
 }
 
 export const CATEGORY_NAME_TO_SLUG_MAP: Record<string, string> = {
@@ -80,14 +93,22 @@ export const CATEGORY_NAME_TO_SLUG_MAP: Record<string, string> = {
   'Block Machines': 'hollow-and-solid-block-machine',
   'Hollow and Solid Block Machine': 'hollow-and-solid-block-machine',
   'Hollow and Solid Block Making Machine': 'hollow-and-solid-block-machine',
+  'Hollow & Solid Block Machine': 'hollow-and-solid-block-machine',
+  'Hollow & Solid Block Making Machine': 'hollow-and-solid-block-machine',
   'Interlock Machine': 'inter-block-making-machine',
   'Inter Block Making Machine': 'inter-block-making-machine',
   'Interlocking Brick Making Machine': 'inter-block-making-machine',
+  'Interlocking Block Making Machine': 'inter-block-making-machine',
+  'Interlocking Block Machine': 'inter-block-making-machine',
   'Paver Block Machine': 'paver-block-machine',
+  'Paver Block Making Machine': 'paver-block-machine',
   'Paver Machines': 'paver-block-machine',
   'Batching Plant': 'batching-plant',
   'Batching & Mixing': 'batching-plant',
   'Storage Silo': 'storage-silo',
+  'Hammer Crusher': 'hammer-crusher',
+  'Hammer Crusher / Material Processing Equipment': 'hammer-crusher',
+  'Material Processing Equipment': 'hammer-crusher',
   'Material Handling': 'material-handling',
   'Machine Spares': 'machine-spares',
   'All Genuine Machine Spares': 'machine-spares',
@@ -104,9 +125,19 @@ export const SLUG_TO_CATEGORY_NAME_MAP: Record<string, string> = {
   'paver-block-machine': 'Paver Block Machine',
   'batching-plant': 'Batching Plant',
   'patching-plant': 'Batching Plant',
+  '3-4-bin-batching-plant': 'Batching Plant',
   'ji-batching-plant': 'Batching Plant',
   'ji-patching-plant-fly-ash-brick-material-batching-plant': 'Batching Plant',
+  'Concrete Mixer Machine': 'Concrete Mixer Machine',
+  'concrete-mixer-machine': 'Concrete Mixer Machine',
+  'cement-concrete-mixer-350-500-kg': 'Concrete Mixer Machine',
   'storage-silo': 'Storage Silo',
+  'fly-ash-cement-silo-60-100-ton': 'Storage Silo',
+  'fly ash brick plant equipment': 'Storage Silo',
+  'cement-silo': 'Storage Silo',
+  'fly-ash-silo': 'Storage Silo',
+  'hammer-crusher': 'Hammer Crusher / Material Processing Equipment',
+  'ji-hammer-crusher-machine': 'Hammer Crusher / Material Processing Equipment',
   'machine-spares': 'Machine Spares',
   'spares': 'Machine Spares',
 };
@@ -168,19 +199,10 @@ export const sanitizeCatalog = (list: ProductItem[]): ProductItem[] => {
     cleaned.push(p);
   }
 
-  const hasV15B = cleaned.some(
-    p => p.id === 'cmus8mqtn000bkwtfhsvexaxi' ||
-         (p.name && p.name.toLowerCase().includes('v 15 b')) ||
-         (p.slug && p.slug.includes('v-15-b'))
-  );
-  if (!hasV15B) {
-    cleaned.unshift(DEFAULT_PRODUCT_V15B);
-  }
-
   return cleaned;
 };
 
-let _cachedProducts: ProductItem[] = sanitizeCatalog(DEFAULT_CATALOG_PRODUCTS);
+let _cachedProducts: ProductItem[] = [];
 
 
 // Map a backend API product to frontend ProductItem
@@ -210,6 +232,7 @@ const mapBackendProduct = (p: any): ProductItem => {
      catLower.includes('inter') ? 'inter-block-making-machine' :
      catLower.includes('batch') || catLower.includes('mix') ? 'batching-plant' :
      catLower.includes('silo') ? 'storage-silo' :
+     catLower.includes('crush') || catLower.includes('hammer') ? 'hammer-crusher' :
      catLower.includes('spare') ? 'machine-spares' :
      (resolvedCategory ? resolvedCategory.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''));
 
@@ -276,7 +299,7 @@ export const fetchProducts = async (category?: string, search?: string, isAdmin:
     const data = response.data?.data || response.data || [];
     const products = Array.isArray(data) ? data.map(mapBackendProduct) : [];
 
-    _cachedProducts = sanitizeCatalog(products.length > 0 ? products : DEFAULT_CATALOG_PRODUCTS);
+    _cachedProducts = sanitizeCatalog(products);
     window.dispatchEvent(new Event('jupiter_products_updated'));
     return _cachedProducts;
   } catch {
@@ -293,7 +316,7 @@ export const fetchProductById = async (idOrSlug: string): Promise<ProductItem | 
   } catch {
     // Backend unavailable — fall through to cache
   }
-  return _cachedProducts.find(p => p.id === idOrSlug || p.categorySlug === idOrSlug) || null;
+  return _cachedProducts.find(p => p.id === idOrSlug || p.slug === idOrSlug) || null;
 };
 
 export type ProductInput = (Partial<ProductItem> & { imageFile?: File | Blob | null; [key: string]: any }) | FormData;
@@ -340,6 +363,14 @@ export const addProduct = async (product: ProductInput): Promise<ProductItem> =>
     formData.append('brickSizeLabel', product.brickSizeLabel || 'Brick / Mold Size');
     formData.append('status', product.status || 'Active');
     formData.append('order', String(product.order !== undefined ? product.order : _cachedProducts.length + 1));
+    if (product.brandTag !== undefined) formData.append('brandTag', product.brandTag);
+    if (product.galleryImages !== undefined) formData.append('galleryImages', JSON.stringify(product.galleryImages));
+    if (product.featureBadges !== undefined) formData.append('featureBadges', JSON.stringify(product.featureBadges));
+    if (product.highlights !== undefined) formData.append('highlights', JSON.stringify(product.highlights));
+    if (product.advantages !== undefined) formData.append('advantages', JSON.stringify(product.advantages));
+    if (product.keyFeatures !== undefined) formData.append('keyFeatures', JSON.stringify(product.keyFeatures));
+    if (product.specTableColumns !== undefined) formData.append('specTableColumns', JSON.stringify(product.specTableColumns));
+    if (product.specTableRows !== undefined) formData.append('specTableRows', JSON.stringify(product.specTableRows));
     formData.append('specifications', JSON.stringify(specsPayload));
 
     // Send image in FormData using field name `image`
@@ -426,6 +457,14 @@ export const updateProduct = async (id: string, updates: ProductInput): Promise<
     if (updates.brickSizeLabel !== undefined) formData.append('brickSizeLabel', updates.brickSizeLabel);
     if (updates.status !== undefined) formData.append('status', updates.status);
     if (updates.order !== undefined) formData.append('order', String(updates.order));
+    if (updates.brandTag !== undefined) formData.append('brandTag', updates.brandTag);
+    if (updates.galleryImages !== undefined) formData.append('galleryImages', JSON.stringify(updates.galleryImages));
+    if (updates.featureBadges !== undefined) formData.append('featureBadges', JSON.stringify(updates.featureBadges));
+    if (updates.highlights !== undefined) formData.append('highlights', JSON.stringify(updates.highlights));
+    if (updates.advantages !== undefined) formData.append('advantages', JSON.stringify(updates.advantages));
+    if (updates.keyFeatures !== undefined) formData.append('keyFeatures', JSON.stringify(updates.keyFeatures));
+    if (updates.specTableColumns !== undefined) formData.append('specTableColumns', JSON.stringify(updates.specTableColumns));
+    if (updates.specTableRows !== undefined) formData.append('specTableRows', JSON.stringify(updates.specTableRows));
     formData.append('specifications', JSON.stringify(specsPayload));
 
     // Send image in FormData using field name `image`
@@ -812,28 +851,42 @@ const BASE_CATEGORY_METAS: Record<string, { name: string; subTitle: string; intr
     subTitle: 'Inter Locking Brick Making Machine',
     introDescription: 'Produce heavy-duty mortarless interlocking bricks and soil-cement stabilized blocks with our hydraulic Interlocking Brick Making Machines. Designed for fast construction cycles, thermal efficiency, and high structural load capacities.',
     heroImage: '',
-    aliases: ['inter-locking-brick-making-machine', 'interlock-brick-machine', 'interlock-machine']
+    aliases: ['inter-locking-brick-making-machine', 'interlock-brick-machine', 'interlock-machine', 'interlocking-block-making-machine', 'interlocking-block-machine']
   },
   'paver-block-machine': {
     name: 'Paver Block Machine',
     subTitle: 'Hydraulic Paver Block Making Machine',
     introDescription: 'Engineered for commercial pavers, zig-zag interlocks, decorative reflective tiles, and heavy-duty industrial pavement units. Features dual-color layer feeding and multi-tonnage hydraulic pressing for exceptional finish and durability.',
     heroImage: '',
-    aliases: ['paver-machine', 'hydraulic-paver-block-machine']
+    aliases: ['paver-machine', 'hydraulic-paver-block-machine', 'paver-block-making-machine']
   },
   'batching-plant': {
     name: 'Batching Plant',
     subTitle: 'Automatic Concrete Batching Plant',
     introDescription: 'High-precision concrete batching and mixing plants for concrete products, precast components, and ready-mix production. Features multi-bin aggregate hoppers, electronic digital loadcell weighing, and planetary pan mixers for homogenous mixes.',
     heroImage: '',
-    aliases: ['patching-plant', 'concrete-batching-plant', 'ji-batching-plant', 'ji-patching-plant-fly-ash-brick-material-batching-plant']
+    aliases: ['patching-plant', 'concrete-batching-plant', 'ji-batching-plant', 'ji-patching-plant-fly-ash-brick-material-batching-plant', '3-4-bin-batching-plant', 'cement-concrete-mixer-350-500-kg', 'concrete-mixer-machine']
+  },
+  'concrete-mixer-machine': {
+    name: 'Concrete Mixer Machine',
+    subTitle: 'Industrial Cement Concrete Mixers (350 kg & 500 kg)',
+    introDescription: 'Industrial concrete mixing machines designed for preparing raw material mixtures used in fly ash brick manufacturing, concrete block production, and construction material processing.',
+    heroImage: '/images/catalogue/pan-mixer.png',
+    aliases: ['cement-concrete-mixer-350-500-kg', 'concrete-mixer-machine', 'mixer-machine', 'pan-mixer']
   },
   'storage-silo': {
     name: 'Storage Silo',
     subTitle: 'Cement & Fly Ash Storage Silos (60 Tons | 100 Tons)',
     introDescription: 'Heavy-duty steel storage silos for bulk cement, fly ash, and mineral powders. Available in capacities of 60 Tons and 100 Tons with pneumatic air compressor fluidization and hydraulic copper lifting.',
     heroImage: '/images/storage-silo-product.png',
-    aliases: ['cement-silo', 'fly-ash-silo', 'storage-silo']
+    aliases: ['cement-silo', 'fly-ash-silo', 'storage-silo', 'fly-ash-cement-silo-60-100-ton', 'fly-ash-brick-plant-equipment']
+  },
+  'hammer-crusher': {
+    name: 'Hammer Crusher',
+    subTitle: 'Industrial Material Crushing Machine (6 Ton | 2 TPH)',
+    introDescription: 'Industrial material crushing machine designed for processing materials into fine grains (3–5 mm) for construction material manufacturing applications such as fly ash brick and mud brick production.',
+    heroImage: '/uploads/products/jupiter-ji-hammer-crusher.png',
+    aliases: ['ji-hammer-crusher-machine', 'hammer-crusher-machine', 'material-processing-equipment', 'hammer-crusher']
   },
   'machine-spares': {
     name: 'Machine Spares',
@@ -884,8 +937,10 @@ export const getDynamicCategories = (): MachineCategoryData[] => {
       if (slug === 'hollow-and-solid-block-machine') return pCat.includes('hollow') || pCat.includes('solid');
       if (slug === 'inter-block-making-machine') return pCat.includes('interlock') || pCat.includes('inter block') || pCat.includes('inter-lock') || pCat.includes('inter block making');
       if (slug === 'paver-block-machine') return pCat.includes('paver');
-      if (slug === 'batching-plant') return pCat.includes('batching') || pCat.includes('patching');
+      if (slug === 'batching-plant') return pCat.includes('batching') || pCat.includes('patching') || pCat.includes('mixer');
+      if (slug === 'concrete-mixer-machine') return pCat.includes('mixer');
       if (slug === 'storage-silo') return pCat.includes('silo');
+      if (slug === 'hammer-crusher') return pCat.includes('crush') || pCat.includes('hammer');
       if (slug === 'machine-spares') return pCat.includes('spares');
 
       return p.category === catName || pCat === catName || pCat.includes(metaName);
@@ -918,23 +973,13 @@ export const getDynamicCategories = (): MachineCategoryData[] => {
         powerLabel: p.powerLabel,
         brickSize: p.brickSize,
         brickSizeLabel: p.brickSizeLabel,
-        featureBadges: p.featureBadges || ['Durable Construction', 'Consistent Dimensions', 'Lower Water Absorption', 'Cost-Effective Solution'],
+        featureBadges: p.featureBadges || [],
         specs: specItems,
-        keyFeatures: p.keyFeatures || ['Industrial Grade Heavy-Duty Construction', 'High Efficiency Low Power Consumption', 'Precision Engineered Output'],
+        keyFeatures: p.keyFeatures || [],
         specTableColumns: p.specTableColumns,
         specTableRows: p.specTableRows,
-        highlights: p.highlights && p.highlights.length > 0 ? p.highlights : [
-          { title: 'High Compaction Density', description: 'Delivers sharp block corners, zero internal air voids, and high early compressive strength.' },
-          { title: 'Siemens / Delta PLC Automation', description: 'Fully automated cycle management with simple one-touch touchscreen control and safety interlocks.' },
-          { title: 'CNC Hardened Alloy Steel Moulds', description: 'Wear-resistant dies machined to exact tolerances ensuring hundreds of thousands of cycles.' },
-          { title: 'Heavy-Duty Fabricated Chassis', description: 'Stress-relieved solid steel frame engineered to dampen vibration and withstand continuous 24/7 duty.' },
-        ],
-        advantages: p.advantages && p.advantages.length > 0 ? p.advantages : [
-          { title: 'Reduced Cement Consumption', description: 'Optimum particle packing and vibration density reduces cement ratio by up to 25-30% while retaining strength.' },
-          { title: 'Zero Plant Downtime', description: 'Backed by Coimbatore OEM spare parts stock and emergency 24-hour service dispatch across India.' },
-          { title: 'Uniform Dimensions & Smooth Finish', description: 'Eliminates thick plastering mortar requirements, cutting masonry installation labor costs.' },
-          { title: 'Faster Return on Investment', description: 'High production speed with minimal labor dependency ensures early project break-even and profitability.' },
-        ],
+        highlights: p.highlights && p.highlights.length > 0 ? p.highlights : [],
+        advantages: p.advantages && p.advantages.length > 0 ? p.advantages : [],
         order: p.order,
         status: p.status,
       };
